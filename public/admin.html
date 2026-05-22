@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Menü — Yönetim</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { font-family: 'DM Sans', sans-serif; }
+
+    /* ── DARK THEME (varsayılan) ── */
+    :root {
+      --accent:          #f59e0b;
+      --bg-base:         #0a0a0a;
+      --bg-nav:          #111111;
+      --bg-sidebar:      #111111;
+      --bg-card:         #1a1a1a;
+      --bg-subtle:       #0d0d0d;
+      --bg-input:        #1a1a1a;
+      --bg-hover:        #1a1a1a;
+      --border:          #2a2a2a;
+      --border-sub:      #111111;
+      --text-1:          #f5f5f5;
+      --text-2:          #a0a0a0;
+      --text-3:          #525252;
+      --text-ph:         #404040;
+      --toggle-off:      #2a2a2a;
+      --row-hover:       #0d0d0d;
+      --shadow:          rgba(0,0,0,0.5);
+      --modal-bg:        rgba(0,0,0,0.75);
+    }
+    /* ── LIGHT THEME ── */
+    body.theme-light {
+      --bg-base:         #f8fafc;
+      --bg-nav:          #ffffff;
+      --bg-sidebar:      #f1f5f9;
+      --bg-card:         #ffffff;
+      --bg-subtle:       #f1f5f9;
+      --bg-input:        #ffffff;
+      --bg-hover:        #f1f5f9;
+      --border:          #e2e8f0;
+      --border-sub:      #f1f5f9;
+      --text-1:          #111827;
+      --text-2:          #6b7280;
+      --text-3:          #9ca3af;
+      --text-ph:         #c4c4c4;
+      --toggle-off:      #d1d5db;
+      --row-hover:       #f8fafc;
+      --shadow:          rgba(0,0,0,0.1);
+      --modal-bg:        rgba(0,0,0,0.5);
+    }
+
+    body { background: var(--bg-base); color: var(--text-1); transition: background 0.25s, color 0.2s; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+    /* cat item */
+    .cat-item { border-left: 2px solid transparent; transition: all 0.15s; }
+    .cat-item.active { border-left-color: var(--accent) !important; background: var(--bg-hover); }
+    .cat-item:hover { background: var(--bg-hover); }
+
+    /* inline table inputs */
+    .inline-input {
+      background: transparent; color: var(--text-1); outline: none; width: 100%;
+      padding: 2px 6px; border-radius: 4px; transition: background 0.15s;
+    }
+    .inline-input::placeholder { color: var(--text-ph); }
+    .inline-input:focus { background: var(--bg-card); }
+    .inline-input:hover:not(:focus) { background: var(--bg-hover); }
+    .price-input {
+      background: transparent; color: var(--text-1); outline: none; width: 72px;
+      padding: 2px 6px; border-radius: 4px; transition: background 0.15s; text-align: right;
+    }
+    .price-input:focus { background: var(--bg-card); }
+    .price-input:hover:not(:focus) { background: var(--bg-hover); }
+
+    /* accent button */
+    .btn-accent { background: var(--accent) !important; color: #111 !important; transition: filter 0.15s; }
+    .btn-accent:hover { filter: brightness(1.1); }
+
+    /* toast */
+    .toast { animation: slideIn 0.2s ease-out; }
+    @keyframes slideIn { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+
+    /* modal backdrop */
+    .modal-backdrop { background: var(--modal-bg); backdrop-filter: blur(4px); }
+
+    /* preview iframe */
+    .preview-frame { border: none; width: 100%; height: 100%; border-radius: 0 0 28px 28px; }
+
+    /* contenteditable */
+    [contenteditable=true] { outline: none; background: var(--bg-card); border-radius: 4px; padding: 1px 4px; user-select: text !important; cursor: text; }
+
+    /* settings dropdown animation */
+    .settings-dropdown { animation: fadeDown 0.15s ease-out; }
+    @keyframes fadeDown { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+
+    /* loading row */
+    tr.loading-row td { opacity: 0.4; pointer-events: none; }
+
+    /* swatch */
+    .swatch { width:18px; height:18px; border-radius:50%; cursor:pointer; border:2px solid transparent; transition:all 0.15s; }
+    .swatch.selected, .swatch:hover { border-color: var(--text-1); transform:scale(1.15); }
+    .menu-swatch { width:22px; height:22px; border-radius:6px; cursor:pointer; border:2px solid transparent; transition:all 0.15s; }
+    .menu-swatch.selected, .menu-swatch:hover { border-color: var(--text-1); transform:scale(1.1); }
+
+    /* theme toggle button */
+    .theme-toggle { cursor:pointer; padding:5px 10px; border-radius:8px; border:1px solid var(--border);
+      background: var(--bg-card); color: var(--text-2); font-size:12px; transition:all 0.15s;
+      display:flex; align-items:center; gap:5px; }
+    .theme-toggle:hover { color: var(--text-1); }
+
+    /* misc ui helpers */
+    .ui-nav    { background: var(--bg-nav);    border-color: var(--border); }
+    .ui-sidebar{ background: var(--bg-sidebar); border-color: var(--border); }
+    .ui-card   { background: var(--bg-card);   border-color: var(--border); }
+    .ui-subtle { background: var(--bg-subtle); border-color: var(--border-sub); }
+    .ui-input  {
+      background: var(--bg-input); border-color: var(--border); color: var(--text-1);
+      border-radius: 10px; padding: 6px 14px; font-size:14px; outline:none; border-width:1px; border-style:solid;
+      transition: border-color 0.15s;
+    }
+    .ui-input::placeholder { color: var(--text-ph); }
+    .ui-input:focus { border-color: var(--accent); }
+    .ui-text-1 { color: var(--text-1); }
+    .ui-text-2 { color: var(--text-2); }
+    .ui-text-3 { color: var(--text-3); }
+    .ui-border { border-color: var(--border); }
+    .ui-border-b { border-bottom: 1px solid var(--border); }
+    .ui-border-r { border-right: 1px solid var(--border); }
+    .ui-border-t { border-top: 1px solid var(--border); }
+
+    /* ── RESPONSIVE ──────────────────────────────────────────── */
+    @media (max-width: 767px) {
+      .mob-hide { display: none !important; }
+      #facilitySelect { min-width: 100px !important; max-width: 140px !important; font-size: 12px !important; }
+      #sidebarPanel { width: 100% !important; border-right: none !important; }
+      #mainPanel { width: 100% !important; }
+      #previewPanel { width: 100% !important; border-left: none !important; }
+      #previewContent { overflow-y: auto !important; align-items: flex-start !important; padding-top: 12px; }
+    }
+    @media (min-width: 768px) {
+      #mobileTabBar { display: none !important; }
+    }
+  </style>
+</head>
+<body class="h-screen overflow-hidden flex flex-col">
+
+<!-- NAVBAR -->
+<nav class="ui-nav shrink-0 h-12 flex items-center gap-3 px-4 z-30 border-b">
+  <!-- Logo -->
+  <div class="flex items-center gap-2 shrink-0 mr-2">
+    <div class="w-6 h-6 rounded-md btn-accent flex items-center justify-center">
+      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+      </svg>
+    </div>
+    <span class="text-sm font-semibold ui-text-1">QR Menü</span>
+  </div>
+
+  <!-- Facility dropdown -->
+  <div class="flex items-center gap-1.5">
+    <select id="facilitySelect" onchange="selectFacility(+this.value)"
+      style="background:var(--bg-input);border:1px solid var(--border);color:var(--text-1)"
+      class="text-sm rounded-lg px-3 py-1.5 outline-none cursor-pointer min-w-[180px] max-w-[240px] transition-colors">
+      <option value="0">— Tesis seçin —</option>
+    </select>
+    <button id="addFacilityBtn" onclick="openAddFacility()" title="Yeni Tesis"
+      class="w-7 h-7 rounded-lg btn-accent flex items-center justify-center font-bold text-base shrink-0">+</button>
+    <div class="relative shrink-0">
+      <button id="settingsBtn" onclick="toggleSettings()" title="Tesis Ayarları"
+        style="background:var(--bg-card);border:1px solid var(--border)"
+        class="w-7 h-7 rounded-lg flex items-center justify-center ui-text-2 transition-colors hover:ui-text-1">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+      </button>
+      <!-- Settings Dropdown -->
+      <div id="settingsDropdown" class="hidden settings-dropdown absolute top-9 left-0 ui-card ui-border rounded-xl shadow-2xl w-48 py-1 z-50" style="border-width:1px;border-style:solid">
+        <button onclick="openEditFacility()" class="w-full text-left px-4 py-2.5 text-sm ui-text-1 flex items-center gap-2.5" style="transition:background 0.12s" onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background=''">
+          <svg class="w-3.5 h-3.5 ui-text-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+          Tesis Düzenle
+        </button>
+        <button onclick="openQRModal()" class="w-full text-left px-4 py-2.5 text-sm ui-text-1 flex items-center gap-2.5" style="transition:background 0.12s" onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background=''">
+          <svg class="w-3.5 h-3.5 ui-text-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+          QR Kodu Gör
+        </button>
+        <div class="my-1 ui-border-b"></div>
+        <button onclick="deleteFacility()" class="w-full text-left px-4 py-2.5 text-sm text-red-400 flex items-center gap-2.5" style="transition:background 0.12s" onmouseenter="this.style.background='rgba(239,68,68,0.08)'" onmouseleave="this.style.background=''">
+          <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          Tesisi Sil
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right side -->
+  <div class="ml-auto flex items-center gap-2">
+    <!-- Accent swatches -->
+    <div class="mob-hide flex items-center gap-1.5 px-2">
+      <span class="text-[10px] ui-text-3 mr-0.5">Panel</span>
+      <div id="accentSwatches" class="flex gap-1"></div>
+    </div>
+    <!-- Light/Dark toggle -->
+    <button id="themeToggleBtn" onclick="toggleUITheme()" class="theme-toggle mob-hide" title="Açık/Koyu tema">
+      <span id="themeIcon">☀️</span>
+      <span id="themeLabel" class="text-xs">Açık</span>
+    </button>
+    <!-- Users (admin only) -->
+    <button id="usersBtn" onclick="openUsersModal()" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ui-text-2 hover:ui-text-1 transition-colors mob-hide" style="background:var(--bg-card);border:1px solid var(--border)">
+      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+      Kullanıcılar
+    </button>
+    <!-- Preview toggle -->
+    <button onclick="togglePreview()" class="mob-hide flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ui-text-2 hover:ui-text-1 transition-colors" style="background:var(--bg-card);border:1px solid var(--border)">
+      <span id="previewDot" class="w-1.5 h-1.5 rounded-full transition-colors" style="background:var(--text-3)"></span>
+      Önizleme
+    </button>
+    <button onclick="logout()" class="text-xs ui-text-3 hover:ui-text-1 transition-colors px-1">Çıkış</button>
+  </div>
+</nav>
+
+<!-- MAIN LAYOUT -->
+<div class="flex flex-1 overflow-hidden">
+
+  <!-- SIDEBAR -->
+  <aside id="sidebarPanel" class="ui-sidebar ui-border-r w-56 shrink-0 flex flex-col">
+    <div class="px-3 py-3 ui-border-b shrink-0">
+      <p class="text-[10px] font-semibold ui-text-3 uppercase tracking-widest">Kategoriler</p>
+    </div>
+    <div id="catList" class="flex-1 overflow-y-auto py-2 space-y-0.5 px-2">
+      <p class="text-xs ui-text-3 text-center py-8">Tesis seçin</p>
+    </div>
+    <div class="shrink-0 ui-border-t p-2">
+      <div id="catAddArea" class="hidden space-y-1.5">
+        <input id="catAddInput" placeholder="Kategori adı..." onkeydown="catAddKeydown(event)"
+          class="w-full text-xs rounded-lg px-2.5 py-2 ui-input" style="border-radius:8px">
+        <div class="flex gap-1">
+          <button onclick="confirmAddCat()" class="flex-1 btn-accent text-xs font-semibold py-1.5 rounded-lg">Ekle</button>
+          <button onclick="cancelAddCat()" class="flex-1 text-xs py-1.5 rounded-lg ui-text-2 hover:ui-text-1 transition-colors" style="background:var(--bg-card)">İptal</button>
+        </div>
+      </div>
+      <button id="catAddBtn" onclick="showCatAdd()"
+        class="w-full flex items-center gap-2 px-2.5 py-2 text-xs ui-text-3 hover:ui-text-1 rounded-lg transition-colors" style="transition:background 0.12s" onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background=''">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+        Yeni Kategori
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main id="mainPanel" class="flex-1 flex flex-col overflow-hidden" style="background:var(--bg-base)">
+    <!-- Empty state -->
+    <div id="emptyState" class="flex-1 flex flex-col items-center justify-center gap-3 text-center px-8">
+      <div class="w-12 h-12 rounded-2xl ui-card flex items-center justify-center">
+        <svg class="w-5 h-5 ui-text-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+      </div>
+      <p class="text-sm ui-text-3">Bir tesis seçin veya oluşturun</p>
+    </div>
+    <!-- Product area -->
+    <div id="productArea" class="hidden flex-1 flex flex-col overflow-hidden">
+      <!-- Quick-add -->
+      <div class="shrink-0 ui-border-b ui-subtle px-4 py-2.5 flex items-center gap-2">
+        <input id="qaName" placeholder="Ürün adı..." onkeydown="qaKeydown(event)" class="flex-1 ui-input">
+        <div class="flex items-center gap-1 rounded-lg px-2" style="background:var(--bg-input);border:1px solid var(--border)">
+          <span class="ui-text-3 text-xs font-medium">₺</span>
+          <input id="qaPrice" type="number" placeholder="0" min="0" step="0.01" onkeydown="qaKeydown(event)"
+            style="background:transparent;outline:none;color:var(--text-1);width:72px;padding:6px 0;font-size:14px" placeholder="0">
+        </div>
+        <button onclick="quickAdd()" class="px-3.5 py-1.5 btn-accent text-xs font-bold rounded-lg shrink-0">+ Ekle</button>
+      </div>
+      <!-- Category title -->
+      <div class="shrink-0 px-4 py-2.5 ui-border-b flex items-center gap-2">
+        <span class="w-1 h-4 rounded-full shrink-0" style="background:var(--accent)"></span>
+        <h2 id="catTitle" class="text-sm font-semibold ui-text-1"></h2>
+        <span id="catCount" class="text-xs ui-text-3"></span>
+      </div>
+      <!-- Table -->
+      <div class="flex-1 overflow-y-auto overflow-x-auto">
+        <table class="w-full text-sm border-collapse" style="min-width:500px">
+          <thead class="sticky top-0 z-10">
+            <tr class="ui-subtle ui-border-b">
+              <th class="w-14 py-2 pl-4 text-left text-[10px] font-semibold ui-text-3 uppercase tracking-wider">Görsel</th>
+              <th class="py-2 pl-2 text-left text-[10px] font-semibold ui-text-3 uppercase tracking-wider" style="min-width:140px">Ad</th>
+              <th class="py-2 pl-2 text-left text-[10px] font-semibold ui-text-3 uppercase tracking-wider">Açıklama</th>
+              <th class="py-2 pl-2 text-left text-[10px] font-semibold ui-text-3 uppercase tracking-wider w-28">Fiyat</th>
+              <th class="py-2 text-center text-[10px] font-semibold ui-text-3 uppercase tracking-wider w-16">Durum</th>
+              <th class="py-2 w-12"></th>
+              <th class="py-2 w-10"></th>
+            </tr>
+          </thead>
+          <tbody id="productTbody"></tbody>
+        </table>
+        <div id="noProducts" class="hidden py-16 text-center text-sm ui-text-3">
+          Henüz ürün yok. Yukarıdan hızlıca ekleyebilirsiniz.
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- PREVIEW PANEL -->
+  <aside id="previewPanel" class="hidden ui-sidebar ui-border-l w-96 shrink-0 flex-col">
+    <div class="shrink-0 px-4 py-3 ui-border-b flex items-center justify-between">
+      <p class="text-[10px] font-semibold ui-text-3 uppercase tracking-widest">Canlı Önizleme</p>
+      <button onclick="refreshPreview()" class="text-[10px] ui-text-3 hover:ui-text-1 transition-colors">Yenile</button>
+    </div>
+    <div id="previewContent" class="flex-1 flex items-center justify-center p-4 overflow-hidden">
+      <div id="previewPlaceholder" class="text-center">
+        <div class="w-10 h-10 rounded-xl ui-card flex items-center justify-center mx-auto mb-2">
+          <svg class="w-5 h-5 ui-text-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+        </div>
+        <p class="text-xs ui-text-3">Tesis seçildiğinde<br>önizleme görünür</p>
+      </div>
+      <div id="phoneMockup" class="hidden flex-col overflow-hidden"
+        style="width:272px;height:540px;background:var(--bg-card);border-radius:36px;border:4px solid var(--border);box-shadow:0 20px 60px var(--shadow)">
+        <div style="height:20px;background:var(--bg-card);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <div style="width:60px;height:4px;background:var(--border);border-radius:2px"></div>
+        </div>
+        <div style="flex:1;overflow:hidden;border-radius:0 0 32px 32px">
+          <iframe id="previewFrame" class="preview-frame" src="" title="Menü Önizleme"></iframe>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- Mobile Tab Bar -->
+<nav id="mobileTabBar" class="shrink-0 h-14 flex items-stretch z-40"
+  style="background:var(--bg-nav);border-top:1px solid var(--border)">
+  <button id="mtab-cats" onclick="mobileTab('cats')"
+    class="flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors"
+    style="color:var(--accent)">
+    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+    </svg>
+    Kategoriler
+  </button>
+  <button id="mtab-products" onclick="mobileTab('products')"
+    class="flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors"
+    style="color:var(--text-3)">
+    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+    </svg>
+    Ürünler
+  </button>
+  <button id="mtab-preview" onclick="mobileTab('preview')"
+    class="flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors"
+    style="color:var(--text-3)">
+    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+    </svg>
+    Önizleme
+  </button>
+</nav>
+
+<!-- Hidden inputs -->
+<input type="file" id="hiddenImgInput" accept="image/*" class="hidden">
+<input type="file" id="logoFileInput" accept="image/*" class="hidden" onchange="previewLogo(event)">
+
+<!-- ========================= MODALS ========================= -->
+
+<!-- Facility Modal -->
+<div id="facilityModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4" onclick="closeFacilityModal()">
+  <div class="ui-card ui-border rounded-2xl w-full max-w-md shadow-2xl" style="border-width:1px;border-style:solid" onclick="event.stopPropagation()">
+    <div class="px-6 py-5 ui-border-b flex items-center justify-between">
+      <h3 id="facilityModalTitle" class="font-semibold ui-text-1">Yeni Tesis</h3>
+      <button onclick="closeFacilityModal()" class="ui-text-3 hover:ui-text-1 transition-colors">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="px-6 py-5 space-y-4">
+      <div>
+        <label class="block text-xs font-medium ui-text-2 mb-2">Logo (opsiyonel)</label>
+        <div class="flex items-center gap-3">
+          <div onclick="document.getElementById('logoFileInput').click()"
+            class="w-16 h-16 rounded-xl ui-card ui-border flex items-center justify-center cursor-pointer overflow-hidden group shrink-0" style="border-width:1px;border-style:solid">
+            <img id="facilityLogoImg" src="" alt="" class="hidden w-full h-full object-cover">
+            <svg id="facilityLogoIcon" class="w-6 h-6 ui-text-3 group-hover:ui-text-2 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          </div>
+          <div class="text-xs ui-text-3 space-y-1">
+            <p>Tıklayarak yükleyin</p>
+            <p>PNG, JPG — maks 5MB</p>
+            <button id="removeLogoBtn" onclick="removeLogo()" class="hidden text-red-400 hover:text-red-500 transition-colors">Logoyu kaldır</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-medium ui-text-2 mb-1.5">Tesis Adı *</label>
+        <input id="facilityName" type="text" placeholder="Örn: Kafe Boğaz" class="w-full ui-input" style="border-radius:12px;padding:10px 14px">
+      </div>
+      <div>
+        <label class="block text-xs font-medium ui-text-2 mb-1.5">Açıklama (opsiyonel)</label>
+        <textarea id="facilityDesc" rows="2" placeholder="Kısa tanıtım yazısı..." class="w-full ui-input resize-none" style="border-radius:12px;padding:10px 14px"></textarea>
+      </div>
+      <div>
+        <label class="block text-xs font-medium ui-text-2 mb-2">Müşteri Menüsü Teması</label>
+        <div id="menuThemeSwatches" class="flex gap-2 flex-wrap"></div>
+      </div>
+    </div>
+    <div class="px-6 py-4 ui-border-t flex gap-2 justify-end">
+      <button onclick="closeFacilityModal()" class="px-4 py-2 text-sm ui-text-2 hover:ui-text-1 transition-colors">İptal</button>
+      <button id="facilitySubmitBtn" onclick="submitFacility()" class="px-5 py-2 btn-accent text-sm font-semibold rounded-xl">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- QR Modal -->
+<div id="qrModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4" onclick="closeQRModal()">
+  <div class="ui-card ui-border rounded-2xl w-full max-w-xs shadow-2xl text-center p-6" style="border-width:1px;border-style:solid" onclick="event.stopPropagation()">
+    <p class="text-[10px] font-semibold ui-text-3 uppercase tracking-widest mb-4">Menü QR Kodu</p>
+    <img id="qrModalImg" src="" alt="QR" class="w-52 h-52 mx-auto rounded-2xl ui-border mb-3" style="border-width:1px;border-style:solid">
+    <p id="qrModalUrl" class="text-xs ui-text-3 break-all mb-5"></p>
+    <div class="flex gap-2">
+      <button onclick="closeQRModal()" class="flex-1 py-2.5 rounded-xl text-sm ui-text-2" style="background:var(--bg-hover)">Kapat</button>
+      <a id="qrDownload" href="#" download="menu-qr.png" class="flex-1 py-2.5 rounded-xl text-sm font-semibold btn-accent transition text-center">İndir</a>
+    </div>
+  </div>
+</div>
+
+<!-- Users Modal -->
+<div id="usersModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4" onclick="closeUsersModal()">
+  <div class="ui-card ui-border rounded-2xl w-full max-w-xl shadow-2xl flex flex-col" style="max-height:85vh;border-width:1px;border-style:solid" onclick="event.stopPropagation()">
+    <div class="px-6 py-5 ui-border-b flex items-center justify-between shrink-0">
+      <h3 class="font-semibold ui-text-1">Kullanıcı Yönetimi</h3>
+      <button onclick="closeUsersModal()" class="ui-text-3 hover:ui-text-1 transition-colors">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="px-6 py-4 ui-border-b shrink-0" style="background:var(--bg-subtle)">
+      <p class="text-xs font-medium ui-text-2 mb-3">Yeni Kullanıcı Ekle</p>
+      <div class="flex gap-2 items-end">
+        <input id="newUsername" placeholder="Kullanıcı adı" class="flex-1 ui-input" style="border-radius:8px;padding:7px 12px">
+        <input id="newPassword" type="password" placeholder="Şifre" class="flex-1 ui-input" style="border-radius:8px;padding:7px 12px">
+        <button onclick="createUser()" class="px-4 py-2 btn-accent text-xs font-bold rounded-lg shrink-0">Ekle</button>
+      </div>
+    </div>
+    <div id="userList" class="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+      <p class="text-xs ui-text-3 text-center py-4">Yükleniyor...</p>
+    </div>
+  </div>
+</div>
+
+<div id="toastContainer" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+
+<script>
+  // ── AUTH ──────────────────────────────────────────────────────────────────
+  const token = localStorage.getItem('admin_token');
+  const userRole = localStorage.getItem('admin_role') || 'admin';
+  if (!token) location.href = '/login.html';
+
+  // ── UI THEME (açık / koyu) ────────────────────────────────────────────────
+  let uiTheme = localStorage.getItem('uiTheme') || 'dark';
+
+  function applyUITheme(theme) {
+    uiTheme = theme;
+    localStorage.setItem('uiTheme', theme);
+    if (theme === 'light') {
+      document.body.classList.add('theme-light');
+      document.getElementById('themeIcon').textContent = '🌙';
+      document.getElementById('themeLabel').textContent = 'Koyu';
+    } else {
+      document.body.classList.remove('theme-light');
+      document.getElementById('themeIcon').textContent = '☀️';
+      document.getElementById('themeLabel').textContent = 'Açık';
+    }
+  }
+
+  function toggleUITheme() {
+    applyUITheme(uiTheme === 'dark' ? 'light' : 'dark');
+  }
+
+  // ── ACCENT THEME ──────────────────────────────────────────────────────────
+  const ADMIN_THEMES = [
+    { key: 'amber',  color: '#f59e0b', label: 'Amber',  light: false },
+    { key: 'blue',   color: '#3b82f6', label: 'Mavi',   light: false },
+    { key: 'purple', color: '#8b5cf6', label: 'Mor',    light: false },
+    { key: 'green',  color: '#22c55e', label: 'Yeşil',  light: false },
+    { key: 'white',  color: '#e2e8f0', label: 'Beyaz',  light: true  },
+    { key: 'slate',  color: '#475569', label: 'Siyah',  light: false },
+  ];
+
+  const MENU_THEMES = [
+    { key: 'indigo',  color: '#4f46e5', label: 'İndigo' },
+    { key: 'amber',   color: '#d97706', label: 'Amber'  },
+    { key: 'emerald', color: '#059669', label: 'Yeşil'  },
+    { key: 'rose',    color: '#e11d48', label: 'Kırmızı'},
+    { key: 'purple',  color: '#7c3aed', label: 'Mor'    },
+    { key: 'sky',     color: '#0284c7', label: 'Mavi'   },
+  ];
+
+  let currentAdminTheme = localStorage.getItem('adminTheme') || 'amber';
+  let selectedMenuTheme = 'indigo';
+
+  function applyAdminTheme(key) {
+    const t = ADMIN_THEMES.find(x => x.key === key) || ADMIN_THEMES[0];
+    currentAdminTheme = key;
+    localStorage.setItem('adminTheme', key);
+    document.documentElement.style.setProperty('--accent', t.color);
+    document.querySelectorAll('#accentSwatches .swatch').forEach(el =>
+      el.classList.toggle('selected', el.dataset.key === key));
+  }
+
+  function buildAdminThemeSwatches() {
+    const c = document.getElementById('accentSwatches');
+    c.innerHTML = ADMIN_THEMES.map(t =>
+      `<div class="swatch ${t.key === currentAdminTheme ? 'selected' : ''}" data-key="${t.key}"
+        style="background:${t.color};${t.light ? 'box-shadow:0 0 0 1px #888 inset' : ''}"
+        title="${t.label}" onclick="applyAdminTheme('${t.key}')"></div>`
+    ).join('');
+  }
+
+  function buildMenuThemeSwatches(selectedKey) {
+    selectedMenuTheme = selectedKey || 'indigo';
+    const c = document.getElementById('menuThemeSwatches');
+    c.innerHTML = MENU_THEMES.map(t =>
+      `<div class="menu-swatch ${t.key === selectedKey ? 'selected' : ''}" data-key="${t.key}"
+        style="background:${t.color}" title="${t.label}"
+        onclick="selectMenuTheme('${t.key}')"></div>`
+    ).join('');
+  }
+
+  function selectMenuTheme(key) {
+    selectedMenuTheme = key;
+    document.querySelectorAll('#menuThemeSwatches .menu-swatch').forEach(el =>
+      el.classList.toggle('selected', el.dataset.key === key));
+  }
+
+  // ── STATE ──────────────────────────────────────────────────────────────────
+  const S = { facilityId: null, facilitySlug: null, categoryId: null };
+  const cache = { facilities: [], categories: [], products: [] };
+  let facilityEditMode = false, facilityLogoFile = null, pendingLogoRemove = false, previewVisible = false;
+
+  // ── API ───────────────────────────────────────────────────────────────────
+  async function api(method, path, body) {
+    const opts = { method, headers: { Authorization: `Bearer ${token}` } };
+    if (body instanceof FormData) { opts.body = body; }
+    else if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+    const res = await fetch('/api/admin' + path, opts);
+    if (res.status === 401) { localStorage.removeItem('admin_token'); location.href = '/login.html'; }
+    const ct = res.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) {
+      const text = await res.text();
+      throw new Error(`Sunucu hatası (${res.status})`);
+    }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hata oluştu');
+    return data;
+  }
+
+  // ── INIT ──────────────────────────────────────────────────────────────────
+  async function init() {
+    applyUITheme(uiTheme);
+    buildAdminThemeSwatches();
+    applyAdminTheme(currentAdminTheme);
+    if (userRole === 'admin') {
+      document.getElementById('usersBtn').classList.remove('hidden');
+      document.getElementById('usersBtn').classList.add('flex');
+    } else {
+      document.getElementById('addFacilityBtn').classList.add('hidden');
+    }
+    try {
+      cache.facilities = await api('GET', '/facilities');
+      renderFacilitySelect();
+    } catch(e) { showToast(e.message, 'error'); }
+    applyResponsiveLayout();
+  }
+
+  function renderFacilitySelect() {
+    const sel = document.getElementById('facilitySelect');
+    sel.innerHTML = `<option value="0">— Tesis seçin —</option>` +
+      cache.facilities.map(f =>
+        `<option value="${f.id}" ${f.id === S.facilityId ? 'selected' : ''}>${esc(f.name)}</option>`
+      ).join('');
+  }
+
+  // ── FACILITY SELECT ───────────────────────────────────────────────────────
+  async function selectFacility(fid) {
+    if (!fid) {
+      S.facilityId = null; S.facilitySlug = null; S.categoryId = null;
+      renderCategories([]);
+      document.getElementById('emptyState').classList.remove('hidden');
+      document.getElementById('productArea').classList.add('hidden');
+      hidePreviewPhone(); return;
+    }
+    S.facilityId = fid;
+    const f = cache.facilities.find(x => x.id === fid);
+    S.facilitySlug = f?.slug || null;
+    document.getElementById('emptyState').classList.add('hidden');
+    document.getElementById('productArea').classList.remove('hidden');
+    if (isMobile()) mobileTab('cats');
+    try {
+      cache.categories = await api('GET', `/facilities/${fid}/categories`);
+      renderCategories(cache.categories);
+      if (cache.categories.length) await selectCategory(cache.categories[0].id);
+      else { cache.products = []; renderProducts([]); }
+      if (previewVisible && S.facilitySlug) showPreview(S.facilitySlug);
+    } catch(e) { showToast(e.message, 'error'); }
+  }
+
+  // ── CATEGORIES ────────────────────────────────────────────────────────────
+  function renderCategories(cats) {
+    const list = document.getElementById('catList');
+    if (!cats.length) { list.innerHTML = `<p class="text-xs ui-text-3 text-center py-6">Kategori yok</p>`; return; }
+    list.innerHTML = cats.map(c => renderCatItem(c)).join('');
+    if (S.categoryId) document.getElementById(`cat-${S.categoryId}`)?.classList.add('active');
+  }
+
+  function renderCatItem(c) {
+    const idx = cache.categories.findIndex(x => x.id === c.id);
+    const total = cache.categories.length;
+    const isFirst = idx === 0, isLast = idx === total - 1;
+    return `<div id="cat-${c.id}"
+      onclick="selectCategory(${c.id})"
+      class="cat-item group flex items-center gap-1 px-1.5 py-2 rounded-lg cursor-pointer">
+      <div class="flex flex-col shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onclick="event.stopPropagation();moveCat(${c.id},'up')"
+          class="p-0.5 rounded ${isFirst ? 'invisible' : ''}"
+          style="color:var(--text-3)" onmouseenter="this.style.color='var(--text-1)'" onmouseleave="this.style.color='var(--text-3)'">
+          <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+        </button>
+        <button onclick="event.stopPropagation();moveCat(${c.id},'down')"
+          class="p-0.5 rounded ${isLast ? 'invisible' : ''}"
+          style="color:var(--text-3)" onmouseenter="this.style.color='var(--text-1)'" onmouseleave="this.style.color='var(--text-3)'">
+          <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+      </div>
+      <span id="catname-${c.id}"
+        ondblclick="event.stopPropagation(); renameCat(${c.id})"
+        class="flex-1 text-sm ui-text-1 truncate">${esc(c.name)}</span>
+      <span id="catcnt-${c.id}" class="text-[10px] ui-text-3 shrink-0"></span>
+      <button onclick="event.stopPropagation(); deleteCategory(${c.id})"
+        class="shrink-0 opacity-0 group-hover:opacity-100 ui-text-3 hover:text-red-400 transition-all p-0.5 rounded">
+        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>`;
+  }
+
+  async function selectCategory(catId) {
+    S.categoryId = catId;
+    document.querySelectorAll('[id^="cat-"]').forEach(el => el.classList.remove('active'));
+    document.getElementById(`cat-${catId}`)?.classList.add('active');
+    const cat = cache.categories.find(c => c.id === catId);
+    document.getElementById('catTitle').textContent = cat?.name || '';
+    try {
+      cache.products = await api('GET', `/categories/${catId}/products`);
+      renderProducts(cache.products);
+      if (isMobile()) mobileTab('products');
+    } catch(e) { showToast(e.message, 'error'); }
+  }
+
+  function updateCatCounts() {
+    cache.categories.forEach(c => {
+      const el = document.getElementById(`catcnt-${c.id}`);
+      if (el) el.textContent = c.id === S.categoryId ? cache.products.length : '';
+    });
+    const cnt = document.getElementById('catCount');
+    if (cnt) cnt.textContent = `${cache.products.length} ürün`;
+  }
+
+  async function renameCat(catId) {
+    const span = document.getElementById(`catname-${catId}`);
+    if (!span || span.contentEditable === 'true') return;
+    const original = span.textContent.trim();
+    span.classList.remove('truncate');
+    span.contentEditable = true;
+    span.focus();
+    const range = document.createRange(); range.selectNodeContents(span);
+    window.getSelection().removeAllRanges(); window.getSelection().addRange(range);
+    const finish = async () => {
+      span.contentEditable = false;
+      span.classList.add('truncate');
+      span.onblur = null; span.onkeydown = null;
+      const newName = span.textContent.trim();
+      if (!newName || newName === original) { span.textContent = original; return; }
+      try {
+        await api('PUT', `/categories/${catId}`, { name: newName });
+        const c = cache.categories.find(x => x.id === catId);
+        if (c) c.name = newName;
+        if (S.categoryId === catId) document.getElementById('catTitle').textContent = newName;
+        refreshPreview(); showToast('Kategori yeniden adlandırıldı');
+      } catch(e) { span.textContent = original; showToast(e.message, 'error'); }
+    };
+    span.onblur = finish;
+    span.onkeydown = (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); span.blur(); }
+      if (e.key === 'Escape') { span.textContent = original; span.contentEditable = false; span.classList.add('truncate'); span.onblur = null; span.onkeydown = null; }
+    };
+  }
+
+  async function deleteCategory(catId) {
+    if (!confirm('Bu kategoriyi ve tüm ürünlerini silmek istiyor musunuz?')) return;
+    try {
+      await api('DELETE', `/categories/${catId}`);
+      cache.categories = cache.categories.filter(c => c.id !== catId);
+      renderCategories(cache.categories);
+      if (S.categoryId === catId) {
+        S.categoryId = null; cache.products = [];
+        document.getElementById('catTitle').textContent = ''; renderProducts([]);
+        if (cache.categories.length) selectCategory(cache.categories[0].id);
+      }
+      refreshPreview(); showToast('Kategori silindi');
+    } catch(e) { showToast(e.message, 'error'); }
+  }
+
+  function showCatAdd() {
+    document.getElementById('catAddBtn').classList.add('hidden');
+    document.getElementById('catAddArea').classList.remove('hidden');
+    document.getElementById('catAddInput').value = '';
+    document.getElementById('catAddInput').focus();
+  }
+  function cancelAddCat() {
+    document.getElementById('catAddArea').classList.add('hidden');
+    document.getElementById('catAddBtn').classList.remove('hidden');
+  }
+  function catAddKeydown(e) { if (e.key === 'Enter') confirmAddCat(); if (e.key === 'Escape') cancelAddCat(); }
+  async function confirmAddCat() {
+    const name = document.getElementById('catAddInput').value.trim();
+    if (!name || !S.facilityId) return;
+    try {
+      const cat = await api('POST', `/facilities/${S.facilityId}/categories`, { name });
+      cache.categories.push(cat); cancelAddCat(); renderCategories(cache.categories);
+      await selectCategory(cat.id); refreshPreview(); showToast('Kategori eklendi');
+    } catch(e) { showToast(e.message, 'error'); }
+  }
+
+  // ── PRODUCTS ──────────────────────────────────────────────────────────────
+  function renderProducts(prods) {
+    const tbody = document.getElementById('productTbody');
+    const noP = document.getElementById('noProducts');
+    updateCatCounts();
+    if (!prods.length) { tbody.innerHTML = ''; noP.classList.remove('hidden'); return; }
+    noP.classList.add('hidden');
+    tbody.innerHTML = prods.map(p => renderProductRow(p)).join('');
+  }
+
+  function renderProductRow(p) {
+    const idx = cache.products.findIndex(x => x.id === p.id);
+    const total = cache.products.length;
+    const isFirst = idx === 0, isLast = idx === total - 1;
+    const hasImg = !!p.image_url;
+    return `<tr id="prow-${p.id}" style="border-bottom:1px solid var(--border-sub)" class="group/row transition-colors" onmouseenter="this.style.background='var(--row-hover)'" onmouseleave="this.style.background=''">
+      <td class="pl-3 py-2 w-14">
+        <div class="flex flex-col items-center gap-0.5">
+          <div onclick="uploadProductImage(${p.id})"
+            style="border:1px solid var(--border);background:var(--bg-card)"
+            class="w-10 h-10 rounded-lg overflow-hidden cursor-pointer relative flex items-center justify-center group/img">
+            ${hasImg
+              ? `<img src="${esc(p.image_url)}" alt="" class="w-full h-full object-cover">
+                 <div class="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-xs">📷</div>`
+              : `<svg class="w-4 h-4 ui-text-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`
+            }
+          </div>
+          ${!hasImg ? `<button onclick="event.stopPropagation();assignSampleImage(${p.id})" style="color:var(--accent);font-size:9px;line-height:1.4" class="hover:opacity-70 transition-opacity">örnek</button>` : ''}
+        </div>
+      </td>
+      <td class="py-2 pl-2" style="min-width:140px">
+        <input value="${esc(p.name)}" class="inline-input text-sm font-medium"
+          onblur="saveField(${p.id},'name',this.value)" onkeydown="handleFieldKey(event,${p.id},'name',this)">
+      </td>
+      <td class="py-2 pl-2">
+        <input value="${esc(p.description || '')}" placeholder="—" class="inline-input text-xs" style="color:var(--text-2)"
+          onblur="saveField(${p.id},'description',this.value)" onkeydown="handleFieldKey(event,${p.id},'description',this)">
+      </td>
+      <td class="py-2 pl-2 w-28">
+        <div class="flex items-center gap-0.5">
+          <span style="color:var(--text-3)" class="text-xs">₺</span>
+          <input type="number" value="${p.price}" min="0" step="0.01" class="price-input text-sm"
+            onblur="saveField(${p.id},'price',this.value)" onkeydown="handleFieldKey(event,${p.id},'price',this)">
+        </div>
+      </td>
+      <td class="py-2 w-16 text-center">
+        <button onclick="toggleActive(${p.id})"
+          style="position:relative;display:inline-block;width:32px;height:16px;border-radius:8px;
+                 background:${p.is_active ? 'var(--accent)' : 'var(--toggle-off)'};
+                 transition:background 0.2s;cursor:pointer;border:none;outline:none">
+          <span style="position:absolute;top:2px;left:${p.is_active ? '16px' : '2px'};width:12px;height:12px;
+                       border-radius:50%;background:#fff;transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.3)"></span>
+        </button>
+      </td>
+      <td class="py-2 w-12 text-center">
+        <div class="flex flex-col items-center gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
+          <button onclick="moveProduct(${p.id},'up')"
+            class="p-0.5 rounded ${isFirst ? 'invisible' : ''}"
+            style="color:var(--text-3)" onmouseenter="this.style.color='var(--text-1)'" onmouseleave="this.style.color='var(--text-3)'">
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+          </button>
+          <button onclick="moveProduct(${p.id},'down')"
+            class="p-0.5 rounded ${isLast ? 'invisible' : ''}"
+            style="color:var(--text-3)" onmouseenter="this.style.color='var(--text-1)'" onmouseleave="this.style.color='var(--text-3)'">
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+        </div>
+      </td>
+      <td class="py-2 pr-3 w-10">
+        <button onclick="deleteProduct(${p.id})"
+          class="opacity-0 group-hover/row:opacity-100 hover:text-red-400 transition-all p-1 rounded"
+          style="color:var(--text-3)">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        </button>
+      </td>
+    </tr>`;
+  }
+
+  // ── AUTO-SAVE ─────────────────────────────────────────────────────────────
+  async function saveField(pid, field, rawValue) {
+    const value = field === 'price' ? (parseFloat(rawValue) || 0) : rawValue.trim();
+    const p = cache.products.find(x => x.id === pid);
+    if (!p || String(p[field] ?? '') === String(value)) return;
+    const oldVal = p[field]; p[field] = value;
+    try {
+      await api('PUT', `/products/${pid}`, { [field]: value });
+      refreshPreview(); showToast('Kaydedildi');
+    } catch(e) { p[field] = oldVal; showToast(e.message, 'error'); }
+  }
+
+  function handleFieldKey(e, pid, field, input) {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { const p = cache.products.find(x => x.id === pid); if (p) input.value = p[field] ?? ''; input.blur(); }
+  }
+
+  async function toggleActive(pid) {
+    const p = cache.products.find(x => x.id === pid);
+    if (!p) return;
+    p.is_active = p.is_active ? 0 : 1;
+    document.getElementById(`prow-${pid}`)?.outerHTML && (document.getElementById(`prow-${pid}`).outerHTML = renderProductRow(p));
+    try { await api('PUT', `/products/${pid}`, { is_active: p.is_active }); refreshPreview(); }
+    catch(e) { p.is_active = p.is_active ? 0 : 1; document.getElementById(`prow-${pid}`)?.outerHTML && (document.getElementById(`prow-${pid}`).outerHTML = renderProductRow(p)); showToast(e.message, 'error'); }
+  }
+
+  async function deleteProduct(pid) {
+    if (!confirm('Bu ürünü silmek istiyor musunuz?')) return;
+    try {
+      await api('DELETE', `/products/${pid}`);
+      cache.products = cache.products.filter(p => p.id !== pid);
+      document.getElementById(`prow-${pid}`)?.remove();
+      updateCatCounts();
+      if (!cache.products.length) document.getElementById('noProducts').classList.remove('hidden');
+      refreshPreview(); showToast('Ürün silindi');
+    } catch(e) { showToast(e.message, 'error'); }
+  }
+
+  // ── SORT ──────────────────────────────────────────────────────────────────
+  async function moveCat(catId, direction) {
+    const idx = cache.categories.findIndex(c => c.id === catId);
+    if (idx === -1) return;
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= cache.categories.length) return;
+    [cache.categories[idx], cache.categories[swapIdx]] = [cache.categories[swapIdx], cache.categories[idx]];
+    const a = cache.categories[idx], b = cache.categories[swapIdx];
+    a.sort_order = idx; b.sort_order = swapIdx;
+    renderCategories(cache.categories);
+    if (S.categoryId === catId || S.categoryId === b.id) {
+      document.getElementById(`cat-${S.categoryId}`)?.classList.add('active');
+    }
+    try {
+      await Promise.all([
+        api('PUT', `/categories/${a.id}`, { sort_order: a.sort_order }),
+        api('PUT', `/categories/${b.id}`, { sort_order: b.sort_order }),
+      ]);
+      refreshPreview();
+    } catch(e) { showToast(e.message, 'error'); }
+  }
+
+  async function moveProduct(pid, direction) {
+    const idx = cache.products.findIndex(p => p.id === pid);
+    if (idx === -1) return;
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= cache.products.length) return;
+    [cache.products[idx], cache.products[swapIdx]] = [cache.products[swapIdx], cache.products[idx]];
+    const a = cache.products[idx], b = cache.products[swapIdx];
+    a.sort_order = idx; b.sort_order = swapIdx;
+    renderProducts(cache.products);
+    try {
+      await Promise.all([
+        api('PUT', `/products/${a.id}`, { sort_order: a.sort_order }),
+        api('PUT', `/products/${b.id}`, { sort_order: b.sort_order }),
+      ]);
+      refreshPreview();
+    } catch(e) { showToast(e.message, 'error'); }
+  }
+
+  // ── SAMPLE IMAGES ─────────────────────────────────────────────────────────
+  const SAMPLE_IMAGES = [
+    'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&h=200&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=200&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=200&h=200&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=200&h=200&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200&h=200&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1482049016688-2d3e1291311a?w=200&h=200&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=200&h=200&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=200&h=200&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=200&h=200&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1559847844-5315695dadae?w=200&h=200&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=200&h=200&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=200&h=200&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=200&h=200&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=200&h=200&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1546039907-7fa05f864c02?w=200&h=200&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=200&h=200&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1547592180-85f173990554?w=200&h=200&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1529042410759-befb1204b468?w=200&h=200&fit=crop&q=80',
+  ];
+
+  async function assignSampleImage(pid) {
+    const url = SAMPLE_IMAGES[Math.floor(Math.random() * SAMPLE_IMAGES.length)];
+    const p = cache.products.find(x => x.id === pid);
+    if (!p) return;
+    const oldUrl = p.image_url;
+    p.image_url = url;
+    const row = document.getElementById(`prow-${pid}`);
+    if (row) row.outerHTML = renderProductRow(p);
+    try {
+      await api('PUT', `/products/${pid}`, { image_url: url });
+      refreshPreview(); showToast('Örnek görsel eklendi');
+    } catch(e) {
+      p.image_url = oldUrl;
+      showToast(e.message, 'error');
+    }
+  }
+
+  // ── QUICK ADD ─────────────────────────────────────────────────────────────
+  function qaKeydown(e) {
+    if (e.key === 'Enter') { e.preventDefault(); quickAdd(); }
+    if (e.key === 'Escape') { document.getElementById('qaName').value = ''; document.getElementById('qaPrice').value = ''; }
+    if (e.key === 'Tab' && e.target.id === 'qaName') { e.preventDefault(); document.getElementById('qaPrice').focus(); }
+  }
+
+  async function quickAdd() {
+    const nameInput = document.getElementById('qaName'), priceInput = document.getElementById('qaPrice');
+    const name = nameInput.value.trim(), price = parseFloat(priceInput.value) || 0;
+    if (!name || !S.categoryId) { nameInput.focus(); return; }
+    nameInput.value = ''; priceInput.value = ''; nameInput.focus();
+    try {
+      const p = await api('POST', `/categories/${S.categoryId}/products`, { name, price });
+      cache.products.unshift(p);
+      document.getElementById('noProducts').classList.add('hidden');
+      const tmp = document.createElement('tbody');
+      tmp.innerHTML = renderProductRow(p);
+      document.getElementById('productTbody').insertBefore(tmp.firstElementChild, document.getElementById('productTbody').firstChild);
+      updateCatCounts(); refreshPreview();
+    } catch(e) { showToast(e.message, 'error'); }
+  }
+
+  // ── IMAGE UPLOAD ──────────────────────────────────────────────────────────
+  function uploadProductImage(pid) {
+    const input = document.getElementById('hiddenImgInput');
+    input.onchange = async (e) => {
+      const file = e.target.files[0]; input.value = '';
+      if (!file) return;
+      document.getElementById(`prow-${pid}`)?.classList.add('loading-row');
+      try {
+        const fd = new FormData(); fd.append('image', file);
+        const result = await api('PUT', `/products/${pid}`, fd);
+        const p = cache.products.find(x => x.id === pid);
+        if (p && result) p.image_url = result.image_url;
+        const row = document.getElementById(`prow-${pid}`);
+        if (row && p) row.outerHTML = renderProductRow(p);
+        refreshPreview(); showToast('Görsel yüklendi');
+      } catch(e) {
+        document.getElementById(`prow-${pid}`)?.classList.remove('loading-row');
+        showToast(e.message, 'error');
+      }
+    };
+    input.click();
+  }
+
+  // ── FACILITY MODAL ────────────────────────────────────────────────────────
+  function openAddFacility() {
+    facilityEditMode = false; facilityLogoFile = null; pendingLogoRemove = false;
+    document.getElementById('facilityModalTitle').textContent = 'Yeni Tesis';
+    document.getElementById('facilityName').value = '';
+    document.getElementById('facilityDesc').value = '';
+    resetLogoPreview(null); buildMenuThemeSwatches('indigo');
+    document.getElementById('facilityModal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('facilityName').focus(), 50);
+  }
+
+  function openEditFacility() {
+    closeSettings();
+    if (!S.facilityId) return;
+    const f = cache.facilities.find(x => x.id === S.facilityId);
+    if (!f) return;
+    facilityEditMode = true; facilityLogoFile = null; pendingLogoRemove = false;
+    document.getElementById('facilityModalTitle').textContent = 'Tesis Düzenle';
+    document.getElementById('facilityName').value = f.name;
+    document.getElementById('facilityDesc').value = f.description || '';
+    resetLogoPreview(f.logo_url || null);
+    const themeKey = f.theme_color ? (MENU_THEMES.find(t => t.color === f.theme_color)?.key || 'indigo') : 'indigo';
+    buildMenuThemeSwatches(themeKey);
+    document.getElementById('facilityModal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('facilityName').focus(), 50);
+  }
+
+  function closeFacilityModal() { document.getElementById('facilityModal').classList.add('hidden'); facilityLogoFile = null; }
+
+  function previewLogo(e) {
+    const file = e.target.files[0]; if (!file) return;
+    facilityLogoFile = file; pendingLogoRemove = false;
+    document.getElementById('facilityLogoImg').src = URL.createObjectURL(file);
+    document.getElementById('facilityLogoImg').classList.remove('hidden');
+    document.getElementById('facilityLogoIcon').classList.add('hidden');
+    document.getElementById('removeLogoBtn').classList.remove('hidden');
+  }
+  function removeLogo() { facilityLogoFile = null; pendingLogoRemove = true; resetLogoPreview(null); }
+  function resetLogoPreview(url) {
+    const img = document.getElementById('facilityLogoImg'), icon = document.getElementById('facilityLogoIcon'), btn = document.getElementById('removeLogoBtn');
+    if (url) { img.src = url; img.classList.remove('hidden'); icon.classList.add('hidden'); btn.classList.remove('hidden'); }
+    else { img.src = ''; img.classList.add('hidden'); icon.classList.remove('hidden'); btn.classList.add('hidden'); }
+  }
+
+  async function submitFacility() {
+    const name = document.getElementById('facilityName').value.trim();
+    const description = document.getElementById('facilityDesc').value.trim();
+    if (!name) { document.getElementById('facilityName').focus(); return; }
+    const btn = document.getElementById('facilitySubmitBtn');
+    btn.disabled = true; btn.textContent = 'Kaydediliyor...';
+    const themeColor = MENU_THEMES.find(t => t.key === selectedMenuTheme)?.color || null;
+    try {
+      let result;
+      if (facilityLogoFile) {
+        const fd = new FormData(); fd.append('name', name);
+        if (description) fd.append('description', description);
+        fd.append('logo', facilityLogoFile);
+        if (themeColor) fd.append('theme_color', themeColor);
+        result = await api(facilityEditMode ? 'PUT' : 'POST', facilityEditMode ? `/facilities/${S.facilityId}` : '/facilities', fd);
+      } else {
+        const body = { name, description, theme_color: themeColor };
+        if (pendingLogoRemove) body.remove_logo = true;
+        result = await api(facilityEditMode ? 'PUT' : 'POST', facilityEditMode ? `/facilities/${S.facilityId}` : '/facilities', body);
+      }
+      if (facilityEditMode) { const idx = cache.facilities.findIndex(f => f.id === S.facilityId); if (idx > -1) cache.facilities[idx] = result; S.facilitySlug = result.slug; }
+      else { cache.facilities.push(result); }
+      renderFacilitySelect(); closeFacilityModal();
+      if (!facilityEditMode) { document.getElementById('facilitySelect').value = result.id; await selectFacility(result.id); }
+      else { refreshPreview(); }
+      showToast(facilityEditMode ? 'Tesis güncellendi' : 'Tesis oluşturuldu');
+    } catch(e) { showToast(e.message, 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'Kaydet'; }
+  }
+
+  async function deleteFacility() {
+    closeSettings();
+    if (!S.facilityId) return;
+    const f = cache.facilities.find(x => x.id === S.facilityId);
+    if (!confirm(`"${f ? f.name : ''}" tesisini ve tüm verilerini silmek istiyor musunuz?`)) return;
+    try {
+      await api('DELETE', `/facilities/${S.facilityId}`);
+      cache.facilities = cache.facilities.filter(x => x.id !== S.facilityId);
+      S.facilityId = null; S.facilitySlug = null; S.categoryId = null;
+      renderFacilitySelect(); cache.categories = []; cache.products = [];
+      renderCategories([]);
+      document.getElementById('emptyState').classList.remove('hidden');
+      document.getElementById('productArea').classList.add('hidden');
+      hidePreviewPhone(); showToast('Tesis silindi');
+    } catch(e) { showToast(e.message, 'error'); }
+  }
+
+  // ── QR MODAL ─────────────────────────────────────────────────────────────
+  async function openQRModal() {
+    closeSettings();
+    if (!S.facilityId) return;
+    try {
+      const data = await api('GET', `/facilities/${S.facilityId}/qr`);
+      document.getElementById('qrModalImg').src = data.qrCode;
+      document.getElementById('qrModalUrl').textContent = data.menuUrl;
+      document.getElementById('qrDownload').href = data.qrCode;
+      document.getElementById('qrModal').classList.remove('hidden');
+    } catch(e) { showToast(e.message, 'error'); }
+  }
+  function closeQRModal() { document.getElementById('qrModal').classList.add('hidden'); }
+
+  // ── SETTINGS DROPDOWN ────────────────────────────────────────────────────
+  function toggleSettings() {
+    if (!S.facilityId) { showToast('Önce bir tesis seçin', 'error'); return; }
+    document.getElementById('settingsDropdown').classList.toggle('hidden');
+  }
+  function closeSettings() { document.getElementById('settingsDropdown').classList.add('hidden'); }
+  document.addEventListener('click', (e) => { if (!document.getElementById('settingsBtn').contains(e.target)) closeSettings(); });
+
+  // ── USERS ─────────────────────────────────────────────────────────────────
+  async function openUsersModal() { document.getElementById('usersModal').classList.remove('hidden'); await loadUsers(); }
+  function closeUsersModal() { document.getElementById('usersModal').classList.add('hidden'); }
+
+  async function loadUsers() {
+    const list = document.getElementById('userList');
+    list.innerHTML = `<p class="text-xs ui-text-3 text-center py-4">Yükleniyor...</p>`;
+    try {
+      const users = await api('GET', '/users');
+      if (!users.length) { list.innerHTML = `<p class="text-xs ui-text-3 text-center py-6">Henüz kullanıcı yok.</p>`; return; }
+      list.innerHTML = users.map(u => renderUserCard(u)).join('');
+    } catch(e) { list.innerHTML = `<p class="text-xs text-red-400 text-center py-4">${esc(e.message)}</p>`; }
+  }
+
+  function renderUserCard(u) {
+    const fIds = u.facilities.map(f => f.id);
+    return `<div id="ucard-${u.id}" class="ui-card ui-border rounded-xl p-4" style="border-width:1px;border-style:solid">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <p class="text-sm font-semibold ui-text-1">${esc(u.username)}</p>
+          <p class="text-xs ui-text-3 mt-0.5">${new Date(u.created_at).toLocaleDateString('tr-TR')}</p>
+        </div>
+        <button onclick="deleteUser(${u.id})" class="ui-text-3 hover:text-red-400 transition-colors p-1.5 rounded-lg">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        </button>
+      </div>
+      <p class="text-[10px] font-semibold ui-text-3 uppercase tracking-wider mb-2">Tesis Yetkileri</p>
+      ${cache.facilities.length
+        ? `<div id="ucard-facilities-${u.id}" class="space-y-0.5">
+            ${cache.facilities.map(f =>
+              `<label class="flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors" style="transition:background 0.12s" onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background=''">
+                <input type="checkbox" data-fid="${f.id}" ${fIds.includes(f.id) ? 'checked' : ''} class="w-3.5 h-3.5 cursor-pointer rounded">
+                <span class="text-sm ui-text-1">${esc(f.name)}</span>
+              </label>`
+            ).join('')}
+          </div>
+          <button onclick="saveUserFacilities(${u.id})" class="mt-3 w-full py-1.5 btn-accent text-xs font-semibold rounded-lg">Yetkileri Kaydet</button>`
+        : `<p class="text-xs ui-text-3">Henüz tesis yok.</p>`
+      }
+    </div>`;
+  }
+
+  async function createUser() {
+    const username = document.getElementById('newUsername').value.trim();
+    const password = document.getElementById('newPassword').value;
+    if (!username || !password) { showToast('Kullanıcı adı ve şifre gereklidir', 'error'); return; }
+    try {
+      await api('POST', '/users', { username, password });
+      document.getElementById('newUsername').value = ''; document.getElementById('newPassword').value = '';
+      await loadUsers(); showToast('Kullanıcı oluşturuldu');
+    } catch(e) { showToast(e.message, 'error'); }
+  }
+
+  async function deleteUser(uid) {
+    if (!confirm('Bu kullanıcıyı silmek istiyor musunuz?')) return;
+    try { await api('DELETE', `/users/${uid}`); document.getElementById(`ucard-${uid}`)?.remove(); showToast('Kullanıcı silindi'); }
+    catch(e) { showToast(e.message, 'error'); }
+  }
+
+  async function saveUserFacilities(uid) {
+    const container = document.getElementById(`ucard-facilities-${uid}`);
+    const checked = [...container.querySelectorAll('input[data-fid]:checked')].map(el => +el.dataset.fid);
+    try { await api('PUT', `/users/${uid}/facilities`, { facilityIds: checked }); showToast('Yetkiler kaydedildi'); }
+    catch(e) { showToast(e.message, 'error'); }
+  }
+
+  // ── PREVIEW ───────────────────────────────────────────────────────────────
+  function togglePreview() {
+    if (isMobile()) { mobileTab('preview'); return; }
+    previewVisible = !previewVisible;
+    const panel = document.getElementById('previewPanel');
+    const dot = document.getElementById('previewDot');
+    if (previewVisible) {
+      panel.classList.remove('hidden'); panel.classList.add('flex');
+      dot.style.background = 'var(--accent)';
+      if (S.facilitySlug) showPreview(S.facilitySlug);
+    } else {
+      panel.classList.add('hidden'); panel.classList.remove('flex');
+      dot.style.background = 'var(--text-3)';
+    }
+  }
+
+  function showPreview(slug) {
+    document.getElementById('previewPlaceholder').classList.add('hidden');
+    const mockup = document.getElementById('phoneMockup');
+    mockup.classList.remove('hidden'); mockup.style.display = 'flex';
+    const frame = document.getElementById('previewFrame');
+    frame.style.opacity = '0';
+    frame.src = `/menu/${encodeURIComponent(slug)}?t=${Date.now()}`;
+    frame.onload = () => { frame.style.transition = 'opacity 0.3s'; frame.style.opacity = '1'; };
+  }
+
+  function hidePreviewPhone() {
+    document.getElementById('phoneMockup').classList.add('hidden');
+    document.getElementById('phoneMockup').style.display = 'none';
+    document.getElementById('previewPlaceholder').classList.remove('hidden');
+    document.getElementById('previewFrame').src = '';
+  }
+
+  function refreshPreview() {
+    if (!previewVisible || !S.facilitySlug) return;
+    const frame = document.getElementById('previewFrame');
+    frame.style.opacity = '0.5';
+    frame.src = `/menu/${encodeURIComponent(S.facilitySlug)}?t=${Date.now()}`;
+    frame.onload = () => { frame.style.transition = 'opacity 0.3s'; frame.style.opacity = '1'; };
+  }
+
+  // ── TOAST ─────────────────────────────────────────────────────────────────
+  function showToast(msg, type = 'success') {
+    const c = document.getElementById('toastContainer');
+    const t = document.createElement('div');
+    const err = type === 'error';
+    t.className = 'toast px-4 py-2.5 rounded-xl text-sm font-medium shadow-2xl pointer-events-auto';
+    t.style.cssText = `background:${err ? '#2d1212' : 'var(--bg-card)'};border:1px solid ${err ? '#7f1d1d' : 'var(--border)'};color:${err ? '#fca5a5' : 'var(--text-1)'}`;
+    t.innerHTML = `<span style="margin-right:6px">${err ? '✗' : '✓'}</span>${esc(msg)}`;
+    c.appendChild(t);
+    setTimeout(() => { t.style.transition = 'opacity 0.3s'; t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 2500);
+  }
+
+  // ── MOBILE NAV ────────────────────────────────────────────────────────────
+  let activeMobileTab = 'cats';
+
+  function isMobile() { return window.innerWidth < 768; }
+
+  function mobileTab(tab) {
+    activeMobileTab = tab;
+    if (!isMobile()) return;
+    const sidebar = document.getElementById('sidebarPanel');
+    const main = document.getElementById('mainPanel');
+    const preview = document.getElementById('previewPanel');
+    sidebar.style.display = 'none';
+    main.style.display = 'none';
+    preview.classList.add('hidden'); preview.style.display = '';
+    ['cats', 'products', 'preview'].forEach(t => {
+      const btn = document.getElementById(`mtab-${t}`);
+      if (btn) btn.style.color = t === tab ? 'var(--accent)' : 'var(--text-3)';
+    });
+    if (tab === 'cats') {
+      sidebar.style.display = 'flex';
+    } else if (tab === 'products') {
+      main.style.display = 'flex';
+    } else if (tab === 'preview') {
+      preview.classList.remove('hidden'); preview.style.display = 'flex';
+      if (S.facilitySlug) showPreview(S.facilitySlug);
+    }
+  }
+
+  function applyResponsiveLayout() {
+    if (!isMobile()) {
+      const sidebar = document.getElementById('sidebarPanel');
+      const main = document.getElementById('mainPanel');
+      const preview = document.getElementById('previewPanel');
+      sidebar.style.display = '';
+      main.style.display = '';
+      if (previewVisible) { preview.classList.remove('hidden'); preview.style.display = 'flex'; }
+      else { preview.classList.add('hidden'); preview.style.display = ''; }
+    } else {
+      mobileTab(activeMobileTab);
+    }
+  }
+
+  window.addEventListener('resize', applyResponsiveLayout);
+
+  // ── UTILS ─────────────────────────────────────────────────────────────────
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  function logout() { localStorage.removeItem('admin_token'); localStorage.removeItem('admin_role'); location.href = '/login.html'; }
+
+  init();
+</script>
+</body>
+</html>

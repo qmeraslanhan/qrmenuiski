@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Menü — Giriş</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>* { font-family: 'DM Sans', sans-serif; }</style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4" style="background:linear-gradient(135deg,#1e1b4b 0%,#312e81 50%,#4f46e5 100%)">
+
+  <div class="bg-[#111] border border-[#2a2a2a] rounded-2xl shadow-2xl w-full max-w-sm p-8">
+    <div class="text-center mb-8">
+      <div class="w-14 h-14 bg-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+        </svg>
+      </div>
+      <h1 class="text-xl font-bold text-gray-100">QR Menü</h1>
+      <p class="text-gray-600 text-sm mt-1">Yönetim Paneli</p>
+    </div>
+
+    <form id="loginForm" class="space-y-3" onsubmit="handleLogin(event)">
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1.5">Kullanıcı Adı</label>
+        <input type="text" id="username" placeholder="Boş bırakın → yönetici girişi"
+          class="w-full bg-[#1a1a1a] border border-[#2a2a2a] text-gray-200 text-sm rounded-xl px-4 py-3 outline-none
+                 focus:border-amber-500/60 placeholder-gray-700 transition-colors">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1.5">Şifre</label>
+        <input type="password" id="password" placeholder="Şifreyi girin" required autofocus
+          class="w-full bg-[#1a1a1a] border border-[#2a2a2a] text-gray-200 text-sm rounded-xl px-4 py-3 outline-none
+                 focus:border-amber-500/60 placeholder-gray-700 transition-colors">
+      </div>
+
+      <div id="errorMsg" class="hidden text-sm text-red-400 bg-red-900/20 border border-red-800/40 px-4 py-3 rounded-xl text-center">
+        Hatalı kullanıcı adı veya şifre.
+      </div>
+
+      <button type="submit" id="btnLogin"
+        class="w-full bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-gray-900 font-semibold py-3 rounded-xl transition-colors text-sm mt-1">
+        Giriş Yap
+      </button>
+    </form>
+
+    <p class="text-center text-xs text-gray-700 mt-6">
+      Yönetici şifre: <span class="text-gray-500 font-mono">admin123</span>
+    </p>
+  </div>
+
+  <script>
+    if (localStorage.getItem('admin_token')) location.href = '/admin.html';
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnLogin');
+      const err = document.getElementById('errorMsg');
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      err.classList.add('hidden');
+      btn.disabled = true;
+      btn.textContent = 'Giriş yapılıyor...';
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) { err.classList.remove('hidden'); return; }
+        localStorage.setItem('admin_token', data.token);
+        localStorage.setItem('admin_role', data.role);
+        location.href = '/admin.html';
+      } catch {
+        err.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Giriş Yap';
+      }
+    }
+  </script>
+</body>
+</html>
