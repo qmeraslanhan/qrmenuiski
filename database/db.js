@@ -52,14 +52,37 @@ async function ensureInit() {
       role       TEXT    NOT NULL,
       user_id    INTEGER,
       username   TEXT,
+      expires_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS session_facilities (
       token       TEXT    NOT NULL REFERENCES sessions(token) ON DELETE CASCADE,
       facility_id INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS login_attempts (
+      ip         TEXT    NOT NULL,
+      attempted_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip, attempted_at);
   `);
+
+  // Idempotent column migrations (eski DB'leri yeni şemaya çek)
+  await safeAddColumn('sessions',   'expires_at', 'DATETIME');
+  await safeAddColumn('facilities', 'phone',      'TEXT');
+  await safeAddColumn('facilities', 'hours_text', 'TEXT');
+
   initialized = true;
+}
+
+async function safeAddColumn(table, column, type) {
+  try {
+    await db.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+  } catch (e) {
+    // Kolon zaten var → atla. Başka hata varsa logla.
+    if (!/duplicate column|already exists/i.test(e.message || '')) {
+      console.warn(`safeAddColumn ${table}.${column}:`, e.message);
+    }
+  }
 }
 
 module.exports = { db, ensureInit };

@@ -425,11 +425,11 @@
       document.documentElement.style.setProperty('--theme-soft', themeColor);
       document.title = data.facility.name + ' — Fiyat Listesi';
 
-      const cats = data.categories || [];
+      const cats = (data.categories || []).filter(c => (c.products || []).length > 0);
       if (cats.length === 0) {
         document.getElementById('content').innerHTML = `
           <div class="header">
-            <div class="header-tag">Menü</div>
+            <div class="header-tag">Menü &amp; Fiyat Listesi</div>
             <h1 class="header-title">${esc(data.facility.name)}</h1>
             <div class="ornament">
               <span class="ornament-line"></span>
@@ -437,7 +437,13 @@
               <span class="ornament-line"></span>
             </div>
           </div>
-          <div class="state">Bu tesiste henüz ürün bulunmuyor.</div>
+          <div class="state" style="padding:140px 20px;">
+            <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--theme);margin-bottom:12px;letter-spacing:1px;">Menü Henüz Hazırlanıyor</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-style:italic;color:var(--ink-soft);font-size:14px;max-width:480px;margin:0 auto;line-height:1.5;">
+              Bu tesise ait kategoriler veya ürünler henüz girilmemiş.<br>
+              Admin panelinden ekleme yaptıktan sonra fiyat listesi otomatik oluşturulacaktır.
+            </div>
+          </div>
         `;
         return;
       }

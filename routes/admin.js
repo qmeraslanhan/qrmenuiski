@@ -8,7 +8,7 @@ const bcrypt = require('bcryptjs');
 const { v2: cloudinary } = require('cloudinary');
 const { db } = require('../database/db');
 const {
-  loginAdmin, loginUser, requireAuth, requireAdmin,
+  loginAdmin, loginUser, logout, requireAuth, requireAdmin,
   isAdmin, canAccessFacility, refreshUserFacilities,
 } = require('../middleware/auth');
 
@@ -42,21 +42,70 @@ const isUniqueError = (e) =>
   e?.code === 'SQLITE_CONSTRAINT_UNIQUE' || /UNIQUE constraint/i.test(e?.message || '');
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
+
+// Brute-force koruması: 15 dakikada 8 başarısız deneme → kilit
+const LOGIN_WINDOW_MIN = 15;
+const LOGIN_MAX_ATTEMPTS = 8;
+
+function clientIp(req) {
+  return (req.headers['x-forwarded-for'] || req.ip || req.connection?.remoteAddress || 'unknown')
+    .toString().split(',')[0].trim();
+}
+
+async function tooManyAttempts(ip) {
+  const since = new Date(Date.now() - LOGIN_WINDOW_MIN * 60_000).toISOString();
+  const r = await db.execute({
+    sql: 'SELECT COUNT(*) AS n FROM login_attempts WHERE ip = ? AND attempted_at > ?',
+    args: [ip, since],
+  });
+  return Number(r.rows[0].n) >= LOGIN_MAX_ATTEMPTS;
+}
+
+async function recordFailedAttempt(ip) {
+  await db.execute({
+    sql: 'INSERT INTO login_attempts (ip) VALUES (?)',
+    args: [ip],
+  });
+  // Eski kayıtları temizle (24 saatten eski)
+  const cutoff = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
+  await db.execute({ sql: 'DELETE FROM login_attempts WHERE attempted_at < ?', args: [cutoff] });
+}
+
+async function clearAttempts(ip) {
+  await db.execute({ sql: 'DELETE FROM login_attempts WHERE ip = ?', args: [ip] });
+}
+
 router.post('/login', async (req, res, next) => {
   try {
+    const ip = clientIp(req);
+    if (await tooManyAttempts(ip)) {
+      return res.status(429).json({ error: `Çok fazla başarısız deneme. ${LOGIN_WINDOW_MIN} dakika sonra tekrar deneyin.` });
+    }
+
     const { username, password } = req.body;
 
     // Admin girişi: kullanıcı adı yoksa veya boşsa
     if (!username || username.trim() === '') {
       const result = await loginAdmin(password);
-      if (!result) return res.status(401).json({ error: 'Hatalı şifre' });
+      if (!result) { await recordFailedAttempt(ip); return res.status(401).json({ error: 'Hatalı şifre' }); }
+      await clearAttempts(ip);
       return res.json(result);
     }
 
     // Kullanıcı girişi
     const result = await loginUser(username, password);
-    if (!result) return res.status(401).json({ error: 'Hatalı kullanıcı adı veya şifre' });
+    if (!result) { await recordFailedAttempt(ip); return res.status(401).json({ error: 'Hatalı kullanıcı adı veya şifre' }); }
+    await clearAttempts(ip);
     res.json(result);
+  } catch (e) { next(e); }
+});
+
+router.post('/logout', async (req, res, next) => {
+  try {
+    const auth = req.headers.authorization || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+    await logout(token);
+    res.json({ success: true });
   } catch (e) { next(e); }
 });
 
@@ -89,8 +138,14 @@ router.post('/facilities', requireAuth, requireAdmin, upload.single('logo'), asy
 
     try {
       const info = await db.execute({
-        sql: 'INSERT INTO facilities (name, slug, description, logo_url, theme_color) VALUES (?, ?, ?, ?, ?)',
-        args: [name, slug, req.body.description?.trim() || null, logo_url, theme_color],
+        sql: 'INSERT INTO facilities (name, slug, description, logo_url, theme_color, phone, hours_text) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        args: [
+          name, slug,
+          req.body.description?.trim() || null,
+          logo_url, theme_color,
+          req.body.phone?.trim() || null,
+          req.body.hours_text?.trim() || null,
+        ],
       });
 
       const facilityResult = await db.execute({
@@ -129,13 +184,15 @@ router.put('/facilities/:id', requireAuth, upload.single('logo'), async (req, re
       ? await uploadToCloudinary(req.file.buffer)
       : (req.body.remove_logo === 'true' || req.body.remove_logo === true ? null : f.logo_url);
     const theme_color = req.body.theme_color !== undefined ? (req.body.theme_color || null) : f.theme_color;
+    const phone       = req.body.phone       !== undefined ? (req.body.phone?.trim()       || null) : f.phone;
+    const hours_text  = req.body.hours_text  !== undefined ? (req.body.hours_text?.trim()  || null) : f.hours_text;
 
     await db.execute({
-      sql: 'UPDATE facilities SET name=?, slug=?, description=?, logo_url=?, theme_color=? WHERE id=?',
+      sql: 'UPDATE facilities SET name=?, slug=?, description=?, logo_url=?, theme_color=?, phone=?, hours_text=? WHERE id=?',
       args: [
         name, slug,
         req.body.description?.trim() ?? f.description,
-        logo_url, theme_color, req.params.id,
+        logo_url, theme_color, phone, hours_text, req.params.id,
       ],
     });
 
@@ -227,6 +284,63 @@ router.delete('/categories/:id', requireAuth, async (req, res, next) => {
     }
     await db.execute({ sql: 'DELETE FROM categories WHERE id=?', args: [req.params.id] });
     res.json({ success: true });
+  } catch (e) { next(e); }
+});
+
+// ── Bulk import (CSV/JSON) ────────────────────────────────────────────────────
+router.post('/facilities/:fid/bulk-import', requireAuth, async (req, res, next) => {
+  try {
+    if (!canAccessFacility(req, req.params.fid)) {
+      return res.status(403).json({ error: 'Bu tesise erişim yetkiniz yok' });
+    }
+    const items = Array.isArray(req.body.items) ? req.body.items : [];
+    if (!items.length) return res.status(400).json({ error: 'Boş içerik' });
+
+    // Kategoriye göre grupla
+    const byCategory = new Map();
+    for (const it of items) {
+      const cat = (it.category || '').toString().trim();
+      const name = (it.name || '').toString().trim();
+      if (!cat || !name) continue;
+      const price = Number(it.price) || 0;
+      const description = (it.description || '').toString().trim() || null;
+      if (!byCategory.has(cat)) byCategory.set(cat, []);
+      byCategory.get(cat).push({ name, price, description });
+    }
+
+    let categoriesAdded = 0, productsAdded = 0;
+    for (const [catName, products] of byCategory) {
+      const cr = await db.execute({
+        sql: 'SELECT id FROM categories WHERE facility_id = ? AND name = ?',
+        args: [req.params.fid, catName],
+      });
+      let catId;
+      if (cr.rows[0]) {
+        catId = Number(cr.rows[0].id);
+      } else {
+        const ins = await db.execute({
+          sql: 'INSERT INTO categories (facility_id, name, sort_order) VALUES (?, ?, 0)',
+          args: [req.params.fid, catName],
+        });
+        catId = Number(ins.lastInsertRowid);
+        categoriesAdded++;
+      }
+
+      for (const p of products) {
+        const exists = await db.execute({
+          sql: 'SELECT 1 FROM products WHERE category_id = ? AND name = ?',
+          args: [catId, p.name],
+        });
+        if (exists.rows[0]) continue;
+        await db.execute({
+          sql: 'INSERT INTO products (category_id, name, description, price) VALUES (?, ?, ?, ?)',
+          args: [catId, p.name, p.description, p.price],
+        });
+        productsAdded++;
+      }
+    }
+
+    res.json({ categoriesAdded, productsAdded });
   } catch (e) { next(e); }
 });
 

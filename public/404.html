@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sayfa Bulunamadı — QR Menü</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { font-family: 'DM Sans', sans-serif; }
+    body { background: linear-gradient(135deg,#1e1b4b 0%,#312e81 50%,#4f46e5 100%); min-height: 100vh; }
+  </style>
+</head>
+<body class="flex items-center justify-center p-6">
+
+  <div class="text-center max-w-md">
+    <div class="inline-flex items-center justify-center w-20 h-20 bg-amber-500 rounded-3xl shadow-2xl mb-6">
+      <svg class="w-10 h-10 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+    </div>
+    <h1 class="text-5xl font-bold text-white mb-3">404</h1>
+    <h2 class="text-xl font-semibold text-white mb-2">Sayfa Bulunamadı</h2>
+    <p class="text-indigo-200 text-sm mb-8 leading-relaxed">
+      Aradığınız sayfa silinmiş, taşınmış veya hiç var olmamış olabilir.<br>
+      QR kodu tarayarak doğru menüye ulaşabilirsiniz.
+    </p>
+
+    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+      <a href="/tesisler.html"
+         class="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold rounded-xl transition-colors text-sm">
+        Tesislere Dön
+      </a>
+      <a href="javascript:history.back()"
+         class="px-6 py-3 bg-white/10 hover:bg-white/15 text-white border border-white/20 font-semibold rounded-xl transition-colors text-sm">
+        Geri Git
+      </a>
+    </div>
+  </div>
+
+</body>
+</html>

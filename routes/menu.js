@@ -49,6 +49,8 @@ router.get('/:slug', async (req, res, next) => {
         description: facility.description,
         logo_url: facility.logo_url,
         theme_color: facility.theme_color,
+        phone: facility.phone,
+        hours_text: facility.hours_text,
       },
       categories: categoriesWithProducts,
       qrCode,

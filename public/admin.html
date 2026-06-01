@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QR Menü — Yönetim</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <meta name="robots" content="noindex,nofollow">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -194,6 +196,10 @@
         <button onclick="openPriceList()" class="w-full text-left px-4 py-2.5 text-sm ui-text-1 flex items-center gap-2.5" style="transition:background 0.12s" onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background=''">
           <svg class="w-3.5 h-3.5 ui-text-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
           Fiyat Listesi (PDF)
+        </button>
+        <button onclick="openImportModal()" class="w-full text-left px-4 py-2.5 text-sm ui-text-1 flex items-center gap-2.5" style="transition:background 0.12s" onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background=''">
+          <svg class="w-3.5 h-3.5 ui-text-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
+          İçeri Aktar (CSV)
         </button>
         <div class="my-1 ui-border-b"></div>
         <button onclick="deleteFacility()" class="w-full text-left px-4 py-2.5 text-sm text-red-400 flex items-center gap-2.5" style="transition:background 0.12s" onmouseenter="this.style.background='rgba(239,68,68,0.08)'" onmouseleave="this.style.background=''">
@@ -405,8 +411,18 @@
         <input id="facilityName" type="text" placeholder="Örn: Kafe Boğaz" class="w-full ui-input" style="border-radius:12px;padding:10px 14px">
       </div>
       <div>
-        <label class="block text-xs font-medium ui-text-2 mb-1.5">Açıklama (opsiyonel)</label>
-        <textarea id="facilityDesc" rows="2" placeholder="Kısa tanıtım yazısı..." class="w-full ui-input resize-none" style="border-radius:12px;padding:10px 14px"></textarea>
+        <label class="block text-xs font-medium ui-text-2 mb-1.5">Açıklama / Adres (opsiyonel)</label>
+        <textarea id="facilityDesc" rows="2" placeholder="Kısa tanıtım veya adres..." class="w-full ui-input resize-none" style="border-radius:12px;padding:10px 14px"></textarea>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium ui-text-2 mb-1.5">Telefon (opsiyonel)</label>
+          <input id="facilityPhone" type="tel" placeholder="0212 ..." class="w-full ui-input" style="border-radius:12px;padding:10px 14px">
+        </div>
+        <div>
+          <label class="block text-xs font-medium ui-text-2 mb-1.5">Çalışma Saatleri (opsiyonel)</label>
+          <input id="facilityHours" type="text" placeholder="Hafta içi 09:00–18:00" class="w-full ui-input" style="border-radius:12px;padding:10px 14px">
+        </div>
       </div>
       <div>
         <label class="block text-xs font-medium ui-text-2 mb-2">Müşteri Menüsü Teması</label>
@@ -429,6 +445,30 @@
     <div class="flex gap-2">
       <button onclick="closeQRModal()" class="flex-1 py-2.5 rounded-xl text-sm ui-text-2" style="background:var(--bg-hover)">Kapat</button>
       <a id="qrDownload" href="#" download="menu-qr.png" class="flex-1 py-2.5 rounded-xl text-sm font-semibold btn-accent transition text-center">İndir</a>
+    </div>
+  </div>
+</div>
+
+<!-- Import Modal -->
+<div id="importModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4" onclick="closeImportModal()">
+  <div class="ui-card ui-border rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col" style="max-height:85vh;border-width:1px;border-style:solid" onclick="event.stopPropagation()">
+    <div class="px-6 py-4 ui-border-b">
+      <h3 class="font-semibold ui-text-1">CSV İçeri Aktar</h3>
+      <p class="text-xs ui-text-3 mt-1">Format: <span class="font-mono">Kategori,Ürün,Fiyat,Açıklama</span> &nbsp;·&nbsp; Mevcut ürün varsa atlanır (idempotent)</p>
+    </div>
+    <div class="px-6 py-4 flex-1 overflow-y-auto space-y-3">
+      <textarea id="importText" rows="10" placeholder="Kategori,Ürün,Fiyat,Açıklama
+Kahve,Espresso,25
+Kahve,Latte,55,Sütlü
+İçecekler,Su,6
+İçecekler,Çay,6"
+        class="w-full ui-input font-mono text-xs" style="border-radius:12px;padding:12px"></textarea>
+      <div id="importPreview" class="hidden text-xs ui-text-2 ui-card ui-border rounded-xl p-3" style="border-width:1px;border-style:solid;max-height:160px;overflow-y:auto"></div>
+    </div>
+    <div class="px-6 py-4 ui-border-t flex gap-2 justify-end">
+      <button onclick="closeImportModal()" class="px-4 py-2 text-sm ui-text-2 hover:ui-text-1 transition-colors">İptal</button>
+      <button id="importPreviewBtn" onclick="previewImport()" class="px-4 py-2 text-sm rounded-xl ui-text-1" style="background:var(--bg-hover)">Önizle</button>
+      <button id="importSubmitBtn" onclick="submitImport()" class="px-5 py-2 btn-accent text-sm font-semibold rounded-xl">Aktar</button>
     </div>
   </div>
 </div>
@@ -986,6 +1026,8 @@
     document.getElementById('facilityModalTitle').textContent = 'Yeni Tesis';
     document.getElementById('facilityName').value = '';
     document.getElementById('facilityDesc').value = '';
+    document.getElementById('facilityPhone').value = '';
+    document.getElementById('facilityHours').value = '';
     resetLogoPreview(null); buildMenuThemeSwatches('indigo');
     document.getElementById('facilityModal').classList.remove('hidden');
     setTimeout(() => document.getElementById('facilityName').focus(), 50);
@@ -1000,6 +1042,8 @@
     document.getElementById('facilityModalTitle').textContent = 'Tesis Düzenle';
     document.getElementById('facilityName').value = f.name;
     document.getElementById('facilityDesc').value = f.description || '';
+    document.getElementById('facilityPhone').value = f.phone || '';
+    document.getElementById('facilityHours').value = f.hours_text || '';
     resetLogoPreview(f.logo_url || null);
     const themeKey = f.theme_color ? (MENU_THEMES.find(t => t.color === f.theme_color)?.key || 'indigo') : 'indigo';
     buildMenuThemeSwatches(themeKey);
@@ -1027,6 +1071,8 @@
   async function submitFacility() {
     const name = document.getElementById('facilityName').value.trim();
     const description = document.getElementById('facilityDesc').value.trim();
+    const phone = document.getElementById('facilityPhone').value.trim();
+    const hours_text = document.getElementById('facilityHours').value.trim();
     if (!name) { document.getElementById('facilityName').focus(); return; }
     const btn = document.getElementById('facilitySubmitBtn');
     btn.disabled = true; btn.textContent = 'Kaydediliyor...';
@@ -1036,11 +1082,13 @@
       if (facilityLogoFile) {
         const fd = new FormData(); fd.append('name', name);
         if (description) fd.append('description', description);
+        fd.append('phone', phone);
+        fd.append('hours_text', hours_text);
         fd.append('logo', facilityLogoFile);
         if (themeColor) fd.append('theme_color', themeColor);
         result = await api(facilityEditMode ? 'PUT' : 'POST', facilityEditMode ? `/facilities/${S.facilityId}` : '/facilities', fd);
       } else {
-        const body = { name, description, theme_color: themeColor };
+        const body = { name, description, phone, hours_text, theme_color: themeColor };
         if (pendingLogoRemove) body.remove_logo = true;
         result = await api(facilityEditMode ? 'PUT' : 'POST', facilityEditMode ? `/facilities/${S.facilityId}` : '/facilities', body);
       }
@@ -1090,6 +1138,92 @@
     closeSettings();
     if (!S.facilitySlug) { showToast('Önce bir tesis seçin', 'error'); return; }
     window.open('/print-menu.html?slug=' + encodeURIComponent(S.facilitySlug), '_blank');
+  }
+
+  // ── CSV IMPORT ───────────────────────────────────────────────────────────
+  function openImportModal() {
+    closeSettings();
+    if (!S.facilityId) { showToast('Önce bir tesis seçin', 'error'); return; }
+    document.getElementById('importText').value = '';
+    document.getElementById('importPreview').classList.add('hidden');
+    document.getElementById('importPreview').innerHTML = '';
+    document.getElementById('importModal').classList.remove('hidden');
+  }
+  function closeImportModal() { document.getElementById('importModal').classList.add('hidden'); }
+
+  function parseCsv(text) {
+    const items = [];
+    const lines = text.split(/\r?\n/);
+    let firstSkipped = false;
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line) continue;
+      // Basit CSV: virgülle ayır, tırnaklı alanları handle et
+      const cols = parseCsvLine(line);
+      if (!cols.length) continue;
+      // İlk satır başlık ise (içinde "Fiyat" veya "Price" vb. varsa) atla
+      if (!firstSkipped && /kategori|cat|name|fiyat|price/i.test(cols.join(' '))) {
+        firstSkipped = true;
+        // Header değil sıradan veriyse de atla — bir kere
+        if (cols.slice(0, 3).every(c => isNaN(parseFloat(c)))) continue;
+      }
+      const [category, name, price, description] = cols;
+      items.push({
+        category: (category || '').trim(),
+        name: (name || '').trim(),
+        price: parseFloat(String(price || '0').replace(',', '.')) || 0,
+        description: (description || '').trim(),
+      });
+    }
+    return items.filter(x => x.category && x.name);
+  }
+
+  function parseCsvLine(line) {
+    const out = []; let cur = ''; let inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQ) {
+        if (ch === '"' && line[i+1] === '"') { cur += '"'; i++; }
+        else if (ch === '"') inQ = false;
+        else cur += ch;
+      } else {
+        if (ch === '"') inQ = true;
+        else if (ch === ',' || ch === ';') { out.push(cur); cur = ''; }
+        else cur += ch;
+      }
+    }
+    out.push(cur);
+    return out.map(s => s.trim());
+  }
+
+  function previewImport() {
+    const items = parseCsv(document.getElementById('importText').value);
+    const el = document.getElementById('importPreview');
+    if (!items.length) {
+      el.classList.remove('hidden');
+      el.innerHTML = '<span style="color:#ef4444">Geçerli satır bulunamadı.</span>';
+      return;
+    }
+    const cats = [...new Set(items.map(i => i.category))];
+    el.classList.remove('hidden');
+    el.innerHTML = `<strong>${items.length} ürün</strong> / <strong>${cats.length} kategori</strong>: ${cats.map(c => esc(c)).join(', ')}`;
+  }
+
+  async function submitImport() {
+    if (!S.facilityId) return;
+    const items = parseCsv(document.getElementById('importText').value);
+    if (!items.length) { showToast('Geçerli satır bulunamadı', 'error'); return; }
+
+    const btn = document.getElementById('importSubmitBtn');
+    btn.disabled = true; btn.textContent = 'Aktarılıyor...';
+    try {
+      const r = await api('POST', `/facilities/${S.facilityId}/bulk-import`, { items });
+      showToast(`${r.categoriesAdded} kategori, ${r.productsAdded} ürün eklendi`);
+      closeImportModal();
+      // Listeyi tazele
+      await selectFacility(S.facilityId);
+    } catch (e) { showToast(e.message, 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'Aktar'; }
   }
 
   // ── SETTINGS DROPDOWN ────────────────────────────────────────────────────
@@ -1265,7 +1399,12 @@
 
   // ── UTILS ─────────────────────────────────────────────────────────────────
   const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  function logout() { localStorage.removeItem('admin_token'); localStorage.removeItem('admin_role'); location.href = '/login.html'; }
+  async function logout() {
+    try { await api('POST', '/logout'); } catch {} // session DB'den de sil
+    localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_role');
+    location.href = '/login.html';
+  }
 
   init();
 </script>

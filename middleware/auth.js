@@ -3,11 +3,21 @@ const bcrypt = require('bcryptjs');
 const { db } = require('../database/db');
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const SESSION_TTL_DAYS = 7;
+
+function expiresAt() {
+  const d = new Date();
+  d.setDate(d.getDate() + SESSION_TTL_DAYS);
+  return d.toISOString();
+}
 
 async function loginAdmin(password) {
   if (password !== ADMIN_PASSWORD) return null;
   const token = crypto.randomBytes(32).toString('hex');
-  await db.execute({ sql: 'INSERT INTO sessions (token, role) VALUES (?, ?)', args: [token, 'admin'] });
+  await db.execute({
+    sql: 'INSERT INTO sessions (token, role, expires_at) VALUES (?, ?, ?)',
+    args: [token, 'admin', expiresAt()],
+  });
   return { token, role: 'admin' };
 }
 
@@ -41,8 +51,8 @@ async function loginUser(username, password) {
     args: [user.id],
   });
   await db.execute({
-    sql: 'INSERT INTO sessions (token, role, user_id, username) VALUES (?, ?, ?, ?)',
-    args: [token, 'user', user.id, user.username],
+    sql: 'INSERT INTO sessions (token, role, user_id, username, expires_at) VALUES (?, ?, ?, ?, ?)',
+    args: [token, 'user', user.id, user.username, expiresAt()],
   });
   for (const r of facilities.rows) {
     await db.execute({
@@ -65,6 +75,12 @@ async function requireAuth(req, res, next) {
     });
     const session = sessionResult.rows[0];
     if (!session) return res.status(401).json({ error: 'Yetkisiz erişim' });
+
+    // Süresi dolmuş mu?
+    if (session.expires_at && new Date(session.expires_at) < new Date()) {
+      await db.execute({ sql: 'DELETE FROM sessions WHERE token = ?', args: [token] });
+      return res.status(401).json({ error: 'Oturum süresi doldu, tekrar giriş yapın' });
+    }
 
     if (session.role === 'admin') {
       req.auth = { role: 'admin' };
@@ -123,7 +139,12 @@ async function refreshUserFacilities(userId, facilityIds) {
   }
 }
 
+async function logout(token) {
+  if (!token) return;
+  await db.execute({ sql: 'DELETE FROM sessions WHERE token = ?', args: [token] });
+}
+
 module.exports = {
-  loginAdmin, loginUser, requireAuth, requireAdmin,
+  loginAdmin, loginUser, logout, requireAuth, requireAdmin,
   isAdmin, canAccessFacility, refreshUserFacilities,
 };

@@ -35,12 +35,12 @@ app.get('/api/health', (req, res) => {
 
 app.get('/', (req, res) => res.redirect('/tesisler.html'));
 
-// 404 — API istekleri için JSON döndür
+// 404 — API JSON, HTML için 404.html sayfası
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: `Endpoint bulunamadı: ${req.method} ${req.path}` });
   }
-  next();
+  res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
 });
 
 // Global hata handler
@@ -56,8 +56,7 @@ app.use((err, req, res, next) => {
 if (!process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`\n QR Menü Sistemi → http://localhost:${PORT}`);
-    console.log(` Admin Paneli   → http://localhost:${PORT}/login.html`);
-    console.log(` Admin Şifresi  → ${process.env.ADMIN_PASSWORD || 'admin123'}\n`);
+    console.log(` Admin Paneli   → http://localhost:${PORT}/login.html\n`);
   });
 }
 
