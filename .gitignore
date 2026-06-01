@@ -6,3 +6,6 @@ uploads/*
 !uploads/.gitkeep
 .env
 .claude/
+
+.vercel
+.env*.local

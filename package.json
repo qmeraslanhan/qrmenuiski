@@ -4,7 +4,9 @@
   "description": "Çoklu Tesis QR Menü Sistemi",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "seed:sukafe": "node scripts/seed-su-kafe.js",
+    "deploy": "powershell -ExecutionPolicy Bypass -File ./deploy.ps1"
   },
   "engines": {
     "node": ">=18.0.0"
