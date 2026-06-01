@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Fiyat Listesi</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    @page { size: A3 landscape; margin: 8mm; }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { font-family: 'DM Sans', Arial, sans-serif; color: #111827; background: #f5f5f0; }
+    body { padding: 8mm 10mm; min-height: 100vh; }
+
+    :root { --theme: #1e3a8a; --theme-dark: #1e40af; --row-alt: #f8fafc; --border: #cbd5e1; }
+
+    .page-title {
+      background: var(--theme);
+      color: #fff;
+      text-align: center;
+      padding: 14px 20px;
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      border-radius: 2px;
+    }
+
+    .columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .category { break-inside: avoid; page-break-inside: avoid; margin-bottom: 8px; }
+
+    .cat-title {
+      background: var(--theme);
+      color: #fff;
+      text-align: center;
+      padding: 7px 12px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      border: 1px solid var(--theme);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      font-size: 12px;
+    }
+    th, td {
+      padding: 5px 10px;
+      border: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    tr:nth-child(even) td { background: var(--row-alt); }
+    .col-no    { width: 32px; text-align: center; color: #475569; font-weight: 500; }
+    .col-name  { font-weight: 600; text-transform: uppercase; color: #0f172a; }
+    .col-price { width: 90px; text-align: right; font-weight: 700; white-space: nowrap; color: var(--theme); }
+
+    .desc { display: block; font-weight: 400; font-size: 10px; color: #64748b; text-transform: none; margin-top: 2px; }
+
+    .footer {
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+    .qr-box {
+      background: #fff;
+      padding: 6px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+    .qr-box img { display: block; width: 90px; height: 90px; }
+    .qr-label { font-size: 11px; color: #475569; font-weight: 500; }
+    .qr-url   { font-size: 10px; color: #64748b; word-break: break-all; }
+
+    /* Toolbar - sadece ekranda */
+    .toolbar {
+      position: fixed; top: 12px; right: 12px; z-index: 100;
+      display: flex; gap: 6px;
+    }
+    .tb-btn {
+      background: var(--theme); color: #fff; border: none;
+      padding: 8px 14px; font-size: 12px; font-weight: 600;
+      border-radius: 6px; cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,.15);
+      font-family: inherit;
+    }
+    .tb-btn:hover { background: var(--theme-dark); }
+    .tb-btn.secondary { background: #fff; color: #111827; border: 1px solid #e2e8f0; }
+
+    .loading, .error {
+      padding: 60px 20px; text-align: center;
+    }
+    .error { color: #b91c1c; }
+
+    @media print {
+      .toolbar { display: none; }
+      body { background: #fff; padding: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="toolbar no-print">
+    <button class="tb-btn" onclick="window.print()">PDF İndir / Yazdır</button>
+    <button class="tb-btn secondary" onclick="window.close()">Kapat</button>
+  </div>
+
+  <div id="content"><div class="loading">Yükleniyor…</div></div>
+
+  <script>
+    const slug = new URLSearchParams(location.search).get('slug');
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function fmtPrice(p) {
+      const n = Number(p) || 0;
+      return '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function renderError(msg) {
+      document.getElementById('content').innerHTML = '<div class="error">' + esc(msg) + '</div>';
+    }
+
+    async function load() {
+      if (!slug) { renderError('URL\'de slug belirtilmemiş. Örnek: /print-menu.html?slug=su-kafe'); return; }
+      try {
+        const res = await fetch('/api/menu/' + encodeURIComponent(slug));
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'HTTP ' + res.status);
+        }
+        const data = await res.json();
+        render(data);
+      } catch (e) {
+        renderError('Veri yüklenemedi: ' + e.message);
+      }
+    }
+
+    function splitColumns(categories) {
+      // Toplam satır sayısının yarısına en yakın noktadan ikiye böl
+      const totals = categories.map(c => (c.products || []).length + 1); // başlık + ürünler
+      const sum = totals.reduce((a, b) => a + b, 0);
+      const half = sum / 2;
+      let acc = 0, split = categories.length;
+      for (let i = 0; i < categories.length; i++) {
+        if (acc + totals[i] / 2 >= half) { split = i; break; }
+        acc += totals[i];
+      }
+      if (split === 0) split = 1;
+      return [categories.slice(0, split), categories.slice(split)];
+    }
+
+    function renderCategory(cat, startNo) {
+      const products = cat.products || [];
+      const rows = products.map((p, i) => `
+        <tr>
+          <td class="col-no">${startNo + i}</td>
+          <td class="col-name">${esc(p.name)}${p.description ? `<span class="desc">${esc(p.description)}</span>` : ''}</td>
+          <td class="col-price">${fmtPrice(p.price)}</td>
+        </tr>
+      `).join('');
+      return `
+        <div class="category">
+          <div class="cat-title">${esc(cat.name)}</div>
+          <table>${rows}</table>
+        </div>
+      `;
+    }
+
+    function render(data) {
+      const themeColor = data.facility.theme_color || '#1e3a8a';
+      document.documentElement.style.setProperty('--theme', themeColor);
+      document.documentElement.style.setProperty('--theme-dark', themeColor);
+      document.title = data.facility.name + ' — Fiyat Listesi';
+
+      const cats = data.categories || [];
+      if (cats.length === 0) {
+        document.getElementById('content').innerHTML = `
+          <div class="page-title">${esc(data.facility.name)} ÜRÜN FİYATLARI</div>
+          <div class="loading">Bu tesiste henüz ürün yok.</div>
+        `;
+        return;
+      }
+
+      // Tüm tesis boyunca sürekli numaralandırma
+      let counter = 1;
+      const cols = splitColumns(cats);
+      const renderCol = (catList) => {
+        let html = '';
+        for (const c of catList) {
+          html += renderCategory(c, counter);
+          counter += (c.products || []).length;
+        }
+        return html;
+      };
+
+      const left  = renderCol(cols[0]);
+      const right = renderCol(cols[1]);
+
+      const qr = data.qrCode
+        ? `<div class="qr-box"><img src="${esc(data.qrCode)}" alt="QR"></div>
+           <div><div class="qr-label">Menüye Kareyi Tarat</div><div class="qr-url">${esc(data.menuUrl || '')}</div></div>`
+        : '';
+
+      document.getElementById('content').innerHTML = `
+        <div class="page-title">${esc(data.facility.name)} ÜRÜN FİYATLARI</div>
+        <div class="columns">
+          <div>${left}</div>
+          <div>${right}</div>
+        </div>
+        ${qr ? `<div class="footer">${qr}</div>` : ''}
+      `;
+    }
+
+    load();
+  </script>
+</body>
+</html>
