@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: qr-menu
+    runtime: node
+    plan: starter
+    region: frankfurt
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: ADMIN_PASSWORD
+        sync: false
+    disk:
+      name: qr-menu-data
+      mountPath: /opt/render/project/src
+      sizeGB: 1
