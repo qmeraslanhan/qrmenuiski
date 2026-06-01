@@ -3,6 +3,16 @@ const router = express.Router();
 const QRCode = require('qrcode');
 const { db } = require('../database/db');
 
+// Tüm tesisleri public olarak listele (müşteri tesis seçimi için)
+router.get('/', async (req, res, next) => {
+  try {
+    const r = await db.execute(
+      'SELECT id, name, slug, description, logo_url, theme_color FROM facilities ORDER BY name'
+    );
+    res.json(r.rows);
+  } catch (e) { next(e); }
+});
+
 router.get('/:slug', async (req, res, next) => {
   try {
     const facilityResult = await db.execute({

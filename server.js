@@ -33,7 +33,7 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', db: 'connected' });
 });
 
-app.get('/', (req, res) => res.redirect('/login.html'));
+app.get('/', (req, res) => res.redirect('/tesisler.html'));
 
 // 404 — API istekleri için JSON döndür
 app.use((req, res, next) => {
