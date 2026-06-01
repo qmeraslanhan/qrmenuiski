@@ -3,137 +3,376 @@
 <head>
   <meta charset="UTF-8">
   <title>Fiyat Listesi</title>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    @page { size: A3 landscape; margin: 8mm; }
+    @page { size: A3 landscape; margin: 0; }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { font-family: 'DM Sans', Arial, sans-serif; color: #111827; background: #f5f5f0; }
-    body { padding: 8mm 10mm; min-height: 100vh; }
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-    :root { --theme: #1e3a8a; --theme-dark: #1e40af; --row-alt: #f8fafc; --border: #cbd5e1; }
-
-    .page-title {
-      background: var(--theme);
-      color: #fff;
-      text-align: center;
-      padding: 14px 20px;
-      font-size: 26px;
-      font-weight: 800;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      margin-bottom: 10px;
-      border-radius: 2px;
+    :root {
+      --theme:       #1e293b;
+      --theme-soft:  #334155;
+      --gold:        #b8860b;
+      --gold-light:  #d4a843;
+      --paper:       #faf6ed;
+      --paper-warm:  #f5efdf;
+      --ink:         #1a1a1a;
+      --ink-soft:    #5b5b5b;
+      --line:        #c9bf9c;
+      --line-soft:   #e5dcc1;
     }
 
+    html, body {
+      background:
+        radial-gradient(circle at 20% 10%, rgba(184,134,11,0.04), transparent 50%),
+        radial-gradient(circle at 80% 90%, rgba(30,41,59,0.03), transparent 50%),
+        var(--paper);
+      color: var(--ink);
+      font-family: 'DM Sans', Arial, sans-serif;
+    }
+    body {
+      padding: 14mm 16mm;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    /* Dekoratif çerçeve */
+    .frame-outer {
+      position: absolute;
+      inset: 8mm;
+      border: 1px solid var(--line);
+      pointer-events: none;
+    }
+    .frame-inner {
+      position: absolute;
+      inset: 9.5mm;
+      border: 1px solid var(--line-soft);
+      pointer-events: none;
+    }
+    /* Köşe ornamentleri */
+    .corner {
+      position: absolute;
+      width: 14mm; height: 14mm;
+      pointer-events: none;
+    }
+    .corner.tl { top: 6.5mm; left: 6.5mm; }
+    .corner.tr { top: 6.5mm; right: 6.5mm; transform: scaleX(-1); }
+    .corner.bl { bottom: 6.5mm; left: 6.5mm; transform: scaleY(-1); }
+    .corner.br { bottom: 6.5mm; right: 6.5mm; transform: scale(-1, -1); }
+    .corner::before, .corner::after {
+      content: '';
+      position: absolute;
+      background: var(--gold);
+    }
+    .corner::before { top: 0; left: 0; width: 6mm; height: 1px; }
+    .corner::after  { top: 0; left: 0; width: 1px; height: 6mm; }
+
+    /* ── HEADER ───────────────────────────────────────────────── */
+    .header {
+      text-align: center;
+      padding: 6px 0 14px;
+      margin-bottom: 8px;
+    }
+    .header-tag {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 10px;
+      letter-spacing: 8px;
+      color: var(--gold);
+      text-transform: uppercase;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+    .header-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 44px;
+      font-weight: 800;
+      color: var(--theme);
+      letter-spacing: 2px;
+      line-height: 1;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    .header-sub {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 14px;
+      font-style: italic;
+      color: var(--ink-soft);
+      font-weight: 500;
+      max-width: 500px;
+      margin: 0 auto;
+      letter-spacing: 0.5px;
+    }
+
+    .ornament {
+      display: flex; align-items: center; justify-content: center;
+      gap: 10px;
+      margin: 10px auto 8px;
+    }
+    .ornament-line {
+      width: 60px; height: 1px;
+      background: linear-gradient(to right, transparent, var(--gold), transparent);
+    }
+    .ornament-diamond {
+      width: 5px; height: 5px;
+      background: var(--gold);
+      transform: rotate(45deg);
+    }
+    .ornament-circle {
+      width: 4px; height: 4px;
+      border: 1px solid var(--gold);
+      border-radius: 50%;
+    }
+
+    /* ── COLUMNS ──────────────────────────────────────────────── */
     .columns {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
+      gap: 22mm;
       align-items: start;
+      padding: 0 6mm;
     }
 
-    .category { break-inside: avoid; page-break-inside: avoid; margin-bottom: 8px; }
-
+    /* ── CATEGORY ─────────────────────────────────────────────── */
+    .category {
+      break-inside: avoid;
+      page-break-inside: avoid;
+      margin-bottom: 18px;
+    }
     .cat-title {
-      background: var(--theme);
-      color: #fff;
+      font-family: 'Playfair Display', serif;
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--theme);
       text-align: center;
-      padding: 7px 12px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      position: relative;
+    }
+    .cat-title::after {
+      content: '';
+      display: block;
+      width: 40px;
+      height: 1px;
+      background: var(--gold);
+      margin: 6px auto 0;
+    }
+
+    /* ── PRODUCT ──────────────────────────────────────────────── */
+    .product-row {
+      padding: 4px 0;
+    }
+    .product-line {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .product-name {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink);
+      letter-spacing: 0.4px;
+      flex-shrink: 0;
+      text-transform: uppercase;
+    }
+    .product-dots {
+      flex: 1;
+      border-bottom: 1px dotted #a89a72;
+      transform: translateY(-4px);
+      min-width: 20px;
+    }
+    .product-price {
+      font-family: 'Playfair Display', serif;
       font-size: 14px;
       font-weight: 700;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      border: 1px solid var(--theme);
+      color: var(--theme);
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+      letter-spacing: 0.3px;
+    }
+    .product-desc {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 11px;
+      font-style: italic;
+      color: var(--ink-soft);
+      font-weight: 500;
+      margin-top: 2px;
+      padding-right: 30px;
+      line-height: 1.3;
+      letter-spacing: 0.2px;
     }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: #fff;
-      font-size: 12px;
-    }
-    th, td {
-      padding: 5px 10px;
-      border: 1px solid var(--border);
-      vertical-align: middle;
-    }
-    tr:nth-child(even) td { background: var(--row-alt); }
-    .col-no    { width: 32px; text-align: center; color: #475569; font-weight: 500; }
-    .col-name  { font-weight: 600; text-transform: uppercase; color: #0f172a; }
-    .col-price { width: 90px; text-align: right; font-weight: 700; white-space: nowrap; color: var(--theme); }
-
-    .desc { display: block; font-weight: 400; font-size: 10px; color: #64748b; text-transform: none; margin-top: 2px; }
-
+    /* ── FOOTER ───────────────────────────────────────────────── */
     .footer {
-      margin-top: 12px;
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line-soft);
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 16px;
+      justify-content: space-between;
+      gap: 20px;
+      padding-left: 6mm;
+      padding-right: 6mm;
+    }
+    .footer-brand {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .brand-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--theme);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      line-height: 1;
+    }
+    .brand-tag {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 9px;
+      letter-spacing: 4px;
+      color: var(--gold);
+      font-weight: 500;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+    .footer-mid {
+      text-align: center;
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 12px;
+      color: var(--ink-soft);
+      letter-spacing: 0.5px;
+    }
+    .qr-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
     .qr-box {
       background: #fff;
       padding: 6px;
-      border: 1px solid var(--border);
-      border-radius: 4px;
+      border: 1px solid var(--line);
+      box-shadow: 0 2px 6px rgba(0,0,0,.05);
     }
-    .qr-box img { display: block; width: 90px; height: 90px; }
-    .qr-label { font-size: 11px; color: #475569; font-weight: 500; }
-    .qr-url   { font-size: 10px; color: #64748b; word-break: break-all; }
+    .qr-box img {
+      display: block;
+      width: 72px;
+      height: 72px;
+    }
+    .qr-text {
+      text-align: right;
+      max-width: 130px;
+    }
+    .qr-text strong {
+      display: block;
+      font-family: 'Playfair Display', serif;
+      font-size: 12px;
+      color: var(--theme);
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .qr-text span {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 9px;
+      color: var(--ink-soft);
+      letter-spacing: 0.5px;
+      line-height: 1.4;
+    }
 
-    /* Toolbar - sadece ekranda */
+    /* ── TOOLBAR (ekran) ──────────────────────────────────────── */
     .toolbar {
-      position: fixed; top: 12px; right: 12px; z-index: 100;
-      display: flex; gap: 6px;
+      position: fixed;
+      top: 16px; right: 16px;
+      z-index: 100;
+      display: flex; gap: 8px;
     }
     .tb-btn {
-      background: var(--theme); color: #fff; border: none;
-      padding: 8px 14px; font-size: 12px; font-weight: 600;
-      border-radius: 6px; cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0,0,0,.15);
-      font-family: inherit;
+      background: var(--theme);
+      color: #fff;
+      border: none;
+      padding: 11px 22px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(30,41,59,.25);
+      transition: all .2s;
     }
-    .tb-btn:hover { background: var(--theme-dark); }
-    .tb-btn.secondary { background: #fff; color: #111827; border: 1px solid #e2e8f0; }
-
-    .loading, .error {
-      padding: 60px 20px; text-align: center;
+    .tb-btn:hover { background: var(--theme-soft); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(30,41,59,.3); }
+    .tb-btn.secondary {
+      background: #fff;
+      color: var(--theme);
+      border: 1px solid var(--line);
     }
-    .error { color: #b91c1c; }
+    .tb-btn.secondary:hover {
+      background: var(--paper-warm);
+    }
 
+    /* ── STATES ───────────────────────────────────────────────── */
+    .state {
+      padding: 100px 20px;
+      text-align: center;
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 16px;
+      color: var(--ink-soft);
+      letter-spacing: 0.5px;
+    }
+    .state.error { color: #991b1b; }
+
+    /* ── PRINT ────────────────────────────────────────────────── */
     @media print {
       .toolbar { display: none; }
-      body { background: #fff; padding: 0; }
+      body { padding: 10mm 12mm; }
+      .frame-outer { inset: 5mm; }
+      .frame-inner { inset: 6.5mm; }
+      .corner.tl, .corner.tr { top: 3.5mm; }
+      .corner.tl, .corner.bl { left: 3.5mm; }
+      .corner.tr, .corner.br { right: 3.5mm; }
+      .corner.bl, .corner.br { bottom: 3.5mm; }
     }
   </style>
 </head>
 <body>
 
-  <div class="toolbar no-print">
-    <button class="tb-btn" onclick="window.print()">PDF İndir / Yazdır</button>
+  <div class="frame-outer"></div>
+  <div class="frame-inner"></div>
+  <div class="corner tl"></div>
+  <div class="corner tr"></div>
+  <div class="corner bl"></div>
+  <div class="corner br"></div>
+
+  <div class="toolbar">
+    <button class="tb-btn" onclick="window.print()">PDF İndir</button>
     <button class="tb-btn secondary" onclick="window.close()">Kapat</button>
   </div>
 
-  <div id="content"><div class="loading">Yükleniyor…</div></div>
+  <div id="content"><div class="state">Hazırlanıyor…</div></div>
 
   <script>
     const slug = new URLSearchParams(location.search).get('slug');
 
-    function esc(s) {
-      return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    }
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
     function fmtPrice(p) {
       const n = Number(p) || 0;
-      return '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return n.toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
     }
 
-    function renderError(msg) {
-      document.getElementById('content').innerHTML = '<div class="error">' + esc(msg) + '</div>';
+    function renderState(msg, isError) {
+      document.getElementById('content').innerHTML = `<div class="state${isError ? ' error' : ''}">${esc(msg)}</div>`;
     }
 
     async function load() {
-      if (!slug) { renderError('URL\'de slug belirtilmemiş. Örnek: /print-menu.html?slug=su-kafe'); return; }
+      if (!slug) { renderState('URL\'de slug belirtilmemiş.', true); return; }
       try {
         const res = await fetch('/api/menu/' + encodeURIComponent(slug));
         if (!res.ok) {
@@ -143,83 +382,114 @@
         const data = await res.json();
         render(data);
       } catch (e) {
-        renderError('Veri yüklenemedi: ' + e.message);
+        renderState('Veri yüklenemedi: ' + e.message, true);
       }
     }
 
     function splitColumns(categories) {
-      // Toplam satır sayısının yarısına en yakın noktadan ikiye böl
-      const totals = categories.map(c => (c.products || []).length + 1); // başlık + ürünler
-      const sum = totals.reduce((a, b) => a + b, 0);
+      const weights = categories.map(c => (c.products || []).length + 1.8);
+      const sum = weights.reduce((a, b) => a + b, 0);
       const half = sum / 2;
       let acc = 0, split = categories.length;
       for (let i = 0; i < categories.length; i++) {
-        if (acc + totals[i] / 2 >= half) { split = i; break; }
-        acc += totals[i];
+        if (acc + weights[i] / 2 >= half) { split = i; break; }
+        acc += weights[i];
       }
       if (split === 0) split = 1;
+      if (split >= categories.length) split = categories.length - 1;
       return [categories.slice(0, split), categories.slice(split)];
     }
 
-    function renderCategory(cat, startNo) {
-      const products = cat.products || [];
-      const rows = products.map((p, i) => `
-        <tr>
-          <td class="col-no">${startNo + i}</td>
-          <td class="col-name">${esc(p.name)}${p.description ? `<span class="desc">${esc(p.description)}</span>` : ''}</td>
-          <td class="col-price">${fmtPrice(p.price)}</td>
-        </tr>
-      `).join('');
+    function renderProduct(p) {
+      const desc = p.description ? `<div class="product-desc">${esc(p.description)}</div>` : '';
+      return `
+        <div class="product-row">
+          <div class="product-line">
+            <span class="product-name">${esc(p.name)}</span>
+            <span class="product-dots"></span>
+            <span class="product-price">${fmtPrice(p.price)} ₺</span>
+          </div>
+          ${desc}
+        </div>
+      `;
+    }
+
+    function renderCategory(cat) {
+      const products = (cat.products || []).map(renderProduct).join('');
       return `
         <div class="category">
           <div class="cat-title">${esc(cat.name)}</div>
-          <table>${rows}</table>
+          ${products}
         </div>
       `;
     }
 
     function render(data) {
-      const themeColor = data.facility.theme_color || '#1e3a8a';
+      const themeColor = data.facility.theme_color || '#1e293b';
       document.documentElement.style.setProperty('--theme', themeColor);
-      document.documentElement.style.setProperty('--theme-dark', themeColor);
+      document.documentElement.style.setProperty('--theme-soft', themeColor);
       document.title = data.facility.name + ' — Fiyat Listesi';
 
       const cats = data.categories || [];
       if (cats.length === 0) {
         document.getElementById('content').innerHTML = `
-          <div class="page-title">${esc(data.facility.name)} ÜRÜN FİYATLARI</div>
-          <div class="loading">Bu tesiste henüz ürün yok.</div>
+          <div class="header">
+            <div class="header-tag">Menü</div>
+            <h1 class="header-title">${esc(data.facility.name)}</h1>
+            <div class="ornament">
+              <span class="ornament-line"></span>
+              <span class="ornament-diamond"></span>
+              <span class="ornament-line"></span>
+            </div>
+          </div>
+          <div class="state">Bu tesiste henüz ürün bulunmuyor.</div>
         `;
         return;
       }
 
-      // Tüm tesis boyunca sürekli numaralandırma
-      let counter = 1;
       const cols = splitColumns(cats);
-      const renderCol = (catList) => {
-        let html = '';
-        for (const c of catList) {
-          html += renderCategory(c, counter);
-          counter += (c.products || []).length;
-        }
-        return html;
-      };
 
-      const left  = renderCol(cols[0]);
-      const right = renderCol(cols[1]);
+      const qrSection = data.qrCode ? `
+        <div class="qr-area">
+          <div class="qr-text">
+            <strong>Dijital Menü</strong>
+            <span>Kareyi taratarak güncel menüye ulaşın</span>
+          </div>
+          <div class="qr-box">
+            <img src="${esc(data.qrCode)}" alt="QR">
+          </div>
+        </div>
+      ` : '';
 
-      const qr = data.qrCode
-        ? `<div class="qr-box"><img src="${esc(data.qrCode)}" alt="QR"></div>
-           <div><div class="qr-label">Menüye Kareyi Tarat</div><div class="qr-url">${esc(data.menuUrl || '')}</div></div>`
-        : '';
+      const tagline = data.facility.description ? esc(data.facility.description) : 'Lezzet, geleneğin modern dokunuşuyla';
 
       document.getElementById('content').innerHTML = `
-        <div class="page-title">${esc(data.facility.name)} ÜRÜN FİYATLARI</div>
-        <div class="columns">
-          <div>${left}</div>
-          <div>${right}</div>
+        <div class="header">
+          <div class="header-tag">Menü &amp; Fiyat Listesi</div>
+          <h1 class="header-title">${esc(data.facility.name)}</h1>
+          <div class="ornament">
+            <span class="ornament-line"></span>
+            <span class="ornament-circle"></span>
+            <span class="ornament-diamond"></span>
+            <span class="ornament-circle"></span>
+            <span class="ornament-line"></span>
+          </div>
+          <div class="header-sub">${tagline}</div>
         </div>
-        ${qr ? `<div class="footer">${qr}</div>` : ''}
+
+        <div class="columns">
+          <div>${cols[0].map(renderCategory).join('')}</div>
+          <div>${cols[1].map(renderCategory).join('')}</div>
+        </div>
+
+        <div class="footer">
+          <div class="footer-brand">
+            <div class="brand-name">${esc(data.facility.name)}</div>
+            <div class="brand-tag">— QR Menü —</div>
+          </div>
+          <div class="footer-mid">Afiyet olsun</div>
+          ${qrSection}
+        </div>
       `;
     }
 
