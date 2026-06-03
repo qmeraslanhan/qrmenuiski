@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, ensureInit } from '@/lib/db';
 import { getAuth, unauthorized } from '@/lib/auth';
-import { uploadToCloudinary } from '@/lib/cloudinary';
+import { uploadImage } from '@/lib/r2';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await ensureInit();
@@ -44,8 +44,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   let image_url: string | null = null;
   if (imageFile) {
-    const buf = Buffer.from(await imageFile.arrayBuffer());
-    image_url = await uploadToCloudinary(buf);
+    const buf = await imageFile.arrayBuffer();
+    image_url = await uploadImage(buf, imageFile.name || 'image.jpg', 'products');
   }
 
   const info = await db.execute({

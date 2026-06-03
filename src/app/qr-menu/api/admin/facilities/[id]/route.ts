@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import slugify from 'slugify';
 import { db, ensureInit } from '@/lib/db';
 import { getAuth, isAdmin, canAccessFacility, unauthorized, forbidden } from '@/lib/auth';
-import { uploadToCloudinary } from '@/lib/cloudinary';
+import { uploadImage } from '@/lib/r2';
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await ensureInit();
@@ -43,8 +43,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   if (logoFile) {
-    const buf = Buffer.from(await logoFile.arrayBuffer());
-    logo_url = await uploadToCloudinary(buf);
+    const buf = await logoFile.arrayBuffer();
+    logo_url = await uploadImage(buf, logoFile.name || 'logo.png', 'logos');
   } else if (removeLogo) {
     logo_url = null;
   }

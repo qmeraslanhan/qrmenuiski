@@ -1,0 +1,14 @@
+name = "qrmenu"
+main = ".open-next/worker.js"
+compatibility_date = "2025-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+# Cloudflare D1 (SQLite) — Turso yerine geçti
+[[d1_databases]]
+binding = "DB"
+database_name = "qrmenu-db"
+database_id = "22f66b28-06bd-49a2-9c74-43f52eec085f"

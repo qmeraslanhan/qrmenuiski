@@ -15,6 +15,12 @@ out/
 next-env.d.ts.bak
 *.tsbuildinfo
 
+# OpenNext / Cloudflare
+.open-next/
+.wrangler/
+.env.production
+.dev.vars
+
 # IDE
 .idea/
 .vscode/

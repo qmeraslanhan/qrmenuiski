@@ -2,6 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
 
+
   // HTML dosyalarını webpack bundle'ına raw string olarak embed et
   // (Vercel serverless Lambda'da fs.readFile cold-start gecikmesini önler)
   webpack: (config) => {

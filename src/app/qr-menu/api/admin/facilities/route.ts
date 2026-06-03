@@ -3,7 +3,7 @@ import QRCode from 'qrcode';
 import slugify from 'slugify';
 import { db, ensureInit, isUniqueError } from '@/lib/db';
 import { getAuth, isAdmin, unauthorized, forbidden } from '@/lib/auth';
-import { uploadToCloudinary } from '@/lib/cloudinary';
+import { uploadImage } from '@/lib/r2';
 
 export async function GET(req: NextRequest) {
   await ensureInit();
@@ -59,8 +59,8 @@ export async function POST(req: NextRequest) {
   const slug = slugify(name, { lower: true, strict: true, locale: 'tr' });
   let logo_url: string | null = null;
   if (logoFile) {
-    const buf = Buffer.from(await logoFile.arrayBuffer());
-    logo_url = await uploadToCloudinary(buf);
+    const buf = await logoFile.arrayBuffer();
+    logo_url = await uploadImage(buf, logoFile.name || 'logo.png', 'logos');
   }
 
   try {
