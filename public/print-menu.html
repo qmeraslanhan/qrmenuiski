@@ -353,7 +353,9 @@
   <div id="content"><div class="state">Hazırlanıyor…</div></div>
 
   <script>
-    const slug = new URLSearchParams(location.search).get('slug');
+    // URL: /qr-menu/print/<slug> (path) veya legacy /print-menu.html?slug=<slug>
+    const slug = new URLSearchParams(location.search).get('slug')
+      || location.pathname.replace(/\/$/, '').split('/').pop();
 
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 

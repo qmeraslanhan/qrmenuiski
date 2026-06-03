@@ -79,7 +79,7 @@
         <div class="w-px h-8 bg-slate-200"></div>
         <img src="/img/ibb-mavi.png" alt="İstanbul Büyükşehir Belediyesi" class="h-10 w-auto object-contain">
       </div>
-      <a href="/login.html" class="text-indigo-200 hover:text-white text-xs underline-offset-4 hover:underline transition mt-2">Yönetim Paneli</a>
+      <a href="/qr-menu/login" class="text-indigo-200 hover:text-white text-xs underline-offset-4 hover:underline transition mt-2">Yönetim Paneli</a>
     </div>
   </div>
 
@@ -102,7 +102,7 @@
         : '';
 
       return `
-        <a href="/menu/${encodeURIComponent(f.slug)}"
+        <a href="/qr-menu/menu/${encodeURIComponent(f.slug)}"
            class="card-hover block bg-[#111] border border-[#2a2a2a] rounded-2xl p-5 shadow-xl">
           <div class="flex items-center gap-4">
             <div class="w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center ${f.logo_url ? '' : 'logo-fallback'} flex-shrink-0">

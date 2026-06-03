@@ -6,7 +6,16 @@
 //
 // Idempotent: tekrar çalıştırılırsa duplicate üretmez (var olanları atlar).
 
-const { db, ensureInit } = require('../database/db');
+const { createClient } = require('@libsql/client');
+
+const db = createClient({
+  url: process.env.TURSO_DATABASE_URL,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+});
+
+// Bu script direkt INSERT yapıyor — şema halihazırda mevcut varsayılıyor.
+// Eğer ilk kez çalıştırılıyorsa önce `npm run dev` veya bir API çağrısı yap (ensureInit migrate eder).
+async function ensureInit() { /* no-op: şema canlı uygulamadan migrate edildi */ }
 
 const FACILITY = {
   slug: 'su-kafe',

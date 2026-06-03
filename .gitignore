@@ -2,11 +2,19 @@ node_modules/
 *.db
 *.db-shm
 *.db-wal
-uploads/*
-!uploads/.gitkeep
 .env
 .claude/
 
 .vercel
 .env*.local
 backups/
+
+# Next.js
+.next/
+out/
+next-env.d.ts.bak
+*.tsbuildinfo
+
+# IDE
+.idea/
+.vscode/

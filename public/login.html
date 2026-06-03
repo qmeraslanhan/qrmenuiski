@@ -50,7 +50,7 @@
   </div>
 
   <script>
-    if (localStorage.getItem('admin_token')) location.href = '/admin.html';
+    if (localStorage.getItem('admin_token')) location.href = '/qr-menu/admin';
 
     async function handleLogin(e) {
       e.preventDefault();
@@ -71,7 +71,7 @@
         if (!res.ok) { err.classList.remove('hidden'); return; }
         localStorage.setItem('admin_token', data.token);
         localStorage.setItem('admin_role', data.role);
-        location.href = '/admin.html';
+        location.href = '/qr-menu/admin';
       } catch {
         err.classList.remove('hidden');
       } finally {

@@ -1,13 +1,29 @@
-const { createClient } = require('@libsql/client');
+import { createClient, type Client } from '@libsql/client';
 
-const db = createClient({
-  url: process.env.TURSO_DATABASE_URL,
-  authToken: process.env.TURSO_AUTH_TOKEN,
+// Lazy init: build zamanında env vars yok, createClient'ı runtime'a ertele
+let _client: Client | null = null;
+function getClient(): Client {
+  if (_client) return _client;
+  const url = process.env.TURSO_DATABASE_URL;
+  const authToken = process.env.TURSO_AUTH_TOKEN;
+  if (!url || !authToken) {
+    throw new Error('TURSO_DATABASE_URL veya TURSO_AUTH_TOKEN env vars eksik');
+  }
+  _client = createClient({ url, authToken });
+  return _client;
+}
+
+export const db = new Proxy({} as Client, {
+  get(_target, prop: string | symbol) {
+    const c = getClient() as any;
+    const v = c[prop];
+    return typeof v === 'function' ? v.bind(c) : v;
+  },
 });
 
 let initialized = false;
 
-async function ensureInit() {
+export async function ensureInit(): Promise<void> {
   if (initialized) return;
   await db.executeMultiple(`
     CREATE TABLE IF NOT EXISTS facilities (
@@ -66,7 +82,6 @@ async function ensureInit() {
     CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip, attempted_at);
   `);
 
-  // Idempotent column migrations (eski DB'leri yeni şemaya çek)
   await safeAddColumn('sessions',   'expires_at', 'DATETIME');
   await safeAddColumn('facilities', 'phone',      'TEXT');
   await safeAddColumn('facilities', 'hours_text', 'TEXT');
@@ -74,15 +89,15 @@ async function ensureInit() {
   initialized = true;
 }
 
-async function safeAddColumn(table, column, type) {
+async function safeAddColumn(table: string, column: string, type: string) {
   try {
     await db.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
-  } catch (e) {
-    // Kolon zaten var → atla. Başka hata varsa logla.
-    if (!/duplicate column|already exists/i.test(e.message || '')) {
+  } catch (e: any) {
+    if (!/duplicate column|already exists/i.test(e?.message || '')) {
       console.warn(`safeAddColumn ${table}.${column}:`, e.message);
     }
   }
 }
 
-module.exports = { db, ensureInit };
+export const isUniqueError = (e: any): boolean =>
+  e?.code === 'SQLITE_CONSTRAINT_UNIQUE' || /UNIQUE constraint/i.test(e?.message || '');
