@@ -1,17 +1,15 @@
-const path = require('path');
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
 
-  // src/html/ dosyalarını Vercel serverless Lambda bundle'a dahil et
-  outputFileTracingIncludes: {
-    '/qr-menu': ['./src/html/**/*'],
-    '/qr-menu/admin': ['./src/html/**/*'],
-    '/qr-menu/login': ['./src/html/**/*'],
-    '/qr-menu/menu/[slug]': ['./src/html/**/*'],
-    '/qr-menu/print/[slug]': ['./src/html/**/*'],
-    '/qr-menu/print': ['./src/html/**/*'],
+  // HTML dosyalarını webpack bundle'ına raw string olarak embed et
+  // (Vercel serverless Lambda'da fs.readFile cold-start gecikmesini önler)
+  webpack: (config) => {
+    config.module.rules.push({
+      test: /\.html$/,
+      type: 'asset/source',
+    });
+    return config;
   },
 
   // Eski URL'leri yeni yapıya yönlendir (geriye uyumluluk)

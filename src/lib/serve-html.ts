@@ -1,15 +1,24 @@
-import { promises as fs } from 'fs';
-import path from 'path';
 import { NextResponse } from 'next/server';
 
-const cache = new Map<string, string>();
+// Webpack `asset/source` ile HTML'leri bundle'a embed eder (Vercel cold-start için).
+import adminHtml from '@/html/admin.html';
+import loginHtml from '@/html/login.html';
+import menuHtml from '@/html/menu.html';
+import printMenuHtml from '@/html/print-menu.html';
+import tesislerHtml from '@/html/tesisler.html';
 
-export async function serveHtml(filename: string): Promise<NextResponse> {
-  let html = cache.get(filename);
+const HTML: Record<string, string> = {
+  'admin.html': adminHtml,
+  'login.html': loginHtml,
+  'menu.html': menuHtml,
+  'print-menu.html': printMenuHtml,
+  'tesisler.html': tesislerHtml,
+};
+
+export function serveHtml(filename: string): NextResponse {
+  const html = HTML[filename];
   if (!html) {
-    const filePath = path.join(process.cwd(), 'src', 'html', filename);
-    html = await fs.readFile(filePath, 'utf-8');
-    cache.set(filename, html);
+    return new NextResponse(`HTML not found: ${filename}`, { status: 500 });
   }
   return new NextResponse(html, {
     status: 200,
