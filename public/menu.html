@@ -7,8 +7,11 @@
   <title>Menü</title>
   <meta name="description" content="Dijital menü — tüm ürünler ve fiyatlar.">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link id="canonicalLink" rel="canonical" href="">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Dijital Menü">
+  <meta property="og:url" id="ogUrl" content="">
+  <meta property="og:site_name" content="İSKİ QR Menü">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -456,6 +459,10 @@
       input.focus();
     }
     document.getElementById('searchInput').addEventListener('input', applySearch);
+
+    // canonical + og:url'i runtime'da set et
+    document.getElementById('canonicalLink').href = location.href.split('#')[0];
+    document.getElementById('ogUrl').content = location.href.split('#')[0];
 
     loadMenu();
   </script>
