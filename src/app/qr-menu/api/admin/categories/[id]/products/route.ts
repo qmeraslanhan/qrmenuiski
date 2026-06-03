@@ -3,9 +3,9 @@ import { db, ensureInit } from '@/lib/db';
 import { getAuth, unauthorized } from '@/lib/auth';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ cid: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await ensureInit();
-  const { cid } = await params;
+  const { id: cid } = await params;
   const auth = await getAuth(req);
   if (!auth) return unauthorized();
 
@@ -16,9 +16,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cid:
   return NextResponse.json(r.rows);
 }
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ cid: string }> }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await ensureInit();
-  const { cid } = await params;
+  const { id: cid } = await params;
   const auth = await getAuth(req);
   if (!auth) return unauthorized();
 

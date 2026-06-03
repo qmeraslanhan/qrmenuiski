@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, ensureInit } from '@/lib/db';
 import { getAuth, canAccessFacility, unauthorized, forbidden } from '@/lib/auth';
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ fid: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await ensureInit();
-  const { fid } = await params;
+  const { id: fid } = await params;
   const auth = await getAuth(req);
   if (!auth) return unauthorized();
   if (!canAccessFacility(auth, fid)) return forbidden('Bu tesise erişim yetkiniz yok');
@@ -16,9 +16,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ fid:
   return NextResponse.json(r.rows);
 }
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ fid: string }> }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await ensureInit();
-  const { fid } = await params;
+  const { id: fid } = await params;
   const auth = await getAuth(req);
   if (!auth) return unauthorized();
   if (!canAccessFacility(auth, fid)) return forbidden('Bu tesise erişim yetkiniz yok');
