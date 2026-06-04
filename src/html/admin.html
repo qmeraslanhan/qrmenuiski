@@ -502,7 +502,7 @@ Kahve,Latte,55,Sütlü
   // ── AUTH ──────────────────────────────────────────────────────────────────
   const token = localStorage.getItem('admin_token');
   const userRole = localStorage.getItem('admin_role') || 'admin';
-  if (!token) location.href = '/login.html';
+  if (!token) location.href = '/qr-menu/login';
 
   // ── UI THEME (açık / koyu) ────────────────────────────────────────────────
   let uiTheme = localStorage.getItem('uiTheme') || 'dark';
@@ -592,7 +592,7 @@ Kahve,Latte,55,Sütlü
     if (body instanceof FormData) { opts.body = body; }
     else if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
     const res = await fetch('/api/admin' + path, opts);
-    if (res.status === 401) { localStorage.removeItem('admin_token'); location.href = '/login.html'; }
+    if (res.status === 401) { localStorage.removeItem('admin_token'); location.href = '/qr-menu/login'; }
     const ct = res.headers.get('content-type') || '';
     if (!ct.includes('application/json')) {
       const text = await res.text();
