@@ -5,19 +5,163 @@
 :root {
   --font-dm-sans: 'DM Sans', system-ui, sans-serif;
   --font-playfair: 'Playfair Display', serif;
+
+  /* Warm cream palette — Claude-inspired */
+  --bg: #F5F1E8;
+  --bg-soft: #EFE9DC;
+  --surface: #FFFFFF;
+  --ink: #2D2A26;
+  --ink-soft: #5F584F;
+  --ink-mute: #8A8275;
+  --line: #E5DDD0;
+  --line-strong: #D4C9B5;
+
+  /* Accent — İSKİ kurumsal mavi tonu */
+  --accent: #0F4C81;
+  --accent-soft: #2D6FA8;
+  --accent-glow: rgba(15, 76, 129, 0.08);
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 html, body {
   font-family: var(--font-dm-sans);
   -webkit-tap-highlight-color: transparent;
+  background: var(--bg);
+  color: var(--ink);
 }
 
 html { scroll-behavior: smooth; }
 
-/* scrollbar */
+.serif { font-family: var(--font-playfair); letter-spacing: -0.02em; }
+
+/* ─────────── Animations ─────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.anim-fade-up { animation: fadeUp 0.8s cubic-bezier(.16,1,.3,1) both; }
+.anim-fade-in { animation: fadeIn 0.9s ease both; }
+
+/* Stagger delays (intersection-free, pure CSS) */
+.d-0  { animation-delay:   0ms; }
+.d-1  { animation-delay:  80ms; }
+.d-2  { animation-delay: 160ms; }
+.d-3  { animation-delay: 240ms; }
+.d-4  { animation-delay: 320ms; }
+.d-5  { animation-delay: 400ms; }
+.d-6  { animation-delay: 480ms; }
+.d-7  { animation-delay: 560ms; }
+.d-8  { animation-delay: 640ms; }
+
+/* Card hover lift */
+.lift {
+  transition: transform 0.4s cubic-bezier(.16,1,.3,1),
+              box-shadow 0.4s cubic-bezier(.16,1,.3,1),
+              border-color 0.3s ease;
+}
+.lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 48px -16px rgba(15, 76, 129, 0.12),
+              0 2px 8px rgba(45, 42, 38, 0.04);
+}
+
+/* Magnetic arrow on hover */
+.magnet-arrow { transition: transform 0.4s cubic-bezier(.16,1,.3,1); }
+.group:hover .magnet-arrow { transform: translateX(6px); }
+
+/* Subtle divider line gradient */
+.divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--line-strong), transparent);
+}
+
+/* Logo image conditioning — let originals show through cleanly */
+.logo-img {
+  filter: contrast(1.02);
+  transition: opacity 0.3s ease;
+}
+
+/* Accessibility: respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .anim-fade-up, .anim-fade-in {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .lift:hover { transform: none; box-shadow: none; }
+  .magnet-arrow { transition: none; }
+}
+
+/* No scrollbar utility */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ─────────── Water drops (İSKİ teması) ─────────── */
+.drop {
+  position: absolute;
+  top: -30px;
+  width: 7px;
+  height: 11px;
+  background: linear-gradient(180deg,
+    rgba(15, 76, 129, 0.05) 0%,
+    rgba(15, 76, 129, 0.45) 60%,
+    rgba(45, 111, 168, 0.7) 100%);
+  border-radius: 50% 50% 50% 50% / 60% 60% 45% 45%;
+  filter: blur(0.3px);
+  pointer-events: none;
+  animation: drop-fall linear infinite;
+  will-change: transform, opacity;
+}
+
+.drop::after {
+  /* Highlight glint */
+  content: '';
+  position: absolute;
+  top: 25%;
+  left: 22%;
+  width: 22%;
+  height: 28%;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 50%;
+  filter: blur(0.4px);
+}
+
+@keyframes drop-fall {
+  0%   { transform: translateY(-30px); opacity: 0; }
+  8%   { opacity: 1; }
+  92%  { opacity: 1; }
+  100% { transform: translateY(110vh); opacity: 0; }
+}
+
+/* Splash ripple at "landing" — pure decorative */
+.ripple {
+  position: absolute;
+  bottom: 0;
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(15, 76, 129, 0.35);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: ripple-out 4s ease-out infinite;
+  transform: scale(0);
+  opacity: 0;
+}
+@keyframes ripple-out {
+  0%   { transform: scale(0);   opacity: 0;   }
+  20%  { transform: scale(0.3); opacity: 0.6; }
+  100% { transform: scale(1.8); opacity: 0;   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drop, .ripple { animation: none !important; opacity: 0 !important; }
+}

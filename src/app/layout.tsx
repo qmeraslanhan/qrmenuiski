@@ -2,12 +2,15 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: { default: 'Ömer Aslanhan — Projeler', template: '%s — Ömer Aslanhan' },
-  description: 'Ömer Aslanhan tarafından geliştirilen projeler.',
+  title: {
+    default: 'İSKİ Sosyal İşler Şube Müdürlüğü',
+    template: '%s — İSKİ Sosyal İşler Şube Müdürlüğü',
+  },
+  description: 'İSKİ Sosyal İşler Şube Müdürlüğü dijital hizmetler portalı.',
   icons: { icon: '/favicon.svg' },
   openGraph: {
     type: 'website',
-    siteName: 'Ömer Aslanhan',
+    siteName: 'İSKİ Sosyal İşler Şube Müdürlüğü',
     url: 'https://omeraslanhan.com',
   },
 };

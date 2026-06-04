@@ -1,0 +1,14 @@
+// Bu dosyayı kopyalayıp `meta.ts` olarak kaydet, içeriği doldur.
+import type { ProjectMeta } from '@/lib/projects';
+
+const meta: ProjectMeta = {
+  slug: 'yeni-proje',
+  title: 'Yeni Proje Adı',
+  description: '1-2 cümlelik açıklama. Dashboard kartında görünür.',
+  href: '/yeni-proje',
+  status: 'soon',   // 'live' | 'beta' | 'soon'
+  tags: ['Next.js'],
+  icon: 'qr',       // src/app/page.tsx ProjectIcon switch'inde tanımlı id'lerden birini ver
+};
+
+export default meta;

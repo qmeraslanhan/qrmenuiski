@@ -1,13 +1,21 @@
 import { NextResponse } from 'next/server';
 
-// Webpack `asset/source` ile HTML'leri bundle'a embed eder (Vercel cold-start için).
-import adminHtml from '@/html/admin.html';
-import loginHtml from '@/html/login.html';
-import menuHtml from '@/html/menu.html';
-import printMenuHtml from '@/html/print-menu.html';
-import tesislerHtml from '@/html/tesisler.html';
+// Webpack `asset/source` ile HTML'leri bundle'a embed eder.
+// Her proje kendi src/projects/<slug>/html/ altında durur.
+import adminHtml from '@/projects/qr-menu/html/admin.html';
+import loginHtml from '@/projects/qr-menu/html/login.html';
+import menuHtml from '@/projects/qr-menu/html/menu.html';
+import printMenuHtml from '@/projects/qr-menu/html/print-menu.html';
+import tesislerHtml from '@/projects/qr-menu/html/tesisler.html';
 
+// Filename → bundled string. Yeni HTML eklerken bu map'e ekle.
 const HTML: Record<string, string> = {
+  'qr-menu/admin.html': adminHtml,
+  'qr-menu/login.html': loginHtml,
+  'qr-menu/menu.html': menuHtml,
+  'qr-menu/print-menu.html': printMenuHtml,
+  'qr-menu/tesisler.html': tesislerHtml,
+  // Geri uyumluluk için kısa isim alias'ları (eski çağrılar bozulmasın)
   'admin.html': adminHtml,
   'login.html': loginHtml,
   'menu.html': menuHtml,

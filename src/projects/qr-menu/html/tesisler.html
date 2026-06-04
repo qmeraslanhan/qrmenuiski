@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tesislerimiz — İSKİ Sosyal İşler Şube Müdürlüğü</title>
+  <meta name="description" content="İSKİ Sosyal İşler Şube Müdürlüğü tesislerinin dijital menüleri.">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="canonical" href="https://omeraslanhan.com/qr-menu">
+  <meta property="og:title" content="Tesislerimiz — İSKİ Sosyal İşler Şube Müdürlüğü">
+  <meta property="og:description" content="İSKİ tesislerinin dijital menülerine hızlı erişim.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://omeraslanhan.com/qr-menu">
+  <meta name="theme-color" content="#0B1E3F">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --bg: #0B1E3F;
+      --bg-deep: #061330;
+      --bg-pattern: #0F2548;
+      --gold: #C9A961;
+      --gold-light: #E0C783;
+      --gold-dark: #A88847;
+      --gold-glow: rgba(201, 169, 97, 0.15);
+      --cream: #F5E6CC;
+      --cream-soft: #D9C5A0;
+      --surface: #FBFAF6;
+      --ink: #2B2926;
+      --ink-soft: #6B6358;
+    }
+    * { font-family: 'DM Sans', sans-serif; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--cream);
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+    .display { font-family: 'Cinzel', serif; }
+    .accent-serif { font-family: 'Cormorant Garamond', serif; }
+
+    /* Background — deep navy with subtle radial glow */
+    .bg-overlay {
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 800px 600px at 50% 0%, rgba(201, 169, 97, 0.08), transparent 60%),
+        radial-gradient(ellipse 600px 800px at 0% 50%, rgba(201, 169, 97, 0.04), transparent 60%),
+        radial-gradient(ellipse 600px 800px at 100% 50%, rgba(201, 169, 97, 0.04), transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Ottoman-style ornaments on left and right */
+    .ornament {
+      position: fixed;
+      top: 0; bottom: 0;
+      width: 220px;
+      pointer-events: none;
+      opacity: 0.18;
+      z-index: 0;
+      background-repeat: repeat-y;
+      background-size: 220px 440px;
+    }
+    .ornament-left { left: 0; }
+    .ornament-right { right: 0; transform: scaleX(-1); }
+
+    /* Animations */
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .anim-fade-up { animation: fadeUp 0.9s cubic-bezier(.16,1,.3,1) both; }
+    .anim-fade-in { animation: fadeIn 1.1s ease both; }
+    .d-0 { animation-delay: 0ms; }
+    .d-1 { animation-delay: 100ms; }
+    .d-2 { animation-delay: 200ms; }
+    .d-3 { animation-delay: 320ms; }
+    .d-4 { animation-delay: 440ms; }
+
+    /* Cards — flex column so divider/arrow always at bottom */
+    .tesis-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border: 1.5px solid var(--gold);
+      border-radius: 12px;
+      padding: 26px 18px 16px;
+      margin-top: 26px;
+      box-shadow: 0 14px 30px -15px rgba(0,0,0,0.4),
+                  inset 0 0 0 1px rgba(201, 169, 97, 0.3);
+      transition: transform 0.5s cubic-bezier(.16,1,.3,1),
+                  box-shadow 0.5s cubic-bezier(.16,1,.3,1);
+    }
+    .tesis-card .card-spacer { flex: 1; }
+    .tesis-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 22px 44px -18px rgba(0,0,0,0.5),
+                  0 0 0 1px var(--gold-light),
+                  inset 0 0 0 1px rgba(224, 199, 131, 0.5);
+    }
+
+    /* Monogram badge — gold circle protruding above card */
+    .monogram {
+      position: absolute;
+      top: -24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, var(--gold-light) 0%, var(--gold) 50%, var(--gold-dark) 100%);
+      border: 3px solid var(--bg);
+      box-shadow: 0 6px 14px rgba(0,0,0,0.4),
+                  inset 0 -2px 3px rgba(0,0,0,0.3),
+                  inset 0 2px 3px rgba(255,255,255,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Cinzel', serif;
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--bg-deep);
+      text-shadow: 0 1px 1px rgba(255,255,255,0.3);
+    }
+
+    /* Card image area */
+    .card-image {
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      border-radius: 5px;
+      overflow: hidden;
+      background: linear-gradient(135deg, var(--bg-pattern), var(--bg-deep));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+      position: relative;
+    }
+    .card-image img { width: 100%; height: 100%; object-fit: cover; }
+    .card-image-placeholder {
+      font-family: 'Cinzel', serif;
+      font-size: 56px;
+      font-weight: 500;
+      color: var(--gold);
+      opacity: 0.45;
+      letter-spacing: 0.05em;
+    }
+
+    /* Card text — fixed heights to keep cards uniform */
+    .card-name {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--ink);
+      text-align: center;
+      margin-bottom: 6px;
+      letter-spacing: 0.01em;
+      line-height: 1.25;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card-desc {
+      font-size: 12px;
+      color: var(--ink-soft);
+      text-align: center;
+      line-height: 1.45;
+      margin-bottom: 10px;
+      min-height: 34px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .card-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 12px;
+      font-size: 11.5px;
+      color: var(--ink-soft);
+      min-height: 42px;
+    }
+    .card-meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      line-height: 1.3;
+    }
+    .card-meta-row svg {
+      width: 12px; height: 12px;
+      color: var(--gold-dark);
+      flex-shrink: 0;
+    }
+    .card-meta-row span { font-weight: 500; }
+    .card-meta-row .phone-link {
+      color: inherit;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .card-meta-row .phone-link:hover { color: var(--gold-dark); }
+    .card-divider {
+      height: 1px;
+      background: linear-gradient(to right, transparent, var(--gold), transparent);
+      margin: 0 8px 10px;
+    }
+    .card-arrow {
+      text-align: center;
+      color: var(--gold-dark);
+      transition: transform 0.3s ease, color 0.3s ease;
+    }
+    .tesis-card:hover .card-arrow {
+      transform: translateX(4px);
+      color: var(--gold);
+    }
+
+    /* Diamond divider */
+    .diamond-divider {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      margin: 36px 0 24px;
+    }
+    .diamond-divider::before, .diamond-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(to right, transparent, var(--gold), transparent);
+      max-width: 220px;
+      opacity: 0.6;
+    }
+    .diamond {
+      width: 10px; height: 10px;
+      background: var(--gold);
+      transform: rotate(45deg);
+      box-shadow: 0 0 12px var(--gold-glow);
+    }
+
+    /* Logo filter — white for dark bg */
+    .logo-white {
+      filter: brightness(0) invert(1);
+      transition: opacity 0.3s ease;
+    }
+    .logo-divider {
+      width: 1px;
+      height: 48px;
+      background: linear-gradient(to bottom, transparent, var(--gold), transparent);
+      opacity: 0.7;
+    }
+
+    /* Footer buttons — gold outline style */
+    .btn-outline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 26px;
+      border: 1.5px solid var(--gold);
+      border-radius: 999px;
+      color: var(--cream);
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-decoration: none;
+      transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+      background: rgba(201, 169, 97, 0.06);
+      opacity: 1 !important;
+    }
+    .btn-outline:hover {
+      background: var(--gold);
+      color: var(--bg-deep);
+      border-color: var(--gold-light);
+      transform: translateY(-1px);
+    }
+    .btn-outline svg { width: 16px; height: 16px; }
+
+    /* Top-corner back button — always visible without scroll */
+    .top-back {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border: 1px solid rgba(201, 169, 97, 0.5);
+      border-radius: 999px;
+      color: var(--cream);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-decoration: none;
+      background: rgba(11, 30, 63, 0.6);
+      backdrop-filter: blur(8px);
+      transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+      z-index: 2;
+    }
+    .top-back:hover {
+      background: var(--gold);
+      color: var(--bg-deep);
+      border-color: var(--gold);
+    }
+    .top-back svg { width: 14px; height: 14px; }
+    @media (max-width: 600px) {
+      .top-back { top: 16px; left: 16px; padding: 6px 12px; font-size: 11px; }
+    }
+
+    /* Search */
+    .search-input {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--gold);
+      color: var(--cream);
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    }
+    .search-input:focus {
+      border-color: var(--gold-light);
+      background: rgba(255,255,255,0.1);
+      box-shadow: 0 0 0 4px var(--gold-glow);
+    }
+    .search-input::placeholder { color: var(--cream-soft); opacity: 0.7; }
+
+    /* Loading */
+    .spinner {
+      width: 40px; height: 40px;
+      border: 2px solid rgba(201, 169, 97, 0.25);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      .anim-fade-up, .anim-fade-in { animation: none !important; opacity: 1 !important; transform: none !important; }
+      .tesis-card:hover { transform: none; }
+      .tesis-card:hover .card-arrow { transform: none; }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .ornament { width: 80px; opacity: 0.12; }
+      .display-title { font-size: 3rem !important; }
+    }
+    @media (max-width: 480px) {
+      .ornament { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background overlay -->
+  <div class="bg-overlay" aria-hidden></div>
+
+  <!-- Ottoman-style ornaments (left + right edges) -->
+  <div class="ornament ornament-left" aria-hidden style="background-image: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 220 440%22><g fill=%22none%22 stroke=%22%23C9A961%22 stroke-width=%221.2%22 opacity=%220.85%22><path d=%22M110 20 Q140 60 110 100 Q80 60 110 20 Z%22/><circle cx=%22110%22 cy=%2260%22 r=%224%22 fill=%22%23C9A961%22/><path d=%22M110 100 Q150 130 130 170 Q110 200 90 170 Q70 130 110 100%22/><path d=%22M50 80 Q90 110 70 140 Q40 120 50 80 Z%22/><path d=%22M170 80 Q130 110 150 140 Q180 120 170 80 Z%22/><circle cx=%22110%22 cy=%22220%22 r=%2220%22/><circle cx=%22110%22 cy=%22220%22 r=%2210%22 fill=%22%23C9A961%22 opacity=%220.4%22/><path d=%22M110 220 L110 180 M110 220 L110 260 M110 220 L80 220 M110 220 L140 220 M110 220 L88 198 M110 220 L132 242 M110 220 L88 242 M110 220 L132 198%22/><path d=%22M40 280 Q70 300 60 340 Q40 320 40 280 Z%22/><path d=%22M180 280 Q150 300 160 340 Q180 320 180 280 Z%22/><path d=%22M110 320 Q140 350 110 390 Q80 350 110 320 Z%22/><circle cx=%22110%22 cy=%22360%22 r=%224%22 fill=%22%23C9A961%22/><path d=%22M80 410 Q110 430 140 410%22/></g></svg>');"></div>
+  <div class="ornament ornament-right" aria-hidden style="background-image: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 220 440%22><g fill=%22none%22 stroke=%22%23C9A961%22 stroke-width=%221.2%22 opacity=%220.85%22><path d=%22M110 20 Q140 60 110 100 Q80 60 110 20 Z%22/><circle cx=%22110%22 cy=%2260%22 r=%224%22 fill=%22%23C9A961%22/><path d=%22M110 100 Q150 130 130 170 Q110 200 90 170 Q70 130 110 100%22/><path d=%22M50 80 Q90 110 70 140 Q40 120 50 80 Z%22/><path d=%22M170 80 Q130 110 150 140 Q180 120 170 80 Z%22/><circle cx=%22110%22 cy=%22220%22 r=%2220%22/><circle cx=%22110%22 cy=%22220%22 r=%2210%22 fill=%22%23C9A961%22 opacity=%220.4%22/><path d=%22M110 220 L110 180 M110 220 L110 260 M110 220 L80 220 M110 220 L140 220 M110 220 L88 198 M110 220 L132 242 M110 220 L88 242 M110 220 L132 198%22/><path d=%22M40 280 Q70 300 60 340 Q40 320 40 280 Z%22/><path d=%22M180 280 Q150 300 160 340 Q180 320 180 280 Z%22/><path d=%22M110 320 Q140 350 110 390 Q80 350 110 320 Z%22/><circle cx=%22110%22 cy=%22360%22 r=%224%22 fill=%22%23C9A961%22/><path d=%22M80 410 Q110 430 140 410%22/></g></svg>');"></div>
+
+  <!-- Top-corner back button (always visible) -->
+  <a href="/" class="top-back">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+    </svg>
+    <span>Anasayfa</span>
+  </a>
+
+  <main class="relative max-w-5xl mx-auto px-6 py-6 md:py-8" style="z-index: 1;">
+
+    <!-- Logos -->
+    <div class="flex items-center justify-center gap-7 md:gap-10 mb-8 md:mb-10 anim-fade-up d-0">
+      <img src="/img/iski-logo.png" alt="İSKİ" class="logo-white h-12 md:h-14 w-auto object-contain">
+      <div class="logo-divider"></div>
+      <img src="/img/ibb-mavi.png" alt="İBB" class="logo-white h-12 md:h-14 w-auto object-contain">
+    </div>
+
+    <!-- Header -->
+    <header class="text-center mb-10 md:mb-12">
+      <p class="anim-fade-up d-1 text-xs md:text-sm tracking-[0.45em] uppercase mb-4" style="color: var(--cream); font-weight: 500;">
+        Dijital Menü
+      </p>
+      <h1 class="anim-fade-up d-2 display display-title text-5xl md:text-7xl font-semibold mb-4 tracking-[0.05em]" style="color: var(--gold); text-shadow: 0 2px 20px rgba(201, 169, 97, 0.25);">
+        TESİSLERİMİZ
+      </h1>
+      <p class="anim-fade-up d-3 text-sm md:text-base max-w-md mx-auto leading-relaxed" style="color: var(--cream-soft);">
+        Menüsünü görmek istediğiniz tesisi seçin.
+      </p>
+    </header>
+
+    <!-- Search (4+ tesis varsa) -->
+    <div id="searchWrap" class="hidden mb-10 max-w-md mx-auto anim-fade-up d-4">
+      <div class="relative">
+        <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style="color: var(--cream-soft);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        <input id="searchInput" type="search" placeholder="Tesis ara…" aria-label="Tesis ara"
+          class="search-input w-full rounded-full pl-11 pr-4 py-3 text-sm outline-none">
+      </div>
+    </div>
+
+    <!-- States -->
+    <div id="loading" class="text-center py-24 anim-fade-in" role="status" aria-live="polite">
+      <div class="spinner inline-block"></div>
+      <p class="mt-5 text-sm tracking-wider" style="color: var(--cream-soft);">Tesisler yükleniyor…</p>
+    </div>
+
+    <div id="empty" class="hidden text-center py-24">
+      <h2 class="display text-3xl md:text-4xl font-medium mb-3" style="color: var(--gold);">Henüz tesis eklenmemiş</h2>
+      <p class="text-sm" style="color: var(--cream-soft);">Yönetim panelinden tesis ekleyince burada listelenir.</p>
+    </div>
+
+    <div id="error" class="hidden text-center rounded-2xl p-6 max-w-md mx-auto"
+         style="background: rgba(220, 38, 38, 0.08); border: 1px solid rgba(220, 38, 38, 0.3); color: #FCA5A5;">
+      Tesisler yüklenemedi. Lütfen daha sonra tekrar deneyin.
+    </div>
+
+    <!-- Grid -->
+    <div id="grid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-6 pt-4 max-w-4xl mx-auto"></div>
+
+    <!-- Diamond divider (animasyon yok, hep görünür) -->
+    <div class="diamond-divider">
+      <span class="diamond"></span>
+    </div>
+
+    <!-- Footer (animasyon yok, hep görünür) -->
+    <footer class="text-center" style="opacity: 1;">
+      <div class="flex flex-wrap items-center justify-center gap-3 md:gap-4 mb-5">
+        <a href="/qr-menu/login" class="btn-outline">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          </svg>
+          <span>Yönetim Paneli</span>
+        </a>
+      </div>
+      <p class="text-xs" style="color: var(--cream-soft);">
+        © <span id="year"></span> İSKİ Sosyal İşler Şube Müdürlüğü
+      </p>
+    </footer>
+  </main>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+    const $ = (id) => document.getElementById(id);
+
+    function escapeHtml(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({
+        '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+      }[c]));
+    }
+
+    function getInitial(name) {
+      // Turkish-aware uppercase: ilk harfi al
+      const trimmed = (name || '?').trim();
+      const first = trimmed.charAt(0);
+      return first.toLocaleUpperCase('tr-TR');
+    }
+
+    function renderCard(f, idx) {
+      const initial = escapeHtml(getInitial(f.name));
+      const imageContent = f.logo_url
+        ? `<img src="${escapeHtml(f.logo_url)}" alt="${escapeHtml(f.name)}" onerror="this.parentElement.innerHTML='<span class=&quot;card-image-placeholder&quot;>${initial}</span>';">`
+        : `<span class="card-image-placeholder">${initial}</span>`;
+
+      const desc = f.description
+        ? `<p class="card-desc">${escapeHtml(f.description)}</p>`
+        : '';
+
+      // Telefon link için temiz format
+      const cleanPhone = f.phone ? String(f.phone).replace(/[^\d+]/g, '') : '';
+      const phoneRow = f.phone
+        ? `<div class="card-meta-row">
+             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h2.28a2 2 0 011.95 1.57l.7 3.16a2 2 0 01-.55 1.85L8.1 11.18a13 13 0 005.72 5.72l1.6-1.28a2 2 0 011.85-.55l3.16.7A2 2 0 0122 17.72V20a2 2 0 01-2 2h-1C9.85 22 2 14.15 2 5V4z"/></svg>
+             <span class="phone-link" data-tel="${escapeHtml(cleanPhone)}" onclick="event.stopPropagation(); event.preventDefault(); window.location.href='tel:'+this.dataset.tel;">${escapeHtml(f.phone)}</span>
+           </div>`
+        : '';
+
+      const hoursRow = f.hours_text
+        ? `<div class="card-meta-row">
+             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9" stroke-linecap="round"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 2"/></svg>
+             <span>${escapeHtml(f.hours_text)}</span>
+           </div>`
+        : '';
+
+      // Boş satırlar için placeholder span (yüksekliği koru)
+      const metaBlock = `<div class="card-meta">${phoneRow || '<span></span>'}${hoursRow || '<span></span>'}</div>`;
+
+      const descBlock = desc || `<p class="card-desc"></p>`;
+
+      return `
+        <a href="/qr-menu/menu/${encodeURIComponent(f.slug)}"
+           class="tesis-card anim-fade-up"
+           style="animation-delay: ${500 + idx*100}ms;">
+          <div class="monogram">${initial}</div>
+          <div class="card-image">
+            ${imageContent}
+          </div>
+          <h3 class="card-name">${escapeHtml(f.name)}</h3>
+          ${descBlock}
+          ${metaBlock}
+          <div class="card-spacer"></div>
+          <div class="card-divider"></div>
+          <div class="card-arrow">
+            <svg class="inline-block w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+            </svg>
+          </div>
+        </a>
+      `;
+    }
+
+    let _all = [];
+
+    function applySearch() {
+      const q = ($('searchInput').value || '').trim().toLowerCase();
+      const filtered = !q ? _all : _all.filter(f =>
+        (f.name || '').toLowerCase().includes(q) ||
+        (f.description || '').toLowerCase().includes(q)
+      );
+      if (filtered.length === 0) {
+        $('grid').classList.add('hidden');
+        $('empty').classList.remove('hidden');
+      } else {
+        $('empty').classList.add('hidden');
+        $('grid').innerHTML = filtered.map(renderCard).join('');
+        $('grid').classList.remove('hidden');
+      }
+    }
+
+    async function load() {
+      try {
+        const res = await fetch('/qr-menu/api/menu');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const list = await res.json();
+
+        $('loading').classList.add('hidden');
+
+        if (!Array.isArray(list) || list.length === 0) {
+          $('empty').classList.remove('hidden');
+          return;
+        }
+
+        _all = list;
+        if (_all.length >= 4) $('searchWrap').classList.remove('hidden');
+
+        applySearch();
+      } catch (e) {
+        $('loading').classList.add('hidden');
+        $('error').classList.remove('hidden');
+        console.error(e);
+      }
+    }
+
+    $('searchInput').addEventListener('input', applySearch);
+    load();
+  </script>
+</body>
+</html>

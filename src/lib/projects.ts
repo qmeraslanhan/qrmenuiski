@@ -1,26 +1,32 @@
-// Dashboard'da listelenecek projeler.
-// Yeni proje eklemek için: bu listeye ekle + src/app/(projects)/<slug>/ altına Next.js sayfası koy.
+// ─────────────────────────────────────────────────────────────────
+// Dashboard project registry.
+//
+// Yeni proje eklemek için 2 adım:
+//   1. src/projects/<slug>/meta.ts dosyası oluştur (default export ProjectMeta)
+//   2. Bu dosyada `imports` ve `PROJECTS` listesine ekle (manuel — Next.js
+//      build zamanı dinamik import desteği sınırlı, en güvenli yöntem bu)
+// ─────────────────────────────────────────────────────────────────
 
-export type Project = {
+export type ProjectStatus = 'live' | 'beta' | 'soon';
+
+export type ProjectMeta = {
   slug: string;
   title: string;
   description: string;
   href: string;
-  status: 'live' | 'beta' | 'soon';
+  status: ProjectStatus;
   tags: string[];
-  accent: string; // tailwind gradient class veya hex
-  icon: string;   // emoji veya SVG path id
+  icon: string; // SVG id (src/app/page.tsx ProjectIcon switch'inde işlenir)
 };
 
-export const PROJECTS: Project[] = [
-  {
-    slug: 'qr-menu',
-    title: 'QR Menü Sistemi',
-    description: 'İSKİ tesisleri için çoklu-tesis dijital menü, QR kod ve A3 yatay fiyat listesi PDF üretimi.',
-    href: '/qr-menu',
-    status: 'live',
-    tags: ['Next.js', 'Turso', 'Cloudinary'],
-    accent: 'from-amber-500 to-orange-600',
-    icon: '🍽️',
-  },
+// Kayıtlı projeler — her birinin `src/projects/<slug>/meta.ts` dosyası var.
+import qrMenuMeta from '@/projects/qr-menu/meta';
+// Yeni proje: import yeniProjeMeta from '@/projects/yeni-proje/meta';
+
+export const PROJECTS: ProjectMeta[] = [
+  qrMenuMeta,
+  // yeniProjeMeta,
 ];
+
+// Eski Project tipini de export et (geriye dönük uyumluluk için page.tsx kullanıyor)
+export type Project = ProjectMeta;
