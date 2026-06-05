@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Şifre Sıfırla — İSKİ Randevu</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <meta name="robots" content="noindex,nofollow">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { --bg:#0B1E3F; --bg-deep:#061330; --gold:#C9A961; --gold-light:#E0C783; --cream:#F5E6CC; --cream-soft:#D9C5A0; }
+    * { font-family:'DM Sans',sans-serif; box-sizing:border-box; }
+    body { background:radial-gradient(ellipse 700px 500px at 50% 0%, rgba(201,169,97,0.10), transparent 60%), var(--bg); min-height:100vh; }
+    .display { font-family:'Cinzel',serif; }
+    .fld { width:100%; background:rgba(255,255,255,0.06); border:1px solid var(--gold); color:var(--cream); border-radius:12px; padding:12px 14px; font-size:14px; outline:none; transition:border-color .2s, box-shadow .2s; }
+    .fld:focus { border-color:var(--gold-light); box-shadow:0 0 0 4px rgba(201,169,97,0.15); }
+    .fld::placeholder { color:var(--cream-soft); opacity:.6; }
+    .lbl { display:block; font-size:12px; font-weight:600; margin-bottom:5px; color:var(--cream-soft); }
+    .btn-gold { width:100%; background:linear-gradient(180deg, var(--gold-light), var(--gold)); color:var(--bg-deep); font-weight:700; border:none; border-radius:12px; padding:13px; cursor:pointer; transition:filter .2s, transform .2s; }
+    .btn-gold:hover { filter:brightness(1.05); transform:translateY(-1px); }
+    .btn-gold:disabled { opacity:.6; cursor:not-allowed; }
+    .hidden { display:none !important; }
+  </style>
+</head>
+<body class="flex items-center justify-center p-4">
+  <div class="w-full max-w-sm">
+    <div class="text-center mb-6">
+      <div class="flex items-center justify-center gap-5 mb-5">
+        <img src="/img/iski-logo.png" alt="İSKİ" class="h-10 w-auto object-contain" style="filter:brightness(0) invert(1);">
+        <div style="width:1px;height:32px;background:linear-gradient(to bottom,transparent,var(--gold),transparent);"></div>
+        <img src="/img/ibb-mavi.png" alt="İBB" class="h-10 w-auto object-contain" style="filter:brightness(0) invert(1);">
+      </div>
+      <h1 class="display text-2xl font-semibold" style="color:var(--gold);">Şifre Sıfırla</h1>
+    </div>
+
+    <div style="background:rgba(255,255,255,0.04); border:1.5px solid var(--gold); border-radius:18px; padding:24px;">
+      <!-- Form -->
+      <form id="form" class="space-y-3" onsubmit="doReset(event)">
+        <div><label class="lbl">Yeni Şifre</label><input id="p1" type="password" class="fld" placeholder="En az 6 karakter" required minlength="6" autocomplete="new-password"></div>
+        <div><label class="lbl">Yeni Şifre (Tekrar)</label><input id="p2" type="password" class="fld" placeholder="Şifreyi tekrar girin" required minlength="6" autocomplete="new-password"></div>
+        <div id="err" class="hidden text-sm text-center px-3 py-2.5 rounded-xl" style="color:#FCA5A5; background:rgba(220,38,38,0.12); border:1px solid rgba(220,38,38,0.3);"></div>
+        <button type="submit" id="btn" class="btn-gold">Şifreyi Güncelle</button>
+      </form>
+
+      <!-- Success -->
+      <div id="done" class="hidden text-center">
+        <div style="width:54px;height:54px;border-radius:50%;background:rgba(16,185,129,0.14);border:2px solid #10B981;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
+          <svg width="26" height="26" fill="none" viewBox="0 0 24 24" stroke="#10B981" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+        </div>
+        <p style="color:var(--cream);font-size:15px;margin-bottom:18px;">Şifreniz güncellendi. Artık yeni şifrenizle giriş yapabilirsiniz.</p>
+        <a href="/randevu/uye" class="btn-gold" style="display:inline-block;text-decoration:none;width:auto;padding:12px 26px;">Giriş Yap</a>
+      </div>
+    </div>
+
+    <p class="text-center mt-6"><a href="/randevu" class="text-xs" style="color:var(--cream-soft);">← Randevu sayfasına dön</a></p>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const token = new URLSearchParams(location.search).get('token') || '';
+    if(!token){ $('err').textContent = 'Geçersiz veya eksik bağlantı.'; $('err').classList.remove('hidden'); $('btn').disabled = true; }
+
+    async function doReset(e){
+      e.preventDefault();
+      $('err').classList.add('hidden');
+      if($('p1').value !== $('p2').value){ $('err').textContent='Şifreler eşleşmiyor.'; $('err').classList.remove('hidden'); return; }
+      const btn=$('btn'); btn.disabled=true; btn.textContent='Güncelleniyor…';
+      try{
+        const res = await fetch('/randevu/api/member/reset', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token, password:$('p1').value }) });
+        const data = await res.json();
+        if(!res.ok){ $('err').textContent = data.error || 'Sıfırlama başarısız.'; $('err').classList.remove('hidden'); btn.disabled=false; btn.textContent='Şifreyi Güncelle'; return; }
+        $('form').classList.add('hidden'); $('done').classList.remove('hidden');
+      }catch{ $('err').textContent='Bağlantı hatası.'; $('err').classList.remove('hidden'); btn.disabled=false; btn.textContent='Şifreyi Güncelle'; }
+    }
+  </script>
+</body>
+</html>

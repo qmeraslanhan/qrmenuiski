@@ -1,8 +1,9 @@
-# Randevu — Berber & Kuaför Randevu Sistemi
+# Randevu Sistemi
 
-Çoklu-salon, dönem değil **gün/saat slotu** bazlı online randevu sistemi.
-Müşteri hizmet + (varsa) usta + gün + saat seçer → talep **onay bekleyen** olarak düşer.
-Yönetim panelinden onaylanır/reddedilir. Çakışan saatler sunucu tarafında engellenir.
+Çoklu-birim, dönem değil **gün/saat slotu** bazlı online randevu sistemi (berber/kuaför ve
+diğer alanlar için). **Üye girişi zorunlu.** Üye hizmet + (varsa) usta + gün + saat seçer →
+randevu **anında onaylanır** (otomatik onay). Çakışan saatler sunucu tarafında engellenir,
+onay e-postası (Resend) gönderilir.
 
 **Randevu almak üye girişi gerektirir.** Vatandaş önce üye olur/giriş yapar; randevu
 alınınca e-posta ile onay (Resend) gönderilir.
@@ -24,13 +25,15 @@ Public:
 - `GET  /randevu/api/salons`                      — aktif salonlar
 - `GET  /randevu/api/salons/<slug>`               — salon + hizmetler + ustalar
 - `GET  /randevu/api/salons/<slug>/slots?date=&service_id=&staff_id=` — uygun saatler
-- `POST /randevu/api/appointments`                — randevu talebi (pending) — **üye Bearer token şart**, sonrasında onay maili gider
+- `POST /randevu/api/appointments`                — randevu (anında **approved**) — **üye Bearer token şart**, onay maili gider
 
 Üye (member):
 - `POST /randevu/api/member/register`  — {name,email,phone,password} → token
 - `POST /randevu/api/member/login`     — {email,password} → token
 - `POST /randevu/api/member/logout`
 - `GET  /randevu/api/member/me`        — üye + kendi randevuları (Bearer member token)
+- `POST /randevu/api/member/forgot`    — {email} → şifre sıfırlama bağlantısı (var/yok sızdırmaz)
+- `POST /randevu/api/member/reset`     — {token,password} → yeni şifre (token 1 saat geçerli)
 
 ## E-posta (Resend)
 

@@ -84,3 +84,41 @@ export async function getMember(req: NextRequest): Promise<Member | null> {
 export async function logoutMember(token: string): Promise<void> {
   if (token) await db.execute({ sql: 'DELETE FROM randevu_member_sessions WHERE token = ?', args: [token] });
 }
+
+// ── Şifre sıfırlama ──
+const RESET_TTL_MIN = 60;
+
+// E-posta varsa sıfırlama token'ı üretir. (Yoksa null — çağıran taraf yine başarı döner.)
+export async function createPasswordReset(emailIn: string): Promise<{ token: string; member: Member } | null> {
+  const email = String(emailIn || '').trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) return null;
+  const r = await db.execute({ sql: 'SELECT id, name, email, phone FROM randevu_members WHERE email = ?', args: [email] });
+  const m: any = r.rows[0];
+  if (!m) return null;
+  const token = crypto.randomBytes(32).toString('hex');
+  const exp = new Date(Date.now() + RESET_TTL_MIN * 60_000).toISOString();
+  await db.execute({
+    sql: 'INSERT INTO randevu_password_resets (member_id, token, expires_at) VALUES (?, ?, ?)',
+    args: [m.id, token, exp],
+  });
+  return { token, member: { id: Number(m.id), name: m.name, email: m.email, phone: m.phone } };
+}
+
+export async function resetPassword(tokenIn: string, newPassword: string): Promise<{ ok: true } | { error: string }> {
+  const token = String(tokenIn || '');
+  if (!token) return { error: 'Geçersiz bağlantı' };
+  if (!newPassword || newPassword.length < 6) return { error: 'Şifre en az 6 karakter olmalı' };
+
+  const r = await db.execute({ sql: 'SELECT * FROM randevu_password_resets WHERE token = ?', args: [token] });
+  const row: any = r.rows[0];
+  if (!row) return { error: 'Geçersiz veya kullanılmış bağlantı' };
+  if (row.used) return { error: 'Bu bağlantı zaten kullanılmış' };
+  if (row.expires_at && new Date(row.expires_at) < new Date()) return { error: 'Bağlantının süresi dolmuş' };
+
+  const hash = bcrypt.hashSync(newPassword, 10);
+  await db.execute({ sql: 'UPDATE randevu_members SET password = ? WHERE id = ?', args: [hash, row.member_id] });
+  await db.execute({ sql: 'UPDATE randevu_password_resets SET used = 1 WHERE id = ?', args: [row.id] });
+  // Güvenlik: mevcut oturumları kapat
+  await db.execute({ sql: 'DELETE FROM randevu_member_sessions WHERE member_id = ?', args: [row.member_id] });
+  return { ok: true };
+}

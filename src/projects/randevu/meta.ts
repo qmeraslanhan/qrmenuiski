@@ -4,8 +4,8 @@ import type { ProjectMeta } from '@/lib/projects';
 
 const meta: ProjectMeta = {
   slug: 'randevu',
-  title: 'Berber & Kuaför Randevu',
-  description: 'Berber ve kuaförler için online randevu sistemi: müşteri hizmet, gün ve saat seçer; işletme panelden onaylar. Çalışma saatleri ve dolu saatler otomatik yönetilir.',
+  title: 'Randevu Sistemi',
+  description: 'Birimler için online randevu sistemi: üye giriş yapar, hizmet ile gün ve saat seçer, randevu anında onaylanır. Çalışma saatleri ve dolu saatler otomatik yönetilir.',
   href: '/randevu',
   status: 'beta',
   tags: ['Next.js', 'Cloudflare D1', 'Randevu'],

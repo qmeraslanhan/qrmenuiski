@@ -90,10 +90,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Bu saat az önce doldu, lütfen başka bir saat seçin' }, { status: 409 });
   }
 
+  // Otomatik onay — randevu anında 'approved'
   const ins = await db.execute({
     sql: `INSERT INTO randevu_appointments
             (salon_id, service_id, service_name, duration_min, staff_id, member_id, customer_name, phone, email, date, time, status, note)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?)`,
     args: [salon.id, service.id, service.name, service.duration_min, staff_id, member.id,
            customer_name, phone, email, date, time, note],
   });
@@ -103,7 +104,7 @@ export async function POST(req: NextRequest) {
   try {
     const r = await sendEmail({
       to: email,
-      subject: `Randevu Talebiniz Alındı — ${salon.name}`,
+      subject: `Randevunuz Onaylandı — ${salon.name}`,
       html: bookingEmailHtml({
         name: customer_name, salon: salon.name, service: service.name,
         staff: staff_name, date, time,
@@ -118,7 +119,7 @@ export async function POST(req: NextRequest) {
     salon: salon.name,
     service: service.name,
     date, time,
-    status: 'pending',
+    status: 'approved',
     mailed,
     email,
   }, { status: 201 });

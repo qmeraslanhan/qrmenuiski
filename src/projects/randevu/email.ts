@@ -58,19 +58,47 @@ export function bookingEmailHtml(d: {
     <div style="max-width:520px;margin:0 auto;background:#FBFAF6;border-radius:16px;overflow:hidden;border:1px solid #C9A961;">
       <div style="background:#0B1E3F;padding:28px 24px;text-align:center;">
         <div style="color:#C9A961;font-size:13px;letter-spacing:3px;text-transform:uppercase;">İSKİ Kültür ve Sosyal İşler</div>
-        <div style="color:#F5E6CC;font-size:24px;font-weight:700;margin-top:8px;">Randevu Talebiniz Alındı</div>
+        <div style="color:#F5E6CC;font-size:24px;font-weight:700;margin-top:8px;">Randevunuz Onaylandı</div>
       </div>
       <div style="padding:26px 28px;">
         <p style="color:#2B2926;font-size:15px;margin:0 0 6px;">Merhaba ${esc(d.name)},</p>
         <p style="color:#6B6358;font-size:14px;line-height:1.6;margin:0 0 18px;">
-          Randevu talebiniz başarıyla oluşturuldu ve <b style="color:#9A6B00;">onay bekliyor</b>.
-          Talebiniz onaylandığında sizinle iletişime geçilecektir.
+          Randevunuz başarıyla oluşturuldu ve <b style="color:#0F7B4F;">onaylandı</b>.
+          Aşağıdaki bilgilerle sizi bekliyoruz.
         </p>
         <table style="width:100%;border-collapse:collapse;border-top:1px solid #E7DEC9;border-bottom:1px solid #E7DEC9;">
           ${rowsHtml}
         </table>
         <p style="color:#8A8275;font-size:12px;line-height:1.6;margin:18px 0 0;">
           Bu e-posta randevu sisteminden otomatik gönderilmiştir.
+        </p>
+      </div>
+      <div style="background:#EFE9DC;padding:14px;text-align:center;color:#8A8275;font-size:12px;">
+        © İSKİ Kültür ve Sosyal İşler Şube Müdürlüğü
+      </div>
+    </div>
+  </body></html>`;
+}
+
+// Şifre sıfırlama bağlantısı maili
+export function resetEmailHtml(d: { name: string; url: string }): string {
+  return `<!DOCTYPE html><html lang="tr"><body style="margin:0;background:#0B1E3F;padding:24px;font-family:Arial,Helvetica,sans-serif;">
+    <div style="max-width:520px;margin:0 auto;background:#FBFAF6;border-radius:16px;overflow:hidden;border:1px solid #C9A961;">
+      <div style="background:#0B1E3F;padding:28px 24px;text-align:center;">
+        <div style="color:#C9A961;font-size:13px;letter-spacing:3px;text-transform:uppercase;">İSKİ Randevu Sistemi</div>
+        <div style="color:#F5E6CC;font-size:24px;font-weight:700;margin-top:8px;">Şifre Sıfırlama</div>
+      </div>
+      <div style="padding:26px 28px;">
+        <p style="color:#2B2926;font-size:15px;margin:0 0 6px;">Merhaba ${esc(d.name)},</p>
+        <p style="color:#6B6358;font-size:14px;line-height:1.6;margin:0 0 20px;">
+          Şifrenizi sıfırlamak için aşağıdaki butona tıklayın. Bu bağlantı <b>1 saat</b> geçerlidir.
+          Bu talebi siz yapmadıysanız bu e-postayı yok sayabilirsiniz.
+        </p>
+        <div style="text-align:center;margin:0 0 20px;">
+          <a href="${esc(d.url)}" style="display:inline-block;background:#C9A961;color:#0B1E3F;font-weight:700;font-size:15px;text-decoration:none;padding:13px 28px;border-radius:12px;">Şifremi Sıfırla</a>
+        </div>
+        <p style="color:#8A8275;font-size:12px;line-height:1.6;margin:0;word-break:break-all;">
+          Buton çalışmazsa bu adresi tarayıcınıza yapıştırın:<br>${esc(d.url)}
         </p>
       </div>
       <div style="background:#EFE9DC;padding:14px;text-align:center;color:#8A8275;font-size:12px;">

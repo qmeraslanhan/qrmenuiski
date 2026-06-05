@@ -112,7 +112,7 @@
     <header class="text-center mb-10 md:mb-12">
       <p class="anim-fade-up d-1 text-xs md:text-sm tracking-[0.45em] uppercase mb-4" style="color:var(--cream); font-weight:500;">Online Randevu</p>
       <h1 class="anim-fade-up d-2 display display-title text-5xl md:text-7xl font-semibold mb-4 tracking-[0.05em]" style="color:var(--gold); text-shadow:0 2px 20px rgba(201,169,97,0.25);">RANDEVU</h1>
-      <p class="anim-fade-up d-3 text-sm md:text-base max-w-md mx-auto leading-relaxed" style="color:var(--cream-soft);">Randevu almak istediğiniz berber veya kuaförü seçin.</p>
+      <p class="anim-fade-up d-3 text-sm md:text-base max-w-md mx-auto leading-relaxed" style="color:var(--cream-soft);">Randevu almak istediğiniz birimi seçin.</p>
     </header>
 
     <div id="searchWrap" class="hidden mb-10 max-w-md mx-auto anim-fade-up d-4">
@@ -155,7 +155,7 @@
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
     const $ = (id) => document.getElementById(id);
-    const TYPE = { berber: 'Berber', kuafor: 'Kuaför', both: 'Berber & Kuaför' };
+    const TYPE = { berber: 'Berber', kuafor: 'Kuaför', both: 'Berber & Kuaför', diger: 'Randevu' };
     function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
     function initial(name){ return (name||'?').trim().charAt(0).toLocaleUpperCase('tr-TR'); }
 
@@ -167,7 +167,7 @@
       return `
         <a href="/randevu/salon/${encodeURIComponent(s.slug)}" class="tesis-card anim-fade-up" style="animation-delay:${400 + idx*90}ms;">
           <div class="monogram">${ini}</div>
-          <span class="type-badge">${esc(TYPE[s.type] || 'Berber')}</span>
+          ${s.type && s.type !== 'diger' ? `<span class="type-badge">${esc(TYPE[s.type] || '')}</span>` : ''}
           <h3 class="card-name">${esc(s.name)}</h3>
           ${desc}
           <div class="card-meta">${addr}${hours}</div>

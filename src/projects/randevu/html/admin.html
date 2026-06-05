@@ -59,7 +59,7 @@
         <img src="/img/iski-logo.png" alt="İSKİ" class="h-9 w-auto object-contain">
         <div>
           <h1 class="serif text-xl font-semibold leading-tight">Randevu Yönetimi</h1>
-          <p class="text-xs" style="color:var(--ink-mute);">Berber &amp; Kuaför</p>
+          <p class="text-xs" style="color:var(--ink-mute);">Randevu Sistemi</p>
         </div>
       </div>
       <div class="flex items-center gap-2">
@@ -78,10 +78,10 @@
     <section id="viewAppts">
       <div class="flex flex-wrap items-center gap-2 mb-4">
         <div class="flex flex-wrap gap-1.5" id="statusChips">
-          <button class="chip active" data-st="pending">Beklemede</button>
+          <button class="chip active" data-st="all">Tümü</button>
           <button class="chip" data-st="approved">Onaylı</button>
-          <button class="chip" data-st="rejected">Reddedilen</button>
-          <button class="chip" data-st="all">Tümü</button>
+          <button class="chip" data-st="cancelled">İptal</button>
+          <button class="chip" data-st="pending">Beklemede</button>
         </div>
         <div class="flex items-center gap-2 ml-auto">
           <select id="fSalon" class="fld" style="width:auto; padding:8px 10px; font-size:13px;"><option value="">Tüm salonlar</option></select>
@@ -112,12 +112,12 @@
   <script>
     const $ = (id) => document.getElementById(id);
     const TOKEN = localStorage.getItem('randevu_admin_token');
-    const TYPE = { berber:'Berber', kuafor:'Kuaför', both:'Berber & Kuaför' };
+    const TYPE = { berber:'Berber', kuafor:'Kuaför', both:'Berber & Kuaför', diger:'Diğer' };
     const DAYS = [[1,'Pzt'],[2,'Sal'],[3,'Çar'],[4,'Per'],[5,'Cum'],[6,'Cmt'],[0,'Paz']];
     const DAY_LABEL = { 0:'Paz',1:'Pzt',2:'Sal',3:'Çar',4:'Per',5:'Cum',6:'Cmt' };
     const ST_LABEL = { pending:'Beklemede', approved:'Onaylı', rejected:'Reddedildi', cancelled:'İptal' };
     let SALONS = [];
-    let curStatus = 'pending';
+    let curStatus = 'all';
 
     function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
     function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2200); }
@@ -190,11 +190,14 @@
       const note = a.note ? `<p class="text-xs mt-2 italic" style="color:var(--ink-mute);">“${esc(a.note)}”</p>` : '';
       const decided = a.decided_note ? `<p class="text-xs mt-1" style="color:var(--ink-mute);">Yönetim notu: ${esc(a.decided_note)}</p>` : '';
       let actions = '';
-      if(a.status === 'pending'){
+      if(a.status === 'approved'){
+        actions = `<button class="btn btn-red btn-sm" onclick="decide(${a.id},'cancelled')">İptal Et</button>
+                   <button class="btn btn-red btn-sm" onclick="delAppt(${a.id})">Sil</button>`;
+      } else if(a.status === 'pending'){
         actions = `<button class="btn btn-green btn-sm" onclick="decide(${a.id},'approved')">Onayla</button>
                    <button class="btn btn-red btn-sm" onclick="decide(${a.id},'rejected')">Reddet</button>`;
       } else {
-        actions = `<button class="btn btn-ghost btn-sm" onclick="decide(${a.id},'pending')">Beklemeye al</button>
+        actions = `<button class="btn btn-green btn-sm" onclick="decide(${a.id},'approved')">Tekrar Onayla</button>
                    <button class="btn btn-red btn-sm" onclick="delAppt(${a.id})">Sil</button>`;
       }
       return `<div class="card p-4">
@@ -226,7 +229,7 @@
         const res = await api('/randevu/api/admin/appointments/'+id, { method:'PATCH', body: JSON.stringify({ status, decided_note }) });
         const data = await res.json();
         if(!res.ok){ toast(data.error || 'İşlem başarısız'); return; }
-        toast(status==='approved'?'Onaylandı':status==='rejected'?'Reddedildi':'Güncellendi');
+        toast(status==='approved'?'Onaylandı':status==='rejected'?'Reddedildi':status==='cancelled'?'İptal edildi':'Güncellendi');
         loadAppts(); refreshPendingPill();
       }catch(e){}
     }
@@ -295,6 +298,7 @@
               <option value="berber" ${s?.type==='berber'?'selected':''}>Berber</option>
               <option value="kuafor" ${s?.type==='kuafor'?'selected':''}>Kuaför</option>
               <option value="both" ${s?.type==='both'?'selected':''}>Berber &amp; Kuaför</option>
+              <option value="diger" ${s?.type==='diger'?'selected':''}>Diğer / Genel</option>
             </select></div>
             <div><label class="lbl">Telefon</label><input id="sPhone" class="fld" value="${esc(s?.phone||'')}" placeholder="0212…"></div>
           </div>

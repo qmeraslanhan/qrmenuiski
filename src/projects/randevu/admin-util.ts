@@ -38,7 +38,7 @@ function clampInt(v: any, min: number, max: number, fallback: number): number {
   return Math.min(max, Math.max(min, n));
 }
 
-const VALID_TYPES = ['berber', 'kuafor', 'both'];
+const VALID_TYPES = ['berber', 'kuafor', 'both', 'diger'];
 
 export type SalonFields = {
   name: string;

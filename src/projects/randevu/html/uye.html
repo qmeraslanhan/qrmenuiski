@@ -47,7 +47,7 @@
     </div>
 
     <div style="background:rgba(255,255,255,0.04); border:1.5px solid var(--gold); border-radius:18px; padding:24px;">
-      <div class="seg">
+      <div class="seg" id="seg">
         <button id="segLogin" class="active" onclick="showTab('login')">Giriş Yap</button>
         <button id="segReg" onclick="showTab('reg')">Üye Ol</button>
       </div>
@@ -56,6 +56,7 @@
       <form id="loginForm" class="space-y-3" onsubmit="doLogin(event)">
         <div><label class="lbl">E-posta</label><input id="lEmail" type="email" class="fld" placeholder="ornek@eposta.com" required autocomplete="email"></div>
         <div><label class="lbl">Şifre</label><input id="lPass" type="password" class="fld" placeholder="Şifreniz" required autocomplete="current-password"></div>
+        <div class="text-right" style="margin-top:-2px;"><a href="#" onclick="showForgot(event)" style="color:var(--gold-light);font-size:12.5px;">Şifremi unuttum?</a></div>
         <div id="loginErr" class="hidden text-sm text-center px-3 py-2.5 rounded-xl" style="color:#FCA5A5; background:rgba(220,38,38,0.12); border:1px solid rgba(220,38,38,0.3);"></div>
         <button type="submit" id="lBtn" class="btn-gold">Giriş Yap</button>
       </form>
@@ -68,6 +69,15 @@
         <div><label class="lbl">Şifre</label><input id="rPass" type="password" class="fld" placeholder="En az 6 karakter" required minlength="6" autocomplete="new-password"></div>
         <div id="regErr" class="hidden text-sm text-center px-3 py-2.5 rounded-xl" style="color:#FCA5A5; background:rgba(220,38,38,0.12); border:1px solid rgba(220,38,38,0.3);"></div>
         <button type="submit" id="rBtn" class="btn-gold">Üye Ol</button>
+      </form>
+
+      <!-- Forgot -->
+      <form id="forgotForm" class="space-y-3 hidden" onsubmit="doForgot(event)">
+        <p class="text-sm" style="color:var(--cream-soft);">E-posta adresinizi girin; şifre sıfırlama bağlantısını gönderelim.</p>
+        <div><label class="lbl">E-posta</label><input id="fEmail" type="email" class="fld" placeholder="ornek@eposta.com" required autocomplete="email"></div>
+        <div id="forgotMsg" class="hidden text-sm text-center px-3 py-2.5 rounded-xl"></div>
+        <button type="submit" id="fBtn" class="btn-gold">Sıfırlama Bağlantısı Gönder</button>
+        <button type="button" onclick="backToLogin()" class="w-full text-sm" style="color:var(--cream-soft);background:none;border:none;cursor:pointer;padding-top:2px;">← Girişe dön</button>
       </form>
     </div>
   </div>
@@ -82,12 +92,40 @@
 
     function showTab(t){
       const login = t === 'login';
+      $('seg').classList.remove('hidden');
+      $('forgotForm').classList.add('hidden');
       $('segLogin').classList.toggle('active', login);
       $('segReg').classList.toggle('active', !login);
       $('loginForm').classList.toggle('hidden', !login);
       $('regForm').classList.toggle('hidden', login);
     }
     if (params.get('tab') === 'reg') showTab('reg');
+
+    function showForgot(e){
+      if(e) e.preventDefault();
+      $('seg').classList.add('hidden');
+      $('loginForm').classList.add('hidden');
+      $('regForm').classList.add('hidden');
+      $('forgotForm').classList.remove('hidden');
+    }
+    function backToLogin(){ showTab('login'); }
+
+    async function doForgot(e){
+      e.preventDefault();
+      const btn=$('fBtn'); const msg=$('forgotMsg');
+      msg.classList.add('hidden');
+      btn.disabled=true; btn.textContent='Gönderiliyor…';
+      try{
+        await fetch('/randevu/api/member/forgot', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email:$('fEmail').value.trim() }) });
+        msg.textContent='Eğer bu e-posta kayıtlıysa, şifre sıfırlama bağlantısı gönderildi. Gelen kutunuzu (ve spam) kontrol edin.';
+        msg.style.color='#86EFAC'; msg.style.background='rgba(16,185,129,0.12)'; msg.style.border='1px solid rgba(16,185,129,0.3)';
+        msg.classList.remove('hidden');
+      }catch{
+        msg.textContent='Bağlantı hatası. Tekrar deneyin.';
+        msg.style.color='#FCA5A5'; msg.style.background='rgba(220,38,38,0.12)'; msg.style.border='1px solid rgba(220,38,38,0.3)';
+        msg.classList.remove('hidden');
+      }finally{ btn.disabled=false; btn.textContent='Sıfırlama Bağlantısı Gönder'; }
+    }
 
     function fail(id, msg){ const e=$(id); e.textContent=msg; e.classList.remove('hidden'); }
 

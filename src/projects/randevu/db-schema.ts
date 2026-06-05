@@ -75,6 +75,15 @@ export async function ensureRandevuInit(): Promise<void> {
       expires_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
+    `CREATE TABLE IF NOT EXISTS randevu_password_resets (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      member_id  INTEGER NOT NULL REFERENCES randevu_members(id) ON DELETE CASCADE,
+      token      TEXT    NOT NULL UNIQUE,
+      expires_at DATETIME,
+      used       INTEGER NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_randevu_pwreset_token ON randevu_password_resets(token)`,
 
     // Randevular
     `CREATE TABLE IF NOT EXISTS randevu_appointments (
