@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hesabım — İSKİ Randevu</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <meta name="robots" content="noindex,nofollow">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { --bg:#0B1E3F; --bg-deep:#061330; --gold:#C9A961; --gold-light:#E0C783; --gold-dark:#A88847; --cream:#F5E6CC; --cream-soft:#D9C5A0; --surface:#FBFAF6; --ink:#2B2926; --ink-soft:#6B6358;
+      --green:#0F7B4F; --green-bg:#E7F5EE; --amber:#9A6B00; --amber-bg:#FBF1DC; --red:#B91C1C; --red-bg:#FBE9E9; }
+    * { font-family:'DM Sans',sans-serif; box-sizing:border-box; }
+    body { background:radial-gradient(ellipse 700px 500px at 50% 0%, rgba(201,169,97,0.08), transparent 60%), var(--bg); min-height:100vh; color:var(--cream); }
+    .display { font-family:'Cinzel',serif; }
+    .logo-white { filter:brightness(0) invert(1); }
+    .card { background:var(--surface); color:var(--ink); border:1.5px solid var(--gold); border-radius:14px; }
+    .badge { font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:999px; }
+    .b-pending{ background:var(--amber-bg); color:var(--amber); } .b-approved{ background:var(--green-bg); color:var(--green); }
+    .b-rejected{ background:var(--red-bg); color:var(--red); } .b-cancelled{ background:#EEE; color:#777; }
+    .btn-outline { display:inline-flex; align-items:center; gap:7px; padding:10px 20px; border:1.5px solid var(--gold); border-radius:999px; color:var(--cream); font-size:13px; font-weight:600; text-decoration:none; background:rgba(201,169,97,0.06); cursor:pointer; transition:all .25s; }
+    .btn-outline:hover { background:var(--gold); color:var(--bg-deep); }
+    .spinner { width:34px; height:34px; border:2px solid rgba(201,169,97,0.3); border-top-color:var(--gold); border-radius:50%; animation:spin 1s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .hidden { display:none !important; }
+  </style>
+</head>
+<body>
+  <main class="max-w-2xl mx-auto px-5 py-7">
+    <div class="flex items-center justify-center gap-5 mb-6">
+      <img src="/img/iski-logo.png" alt="İSKİ" class="logo-white h-10 w-auto object-contain">
+      <div style="width:1px;height:34px;background:linear-gradient(to bottom,transparent,var(--gold),transparent);"></div>
+      <img src="/img/ibb-mavi.png" alt="İBB" class="logo-white h-10 w-auto object-contain">
+    </div>
+
+    <header class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="display text-2xl font-semibold" style="color:var(--gold);">Hesabım</h1>
+        <p id="greet" class="text-sm mt-0.5" style="color:var(--cream-soft);"></p>
+      </div>
+      <div class="flex gap-2">
+        <a href="/randevu" class="btn-outline">Salonlar</a>
+        <button onclick="logout()" class="btn-outline">Çıkış</button>
+      </div>
+    </header>
+
+    <h2 class="text-xs font-semibold tracking-widest uppercase mb-3" style="color:var(--cream-soft);">Randevularım</h2>
+
+    <div id="loading" class="text-center py-16"><div class="spinner inline-block"></div></div>
+    <div id="empty" class="hidden text-center py-16 card">
+      <p class="px-6 py-2" style="color:var(--ink-soft);">Henüz randevunuz yok.</p>
+      <a href="/randevu" class="inline-block mt-2 mb-4 font-semibold text-sm" style="color:var(--gold-dark);">Randevu al →</a>
+    </div>
+    <div id="list" class="hidden space-y-3"></div>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const TOKEN = localStorage.getItem('randevu_member_token');
+    const ST = { pending:'Beklemede', approved:'Onaylandı', rejected:'Reddedildi', cancelled:'İptal' };
+    function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    if(!TOKEN) location.href = '/randevu/uye?next=/randevu/hesabim';
+
+    async function logout(){
+      try{ await fetch('/randevu/api/member/logout', { method:'POST', headers:{'Authorization':'Bearer '+TOKEN} }); }catch{}
+      localStorage.removeItem('randevu_member_token'); localStorage.removeItem('randevu_member_name');
+      location.href = '/randevu';
+    }
+
+    async function load(){
+      try{
+        const res = await fetch('/randevu/api/member/me', { headers:{'Authorization':'Bearer '+TOKEN} });
+        if(res.status === 401){ localStorage.removeItem('randevu_member_token'); location.href='/randevu/uye?next=/randevu/hesabim'; return; }
+        const data = await res.json();
+        $('greet').textContent = data.member.name + '  ·  ' + data.member.email;
+        $('loading').classList.add('hidden');
+        const appts = data.appointments || [];
+        if(!appts.length){ $('empty').classList.remove('hidden'); return; }
+        $('list').classList.remove('hidden');
+        $('list').innerHTML = appts.map(a => {
+          const staff = a.staff_name ? ' · ' + esc(a.staff_name) : '';
+          return `<div class="card p-4 flex items-start justify-between gap-3">
+            <div>
+              <p class="font-semibold" style="font-size:15px;">${esc(a.salon_name||'')}</p>
+              <p class="text-sm mt-0.5" style="color:var(--ink-soft);">${esc(a.service_name||'')}${staff} <span style="color:#8A8275;">(${a.duration_min} dk)</span></p>
+              <p class="text-sm mt-1" style="color:var(--gold-dark); font-weight:600;">${esc(a.date)} · ${esc(a.time)}</p>
+            </div>
+            <span class="badge b-${a.status}">${ST[a.status]||a.status}</span>
+          </div>`;
+        }).join('');
+      }catch(e){ $('loading').classList.add('hidden'); $('empty').classList.remove('hidden'); }
+    }
+    load();
+  </script>
+</body>
+</html>

@@ -60,6 +60,22 @@ export async function ensureRandevuInit(): Promise<void> {
     )`,
     `CREATE INDEX IF NOT EXISTS idx_randevu_staff_salon ON randevu_staff(salon_id)`,
 
+    // Üyeler (randevu alabilmek için kayıt zorunlu)
+    `CREATE TABLE IF NOT EXISTS randevu_members (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      name       TEXT    NOT NULL,
+      email      TEXT    NOT NULL UNIQUE,
+      phone      TEXT    NOT NULL,
+      password   TEXT    NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS randevu_member_sessions (
+      token      TEXT    PRIMARY KEY,
+      member_id  INTEGER NOT NULL REFERENCES randevu_members(id) ON DELETE CASCADE,
+      expires_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+
     // Randevular
     `CREATE TABLE IF NOT EXISTS randevu_appointments (
       id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -68,8 +84,10 @@ export async function ensureRandevuInit(): Promise<void> {
       service_name  TEXT,
       duration_min  INTEGER NOT NULL DEFAULT 30,
       staff_id      INTEGER,
+      member_id     INTEGER,
       customer_name TEXT    NOT NULL,
       phone         TEXT    NOT NULL,
+      email         TEXT,
       date          TEXT    NOT NULL,
       time          TEXT    NOT NULL,
       status        TEXT    NOT NULL DEFAULT 'pending',
@@ -78,8 +96,12 @@ export async function ensureRandevuInit(): Promise<void> {
       decided_at    DATETIME,
       created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
+    // Mevcut (eski) tablolar için kolonları idempotent ekle (yeni DB'de hata verir → applySchema yutar)
+    `ALTER TABLE randevu_appointments ADD COLUMN member_id INTEGER`,
+    `ALTER TABLE randevu_appointments ADD COLUMN email TEXT`,
     `CREATE INDEX IF NOT EXISTS idx_randevu_appt_day ON randevu_appointments(salon_id, date, status)`,
     `CREATE INDEX IF NOT EXISTS idx_randevu_appt_staff ON randevu_appointments(staff_id, date)`,
+    `CREATE INDEX IF NOT EXISTS idx_randevu_appt_member ON randevu_appointments(member_id)`,
 
     // ── Paylaşılan auth tabloları (qr-menu ile ortak; idempotent) ──
     `CREATE TABLE IF NOT EXISTS sessions (

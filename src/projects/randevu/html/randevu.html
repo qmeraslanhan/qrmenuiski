@@ -87,8 +87,26 @@
       <a href="/randevu" class="text-sm underline" style="color:var(--cream-soft);">Salon listesine dön</a>
     </div>
 
+    <!-- Üye girişi gerekli -->
+    <div id="memberGate" class="hidden panel text-center py-9 anim-fade-up">
+      <div style="width:56px;height:56px;border-radius:50%;background:rgba(201,169,97,0.14);border:2px solid var(--gold-dark);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
+        <svg width="26" height="26" fill="none" viewBox="0 0 24 24" stroke="var(--gold-dark)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 20a7.5 7.5 0 0115 0"/></svg>
+      </div>
+      <h2 class="display text-2xl font-semibold mb-2" style="color:var(--ink);">Randevu için üye girişi</h2>
+      <p class="muted mb-6" style="max-width:340px;margin-left:auto;margin-right:auto;">Randevu alabilmek için üye girişi yapmanız gerekir. Üye değilseniz hızlıca kayıt olabilirsiniz.</p>
+      <div class="flex gap-2.5 justify-center">
+        <a id="gateLogin" href="/randevu/uye" class="btn-gold" style="width:auto;padding:12px 24px;display:inline-block;text-decoration:none;">Giriş Yap</a>
+        <a id="gateReg" href="/randevu/uye?tab=reg" style="display:inline-block;padding:12px 24px;border-radius:12px;font-weight:700;font-size:15px;text-decoration:none;color:var(--gold-dark);border:1.5px solid var(--gold-dark);">Üye Ol</a>
+      </div>
+    </div>
+
     <!-- Booking flow -->
     <div id="flow" class="hidden space-y-5">
+      <!-- Üye barı -->
+      <div id="memberBar" class="flex items-center justify-between text-sm px-1">
+        <span id="memberGreet" style="color:var(--cream-soft);"></span>
+        <a href="/randevu/hesabim" style="color:var(--gold);font-weight:600;">Hesabım →</a>
+      </div>
       <!-- Salon header -->
       <header class="text-center mb-1">
         <p id="salonType" class="text-xs tracking-[0.3em] uppercase mb-2" style="color:var(--cream-soft);">Berber</p>
@@ -145,8 +163,13 @@
       </div>
       <h2 class="display text-3xl font-semibold mb-2" style="color:var(--ink);">Talebiniz Alındı</h2>
       <p class="muted mb-5">Randevu talebiniz başarıyla oluşturuldu ve <b>onay bekliyor</b>.</p>
-      <div id="successSummary" class="text-sm mx-auto max-w-xs text-left space-y-1.5 mb-6" style="color:var(--ink-soft);"></div>
-      <a href="/randevu" class="inline-block text-sm font-semibold" style="color:var(--gold-dark);">← Salonlara dön</a>
+      <div id="successSummary" class="text-sm mx-auto max-w-xs text-left space-y-1.5 mb-4" style="color:var(--ink-soft);"></div>
+      <p id="successMail" class="muted mb-5"></p>
+      <div class="flex gap-2 justify-center">
+        <a href="/randevu/hesabim" class="inline-block text-sm font-semibold" style="color:var(--gold-dark);">Randevularım</a>
+        <span style="color:var(--ink-mute);">·</span>
+        <a href="/randevu" class="inline-block text-sm font-semibold" style="color:var(--gold-dark);">Salonlara dön</a>
+      </div>
     </div>
 
     <footer class="text-center mt-8">
@@ -162,6 +185,28 @@
 
     const slug = decodeURIComponent(location.pathname.split('/').filter(Boolean).pop() || '');
     const state = { salon:null, services:[], staff:[], serviceId:null, staffId:null, date:'', time:'', slotReqId:0 };
+    let member = null;
+
+    async function gateCheck(){
+      const token = localStorage.getItem('randevu_member_token');
+      const next = encodeURIComponent(location.pathname);
+      $('gateLogin').href = '/randevu/uye?next=' + next;
+      $('gateReg').href = '/randevu/uye?tab=reg&next=' + next;
+      if(!token){ showGate(); return; }
+      try{
+        const res = await fetch('/randevu/api/member/me', { headers:{'Authorization':'Bearer '+token} });
+        if(!res.ok){ localStorage.removeItem('randevu_member_token'); showGate(); return; }
+        const data = await res.json();
+        member = data.member;
+        $('memberGreet').textContent = 'Üye: ' + member.name;
+        if(!$('cName').value) $('cName').value = member.name || '';
+        if(!$('cPhone').value) $('cPhone').value = member.phone || '';
+        $('memberGate').classList.add('hidden');
+        $('flow').classList.remove('hidden');
+        updateSubmit();
+      }catch(e){ showGate(); }
+    }
+    function showGate(){ $('flow').classList.add('hidden'); $('memberGate').classList.remove('hidden'); }
 
     function istanbulToday(){ return new Date(Date.now() + 3*3600*1000).toISOString().slice(0,10); }
 
@@ -173,7 +218,8 @@
         const data = await res.json();
         state.salon = data.salon; state.services = data.services || []; state.staff = data.staff || [];
         renderSalon(); renderServices(); renderStaff(); setupDate();
-        $('loading').classList.add('hidden'); $('flow').classList.remove('hidden');
+        $('loading').classList.add('hidden');
+        await gateCheck();
       }catch(e){ $('loading').classList.add('hidden'); $('notfound').classList.remove('hidden'); console.error(e); }
     }
 
@@ -307,9 +353,11 @@
           customer_name: $('cName').value.trim(), phone: $('cPhone').value.trim(),
           note: $('cNote').value.trim() || null,
         };
-        const res = await fetch('/randevu/api/appointments', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        const token = localStorage.getItem('randevu_member_token');
+        const res = await fetch('/randevu/api/appointments', { method:'POST', headers:{'Content-Type':'application/json', 'Authorization':'Bearer '+token}, body: JSON.stringify(body) });
         const data = await res.json();
         if(!res.ok){
+          if(res.status === 401){ localStorage.removeItem('randevu_member_token'); showGate(); window.scrollTo({top:0,behavior:'smooth'}); return; }
           err.textContent = data.error || 'Randevu oluşturulamadı.';
           err.classList.remove('hidden');
           if(res.status === 409){ loadSlots(); } // saat doldu → tazele
@@ -331,6 +379,7 @@
         ['Saat', state.time],
       ].filter(Boolean);
       $('successSummary').innerHTML = rows.map(([k,v]) => `<div class="flex justify-between gap-3"><span>${esc(k)}</span><b style="color:var(--ink);">${esc(v)}</b></div>`).join('');
+      $('successMail').textContent = d.mailed ? ('Onay e-postası ' + (d.email || '') + ' adresine gönderildi.') : '';
       $('flow').classList.add('hidden');
       $('success').classList.remove('hidden');
       window.scrollTo({ top:0, behavior:'smooth' });

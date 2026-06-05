@@ -206,6 +206,7 @@
             </div>
             <p class="text-sm mt-1" style="color:var(--ink-soft);">
               <a href="tel:${esc(tel)}" style="color:var(--accent); font-weight:600;">${esc(a.phone)}</a>
+              ${a.email ? ` · <a href="mailto:${esc(a.email)}" style="color:var(--accent);">${esc(a.email)}</a>` : ''}
             </p>
             <p class="text-sm mt-1.5" style="color:var(--ink-soft);">
               <b>${esc(a.salon_name||'')}</b> — ${esc(a.service_name||'')}${staff} <span style="color:var(--ink-mute);">(${a.duration_min} dk)</span>

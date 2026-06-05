@@ -4,16 +4,26 @@ import { ensureRandevuInit } from '@/projects/randevu/db-schema';
 import {
   hasConflict, weekday, toMin, istanbulNow, DATE_RE, type Busy,
 } from '@/projects/randevu/slots';
+import { getMember } from '@/projects/randevu/member-auth';
+import { sendEmail, bookingEmailHtml } from '@/projects/randevu/email';
 
 const TIME_RE = /^\d{2}:\d{2}$/;
 
-// Public: yeni randevu talebi (status = pending)
+// Üye randevu talebi (status = pending). Üye girişi ZORUNLU.
 export async function POST(req: NextRequest) {
   await ensureRandevuInit();
+
+  const member = await getMember(req);
+  if (!member) {
+    return NextResponse.json({ error: 'Randevu almak için üye girişi yapın' }, { status: 401 });
+  }
+
   const b = await req.json().catch(() => ({} as any));
 
-  const customer_name = String(b.customer_name || '').trim();
-  const phone = String(b.phone || '').trim();
+  // Ad/telefon üyeden gelir; form override edebilir
+  const customer_name = (String(b.customer_name || '').trim() || member.name);
+  const phone = (String(b.phone || '').trim() || member.phone);
+  const email = member.email;
   const date = String(b.date || '').trim();
   const time = String(b.time || '').trim();
   const note = String(b.note || '').trim() || null;
@@ -25,11 +35,9 @@ export async function POST(req: NextRequest) {
   if (!DATE_RE.test(date)) return bad('Geçerli bir tarih gerekli');
   if (!TIME_RE.test(time)) return bad('Geçerli bir saat gerekli');
 
-  // Salon (slug veya id)
   const salon: any = await findSalon(b.salon_slug, b.salon_id);
   if (!salon) return NextResponse.json({ error: 'Salon bulunamadı' }, { status: 404 });
 
-  // Hizmet
   const svr = await db.execute({
     sql: 'SELECT id, name, duration_min FROM randevu_services WHERE id = ? AND salon_id = ? AND is_active = 1',
     args: [serviceId, salon.id],
@@ -37,21 +45,24 @@ export async function POST(req: NextRequest) {
   const service: any = svr.rows[0];
   if (!service) return bad('Geçerli bir hizmet seçin');
 
-  // Usta gerekli mi? (salonda aktif usta varsa zorunlu)
+  // Usta gerekli mi?
   const staffCountR = await db.execute({
     sql: 'SELECT COUNT(*) AS n FROM randevu_staff WHERE salon_id = ? AND is_active = 1',
     args: [salon.id],
   });
   const hasStaff = Number((staffCountR.rows[0] as any).n) > 0;
   let staff_id: number | null = null;
+  let staff_name: string | null = null;
   if (hasStaff) {
     if (!staffIdRaw) return bad('Lütfen bir usta seçin');
     const str = await db.execute({
-      sql: 'SELECT id FROM randevu_staff WHERE id = ? AND salon_id = ? AND is_active = 1',
+      sql: 'SELECT id, name FROM randevu_staff WHERE id = ? AND salon_id = ? AND is_active = 1',
       args: [staffIdRaw, salon.id],
     });
-    if (!str.rows[0]) return bad('Geçersiz usta seçimi');
-    staff_id = Number(staffIdRaw);
+    const st: any = str.rows[0];
+    if (!st) return bad('Geçersiz usta seçimi');
+    staff_id = Number(st.id);
+    staff_name = st.name;
   }
 
   // Tarih/saat doğrulama
@@ -68,7 +79,7 @@ export async function POST(req: NextRequest) {
     return bad('Seçilen saat çalışma saatleri dışında');
   }
 
-  // Çakışma kontrolü (sunucu tarafı — yarış durumunu önler)
+  // Çakışma kontrolü (sunucu tarafı)
   let busySql = `SELECT time, duration_min FROM randevu_appointments
                   WHERE salon_id = ? AND date = ? AND status IN ('pending','approved')`;
   const busyArgs: any[] = [salon.id, date];
@@ -81,11 +92,25 @@ export async function POST(req: NextRequest) {
 
   const ins = await db.execute({
     sql: `INSERT INTO randevu_appointments
-            (salon_id, service_id, service_name, duration_min, staff_id, customer_name, phone, date, time, status, note)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
-    args: [salon.id, service.id, service.name, service.duration_min, staff_id,
-           customer_name, phone, date, time, note],
+            (salon_id, service_id, service_name, duration_min, staff_id, member_id, customer_name, phone, email, date, time, status, note)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+    args: [salon.id, service.id, service.name, service.duration_min, staff_id, member.id,
+           customer_name, phone, email, date, time, note],
   });
+
+  // Onay maili (Resend) — hata randevuyu bozmaz
+  let mailed = false;
+  try {
+    const r = await sendEmail({
+      to: email,
+      subject: `Randevu Talebiniz Alındı — ${salon.name}`,
+      html: bookingEmailHtml({
+        name: customer_name, salon: salon.name, service: service.name,
+        staff: staff_name, date, time,
+      }),
+    });
+    mailed = r.ok;
+  } catch { /* yut */ }
 
   return NextResponse.json({
     success: true,
@@ -94,6 +119,8 @@ export async function POST(req: NextRequest) {
     service: service.name,
     date, time,
     status: 'pending',
+    mailed,
+    email,
   }, { status: 201 });
 }
 

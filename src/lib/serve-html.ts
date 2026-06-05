@@ -13,6 +13,8 @@ import randevuSalonlarHtml from '@/projects/randevu/html/salonlar.html';
 import randevuBookingHtml from '@/projects/randevu/html/randevu.html';
 import randevuLoginHtml from '@/projects/randevu/html/login.html';
 import randevuAdminHtml from '@/projects/randevu/html/admin.html';
+import randevuUyeHtml from '@/projects/randevu/html/uye.html';
+import randevuHesabimHtml from '@/projects/randevu/html/hesabim.html';
 
 // Filename → bundled string. Yeni HTML eklerken bu map'e ekle.
 const HTML: Record<string, string> = {
@@ -26,6 +28,8 @@ const HTML: Record<string, string> = {
   'randevu/randevu.html': randevuBookingHtml,
   'randevu/login.html': randevuLoginHtml,
   'randevu/admin.html': randevuAdminHtml,
+  'randevu/uye.html': randevuUyeHtml,
+  'randevu/hesabim.html': randevuHesabimHtml,
   // Geri uyumluluk için kısa isim alias'ları (eski çağrılar bozulmasın)
   'admin.html': adminHtml,
   'login.html': loginHtml,

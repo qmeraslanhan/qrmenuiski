@@ -139,6 +139,10 @@
     <div class="diamond-divider"><span class="diamond"></span></div>
     <footer class="text-center">
       <div class="flex flex-wrap items-center justify-center gap-3 md:gap-4 mb-5">
+        <a id="memberLink" href="/randevu/uye" class="btn-outline">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 20a7.5 7.5 0 0115 0"/></svg>
+          <span id="memberLinkText">Üye Girişi</span>
+        </a>
         <a href="/randevu/login" class="btn-outline">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
           <span>Yönetim Paneli</span>
@@ -194,6 +198,12 @@
         applySearch();
       }catch(e){ $('loading').classList.add('hidden'); $('error').classList.remove('hidden'); console.error(e); }
     }
+    // Üye girişliyse linki "Hesabım"a çevir
+    if (localStorage.getItem('randevu_member_token')) {
+      $('memberLink').href = '/randevu/hesabim';
+      $('memberLinkText').textContent = 'Hesabım';
+    }
+
     $('searchInput').addEventListener('input', applySearch);
     load();
   </script>
