@@ -32,7 +32,12 @@ if ($Message) {
   Write-Host "  (mesaj verilmedi, git adimlari atlaniyor - sadece Cloudflare'a deploy)" -ForegroundColor Yellow
 }
 
-# 2) Cloudflare deploy
+# 2) Build cache'i temizle — yoksa Next.js stale prerender'i tekrar kullanir
+Write-Step "Build cache temizleniyor (.next, .open-next)"
+if (Test-Path .next)      { Remove-Item -Recurse -Force .next }
+if (Test-Path .open-next) { Remove-Item -Recurse -Force .open-next }
+
+# 3) Cloudflare deploy (temiz build)
 Write-Step "Cloudflare: build + deploy"
 npm run cf:deploy
 if ($LASTEXITCODE -ne 0) {
