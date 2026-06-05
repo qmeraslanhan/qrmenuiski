@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Randevu Al — İSKİ Kültür ve Sosyal İşler</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <meta name="theme-color" content="#0B1E3F">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --bg:#0B1E3F; --bg-deep:#061330; --gold:#C9A961; --gold-light:#E0C783; --gold-dark:#A88847; --gold-glow:rgba(201,169,97,0.15);
+      --cream:#F5E6CC; --cream-soft:#D9C5A0; --surface:#FBFAF6; --ink:#2B2926; --ink-soft:#6B6358; --line:#E7DEC9;
+    }
+    * { font-family:'DM Sans',sans-serif; box-sizing:border-box; }
+    body { background:var(--bg); color:var(--cream); min-height:100vh; position:relative; overflow-x:hidden; }
+    .display { font-family:'Cinzel',serif; }
+    .bg-overlay { position:fixed; inset:0; pointer-events:none; z-index:0;
+      background: radial-gradient(ellipse 800px 600px at 50% 0%, rgba(201,169,97,0.08), transparent 60%); }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+    .anim-fade-up { animation:fadeUp .7s cubic-bezier(.16,1,.3,1) both; }
+    .logo-white { filter:brightness(0) invert(1); }
+    .logo-divider { width:1px; height:42px; background:linear-gradient(to bottom, transparent, var(--gold), transparent); opacity:.7; }
+    .top-back { position:absolute; top:20px; left:20px; display:inline-flex; align-items:center; gap:6px; padding:8px 14px;
+      border:1px solid rgba(201,169,97,0.5); border-radius:999px; color:var(--cream); font-size:12px; font-weight:500; text-decoration:none;
+      background:rgba(11,30,63,0.6); backdrop-filter:blur(8px); transition:background .3s,color .3s,border-color .3s; z-index:2; }
+    .top-back:hover { background:var(--gold); color:var(--bg-deep); border-color:var(--gold); }
+    .top-back svg { width:14px; height:14px; }
+
+    .panel { background:var(--surface); color:var(--ink); border:1.5px solid var(--gold); border-radius:16px; padding:22px;
+      box-shadow:0 16px 36px -18px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(201,169,97,0.25); }
+    .step-title { font-family:'Cinzel',serif; font-size:14px; font-weight:600; letter-spacing:.06em; color:var(--gold-dark); text-transform:uppercase; }
+    .step-num { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%;
+      background:var(--gold); color:var(--bg-deep); font-size:13px; font-weight:700; margin-right:9px; }
+
+    .opt { width:100%; text-align:left; border:1.5px solid var(--line); border-radius:12px; padding:13px 15px; background:#fff; color:var(--ink);
+      transition: border-color .2s, box-shadow .2s, background .2s; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .opt:hover { border-color:var(--gold); }
+    .opt.sel { border-color:var(--gold-dark); background:rgba(201,169,97,0.1); box-shadow:0 0 0 3px var(--gold-glow); }
+    .opt .o-name { font-weight:600; font-size:14.5px; }
+    .opt .o-meta { font-size:12px; color:var(--ink-soft); }
+    .pill { font-size:12px; font-weight:700; color:var(--gold-dark); white-space:nowrap; }
+
+    .slot { border:1.5px solid var(--line); border-radius:10px; padding:9px 0; background:#fff; color:var(--ink); font-weight:600; font-size:13.5px;
+      cursor:pointer; transition:border-color .15s, background .15s, color .15s, box-shadow .15s; text-align:center; }
+    .slot:hover { border-color:var(--gold); }
+    .slot.sel { background:var(--gold-dark); border-color:var(--gold-dark); color:#fff; box-shadow:0 4px 12px -4px rgba(168,136,71,0.6); }
+
+    .fld { width:100%; border:1.5px solid var(--line); border-radius:11px; padding:12px 14px; background:#fff; color:var(--ink); font-size:14px; outline:none;
+      transition:border-color .2s, box-shadow .2s; }
+    .fld:focus { border-color:var(--gold-dark); box-shadow:0 0 0 3px var(--gold-glow); }
+    .lbl { font-size:12.5px; font-weight:600; color:var(--ink-soft); margin-bottom:6px; display:block; }
+
+    .btn-gold { width:100%; background:linear-gradient(180deg, var(--gold-light), var(--gold)); color:var(--bg-deep); font-weight:700; font-size:15px;
+      border:none; border-radius:12px; padding:15px; cursor:pointer; letter-spacing:.02em; transition:filter .2s, transform .2s; box-shadow:0 8px 20px -8px rgba(201,169,97,0.7); }
+    .btn-gold:hover { filter:brightness(1.05); transform:translateY(-1px); }
+    .btn-gold:disabled { opacity:.5; cursor:not-allowed; transform:none; filter:none; }
+
+    .muted { color:var(--ink-soft); font-size:13px; }
+    .spinner { width:30px; height:30px; border:2px solid rgba(201,169,97,0.3); border-top-color:var(--gold-dark); border-radius:50%; animation:spin 1s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .hidden { display:none !important; }
+    @media (prefers-reduced-motion: reduce){ .anim-fade-up{ animation:none!important; opacity:1!important; transform:none!important; } }
+  </style>
+</head>
+<body>
+  <div class="bg-overlay" aria-hidden></div>
+  <a href="/randevu" class="top-back">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+    <span>Salonlar</span>
+  </a>
+
+  <main class="relative max-w-xl mx-auto px-5 py-6 md:py-8" style="z-index:1;">
+    <div class="flex items-center justify-center gap-6 mb-7">
+      <img src="/img/iski-logo.png" alt="İSKİ" class="logo-white h-11 w-auto object-contain">
+      <div class="logo-divider"></div>
+      <img src="/img/ibb-mavi.png" alt="İBB" class="logo-white h-11 w-auto object-contain">
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" class="text-center py-24"><div class="spinner inline-block"></div><p class="mt-4 text-sm" style="color:var(--cream-soft);">Yükleniyor…</p></div>
+
+    <!-- Not found -->
+    <div id="notfound" class="hidden text-center py-24">
+      <h2 class="display text-3xl font-medium mb-3" style="color:var(--gold);">Salon bulunamadı</h2>
+      <a href="/randevu" class="text-sm underline" style="color:var(--cream-soft);">Salon listesine dön</a>
+    </div>
+
+    <!-- Booking flow -->
+    <div id="flow" class="hidden space-y-5">
+      <!-- Salon header -->
+      <header class="text-center mb-1">
+        <p id="salonType" class="text-xs tracking-[0.3em] uppercase mb-2" style="color:var(--cream-soft);">Berber</p>
+        <h1 id="salonName" class="display text-4xl md:text-5xl font-semibold" style="color:var(--gold); text-shadow:0 2px 18px rgba(201,169,97,0.25);">—</h1>
+        <p id="salonInfo" class="mt-3 text-sm" style="color:var(--cream-soft);"></p>
+      </header>
+
+      <!-- Step 1: Service -->
+      <section class="panel anim-fade-up">
+        <div class="flex items-center mb-4"><span class="step-num">1</span><span class="step-title">Hizmet Seçin</span></div>
+        <div id="services" class="space-y-2.5"></div>
+      </section>
+
+      <!-- Step 2: Staff -->
+      <section id="staffSection" class="panel anim-fade-up hidden">
+        <div class="flex items-center mb-4"><span class="step-num">2</span><span class="step-title">Usta Seçin</span></div>
+        <div id="staffList" class="space-y-2.5"></div>
+      </section>
+
+      <!-- Step 3: Date -->
+      <section class="panel anim-fade-up">
+        <div class="flex items-center mb-4"><span class="step-num" id="numDate">2</span><span class="step-title">Tarih Seçin</span></div>
+        <input type="date" id="dateInput" class="fld">
+        <p id="dateHint" class="muted mt-2 hidden"></p>
+      </section>
+
+      <!-- Step 4: Time -->
+      <section class="panel anim-fade-up">
+        <div class="flex items-center mb-4"><span class="step-num" id="numTime">3</span><span class="step-title">Saat Seçin</span></div>
+        <div id="slotPrompt" class="muted">Önce hizmet ve tarih seçin.</div>
+        <div id="slotLoading" class="hidden text-center py-3"><div class="spinner inline-block" style="width:24px;height:24px;"></div></div>
+        <div id="slotEmpty" class="hidden muted">Bu gün için uygun saat kalmadı. Lütfen başka bir gün seçin.</div>
+        <div id="slots" class="hidden grid grid-cols-3 sm:grid-cols-4 gap-2.5"></div>
+      </section>
+
+      <!-- Step 5: Customer -->
+      <section class="panel anim-fade-up">
+        <div class="flex items-center mb-4"><span class="step-num" id="numInfo">4</span><span class="step-title">Bilgileriniz</span></div>
+        <div class="space-y-3.5">
+          <div><label class="lbl" for="cName">Ad Soyad</label><input id="cName" type="text" class="fld" placeholder="Adınız Soyadınız" autocomplete="name"></div>
+          <div><label class="lbl" for="cPhone">Telefon</label><input id="cPhone" type="tel" class="fld" placeholder="05XX XXX XX XX" autocomplete="tel"></div>
+          <div><label class="lbl" for="cNote">Not (opsiyonel)</label><textarea id="cNote" rows="2" class="fld" placeholder="Eklemek istedikleriniz…"></textarea></div>
+        </div>
+        <div id="formErr" class="hidden mt-3 text-sm text-center" style="color:#B91C1C; background:rgba(185,28,28,0.08); border:1px solid rgba(185,28,28,0.25); border-radius:10px; padding:10px;"></div>
+        <button id="submitBtn" class="btn-gold mt-4" disabled>Randevu Talebi Gönder</button>
+        <p class="muted text-center mt-3" style="font-size:12px;">Talebiniz yönetim onayına düşer; onaylandığında sizinle iletişime geçilir.</p>
+      </section>
+    </div>
+
+    <!-- Success -->
+    <div id="success" class="hidden panel text-center py-10 anim-fade-up">
+      <div style="width:64px;height:64px;border-radius:50%;background:rgba(16,185,129,0.12);border:2px solid #10B981;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;">
+        <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#10B981" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+      </div>
+      <h2 class="display text-3xl font-semibold mb-2" style="color:var(--ink);">Talebiniz Alındı</h2>
+      <p class="muted mb-5">Randevu talebiniz başarıyla oluşturuldu ve <b>onay bekliyor</b>.</p>
+      <div id="successSummary" class="text-sm mx-auto max-w-xs text-left space-y-1.5 mb-6" style="color:var(--ink-soft);"></div>
+      <a href="/randevu" class="inline-block text-sm font-semibold" style="color:var(--gold-dark);">← Salonlara dön</a>
+    </div>
+
+    <footer class="text-center mt-8">
+      <p class="text-xs" style="color:var(--cream-soft);">© <span id="year"></span> İSKİ Kültür ve Sosyal İşler Şube Müdürlüğü</p>
+    </footer>
+  </main>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+    const $ = (id) => document.getElementById(id);
+    const TYPE = { berber:'Berber', kuafor:'Kuaför', both:'Berber & Kuaför' };
+    function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+    const slug = decodeURIComponent(location.pathname.split('/').filter(Boolean).pop() || '');
+    const state = { salon:null, services:[], staff:[], serviceId:null, staffId:null, date:'', time:'', slotReqId:0 };
+
+    function istanbulToday(){ return new Date(Date.now() + 3*3600*1000).toISOString().slice(0,10); }
+
+    async function init(){
+      try{
+        const res = await fetch('/randevu/api/salons/' + encodeURIComponent(slug));
+        if(res.status === 404){ $('loading').classList.add('hidden'); $('notfound').classList.remove('hidden'); return; }
+        if(!res.ok) throw new Error('HTTP '+res.status);
+        const data = await res.json();
+        state.salon = data.salon; state.services = data.services || []; state.staff = data.staff || [];
+        renderSalon(); renderServices(); renderStaff(); setupDate();
+        $('loading').classList.add('hidden'); $('flow').classList.remove('hidden');
+      }catch(e){ $('loading').classList.add('hidden'); $('notfound').classList.remove('hidden'); console.error(e); }
+    }
+
+    function renderSalon(){
+      const s = state.salon;
+      $('salonType').textContent = TYPE[s.type] || 'Berber';
+      $('salonName').textContent = s.name;
+      const bits = [];
+      if(s.address) bits.push(s.address);
+      if(s.open_time && s.close_time) bits.push(s.open_time + ' – ' + s.close_time);
+      if(s.phone) bits.push(s.phone);
+      $('salonInfo').textContent = bits.join('  ·  ');
+      document.title = 'Randevu Al — ' + s.name;
+    }
+
+    function renderServices(){
+      const box = $('services');
+      if(!state.services.length){ box.innerHTML = '<p class="muted">Bu salon için tanımlı hizmet yok.</p>'; return; }
+      box.innerHTML = state.services.map(sv => {
+        const price = Number(sv.price) > 0 ? Number(sv.price).toLocaleString('tr-TR') + ' ₺' : '';
+        return `<button type="button" class="opt" data-svc="${sv.id}" data-dur="${sv.duration_min}">
+          <span><span class="o-name">${esc(sv.name)}</span><br><span class="o-meta">${sv.duration_min} dk</span></span>
+          ${price ? `<span class="pill">${price}</span>` : ''}
+        </button>`;
+      }).join('');
+      box.querySelectorAll('[data-svc]').forEach(b => b.addEventListener('click', () => {
+        box.querySelectorAll('.opt').forEach(x => x.classList.remove('sel'));
+        b.classList.add('sel');
+        state.serviceId = b.dataset.svc;
+        loadSlots();
+      }));
+    }
+
+    function renderStaff(){
+      const hasStaff = state.staff.length > 0;
+      $('staffSection').classList.toggle('hidden', !hasStaff);
+      // step numbering shifts if staff present
+      $('numDate').textContent = hasStaff ? '3' : '2';
+      $('numTime').textContent = hasStaff ? '4' : '3';
+      $('numInfo').textContent = hasStaff ? '5' : '4';
+      if(!hasStaff) return;
+      const box = $('staffList');
+      box.innerHTML = state.staff.map(st => `<button type="button" class="opt" data-staff="${st.id}"><span class="o-name">${esc(st.name)}</span></button>`).join('');
+      box.querySelectorAll('[data-staff]').forEach(b => b.addEventListener('click', () => {
+        box.querySelectorAll('.opt').forEach(x => x.classList.remove('sel'));
+        b.classList.add('sel');
+        state.staffId = b.dataset.staff;
+        loadSlots();
+      }));
+    }
+
+    function setupDate(){
+      const inp = $('dateInput');
+      inp.min = istanbulToday();
+      inp.addEventListener('change', () => {
+        state.date = inp.value; state.time = '';
+        const wd = state.date ? new Date(state.date + 'T00:00:00Z').getUTCDay() : null;
+        const work = String(state.salon.work_days || '').split(',').map(x=>x.trim());
+        if(state.date && !work.includes(String(wd))){
+          $('dateHint').textContent = 'Salon bu gün kapalı. Lütfen başka bir gün seçin.';
+          $('dateHint').classList.remove('hidden');
+          resetSlots('closed');
+          return;
+        }
+        $('dateHint').classList.add('hidden');
+        loadSlots();
+      });
+    }
+
+    function resetSlots(reason){
+      state.time = '';
+      $('slots').classList.add('hidden'); $('slots').innerHTML = '';
+      $('slotLoading').classList.add('hidden');
+      $('slotEmpty').classList.toggle('hidden', reason !== 'empty' && reason !== 'closed');
+      if(reason === 'closed') $('slotEmpty').textContent = 'Salon seçili günde kapalı.';
+      else if(reason === 'empty') $('slotEmpty').textContent = 'Bu gün için uygun saat kalmadı. Lütfen başka bir gün seçin.';
+      $('slotPrompt').classList.toggle('hidden', !!reason);
+      updateSubmit();
+    }
+
+    async function loadSlots(){
+      const needStaff = state.staff.length > 0;
+      if(!state.serviceId || !state.date || (needStaff && !state.staffId)){
+        $('slotPrompt').classList.remove('hidden');
+        $('slotPrompt').textContent = needStaff ? 'Hizmet, usta ve tarih seçin.' : 'Hizmet ve tarih seçin.';
+        resetSlotsVisualOnly();
+        return;
+      }
+      $('slotPrompt').classList.add('hidden');
+      $('slotEmpty').classList.add('hidden');
+      $('slots').classList.add('hidden');
+      $('slotLoading').classList.remove('hidden');
+      const reqId = ++state.slotReqId;
+      try{
+        const qs = new URLSearchParams({ date: state.date, service_id: state.serviceId });
+        if(state.staffId) qs.set('staff_id', state.staffId);
+        const res = await fetch(`/randevu/api/salons/${encodeURIComponent(slug)}/slots?` + qs.toString());
+        const data = await res.json();
+        if(reqId !== state.slotReqId) return; // stale
+        $('slotLoading').classList.add('hidden');
+        const slots = data.slots || [];
+        if(!slots.length){ resetSlots(data.reason === 'closed' ? 'closed' : 'empty'); return; }
+        $('slots').innerHTML = slots.map(t => `<button type="button" class="slot" data-t="${t}">${t}</button>`).join('');
+        $('slots').classList.remove('hidden');
+        $('slots').querySelectorAll('.slot').forEach(b => b.addEventListener('click', () => {
+          $('slots').querySelectorAll('.slot').forEach(x => x.classList.remove('sel'));
+          b.classList.add('sel'); state.time = b.dataset.t; updateSubmit();
+        }));
+        state.time = ''; updateSubmit();
+      }catch(e){ if(reqId===state.slotReqId){ $('slotLoading').classList.add('hidden'); resetSlots('empty'); } console.error(e); }
+    }
+    function resetSlotsVisualOnly(){ state.time=''; $('slots').classList.add('hidden'); $('slotLoading').classList.add('hidden'); $('slotEmpty').classList.add('hidden'); updateSubmit(); }
+
+    function updateSubmit(){
+      const needStaff = state.staff.length > 0;
+      const ok = state.serviceId && state.date && state.time && (!needStaff || state.staffId)
+        && $('cName').value.trim() && $('cPhone').value.replace(/\D/g,'').length >= 7;
+      $('submitBtn').disabled = !ok;
+    }
+    $('cName').addEventListener('input', updateSubmit);
+    $('cPhone').addEventListener('input', updateSubmit);
+
+    $('submitBtn').addEventListener('click', async () => {
+      const btn = $('submitBtn'); const err = $('formErr');
+      err.classList.add('hidden');
+      btn.disabled = true; btn.textContent = 'Gönderiliyor…';
+      try{
+        const body = {
+          salon_slug: slug, service_id: state.serviceId, staff_id: state.staffId || null,
+          date: state.date, time: state.time,
+          customer_name: $('cName').value.trim(), phone: $('cPhone').value.trim(),
+          note: $('cNote').value.trim() || null,
+        };
+        const res = await fetch('/randevu/api/appointments', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        const data = await res.json();
+        if(!res.ok){
+          err.textContent = data.error || 'Randevu oluşturulamadı.';
+          err.classList.remove('hidden');
+          if(res.status === 409){ loadSlots(); } // saat doldu → tazele
+          return;
+        }
+        showSuccess(data);
+      }catch(e){ err.textContent = 'Bağlantı hatası. Tekrar deneyin.'; err.classList.remove('hidden'); }
+      finally { btn.disabled = false; btn.textContent = 'Randevu Talebi Gönder'; updateSubmit(); }
+    });
+
+    function showSuccess(d){
+      const svc = state.services.find(s => String(s.id) === String(state.serviceId));
+      const staff = state.staff.find(s => String(s.id) === String(state.staffId));
+      const rows = [
+        ['Salon', state.salon.name],
+        ['Hizmet', svc ? svc.name : '—'],
+        staff ? ['Usta', staff.name] : null,
+        ['Tarih', state.date],
+        ['Saat', state.time],
+      ].filter(Boolean);
+      $('successSummary').innerHTML = rows.map(([k,v]) => `<div class="flex justify-between gap-3"><span>${esc(k)}</span><b style="color:var(--ink);">${esc(v)}</b></div>`).join('');
+      $('flow').classList.add('hidden');
+      $('success').classList.remove('hidden');
+      window.scrollTo({ top:0, behavior:'smooth' });
+    }
+
+    init();
+  </script>
+</body>
+</html>

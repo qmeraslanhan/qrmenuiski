@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Randevu — Yönetim Girişi</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <meta name="robots" content="noindex,nofollow">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { --bg:#0B1E3F; --bg-deep:#061330; --gold:#C9A961; --gold-light:#E0C783; --cream:#F5E6CC; --cream-soft:#D9C5A0; }
+    * { font-family:'DM Sans',sans-serif; box-sizing:border-box; }
+    body { background:radial-gradient(ellipse 700px 500px at 50% 0%, rgba(201,169,97,0.10), transparent 60%), var(--bg); }
+    .display { font-family:'Cinzel',serif; }
+    .fld { width:100%; background:rgba(255,255,255,0.06); border:1px solid var(--gold); color:var(--cream); border-radius:12px; padding:13px 15px; font-size:14px; outline:none; transition:border-color .2s, box-shadow .2s; }
+    .fld:focus { border-color:var(--gold-light); box-shadow:0 0 0 4px rgba(201,169,97,0.15); }
+    .fld::placeholder { color:var(--cream-soft); opacity:.6; }
+    .btn-gold { width:100%; background:linear-gradient(180deg, var(--gold-light), var(--gold)); color:var(--bg-deep); font-weight:700; border:none; border-radius:12px; padding:14px; cursor:pointer; transition:filter .2s, transform .2s; }
+    .btn-gold:hover { filter:brightness(1.05); transform:translateY(-1px); }
+    .btn-gold:disabled { opacity:.6; cursor:not-allowed; }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-sm">
+    <div class="text-center mb-7">
+      <div class="flex items-center justify-center gap-5 mb-6">
+        <img src="/img/iski-logo.png" alt="İSKİ" class="h-10 w-auto object-contain" style="filter:brightness(0) invert(1);">
+        <div style="width:1px;height:34px;background:linear-gradient(to bottom,transparent,var(--gold),transparent);"></div>
+        <img src="/img/ibb-mavi.png" alt="İBB" class="h-10 w-auto object-contain" style="filter:brightness(0) invert(1);">
+      </div>
+      <h1 class="display text-2xl font-semibold" style="color:var(--gold);">Randevu Yönetimi</h1>
+      <p class="text-sm mt-1" style="color:var(--cream-soft);">Berber &amp; Kuaför Paneli</p>
+    </div>
+
+    <div style="background:rgba(255,255,255,0.04); border:1.5px solid var(--gold); border-radius:18px; padding:26px;">
+      <form id="loginForm" class="space-y-3" onsubmit="handleLogin(event)">
+        <div>
+          <label class="block text-xs font-medium mb-1.5" style="color:var(--cream-soft);">Şifre</label>
+          <input type="password" id="password" placeholder="Yönetim şifresi" required autofocus class="fld">
+        </div>
+        <div id="errorMsg" class="hidden text-sm text-center px-4 py-3 rounded-xl" style="color:#FCA5A5; background:rgba(220,38,38,0.12); border:1px solid rgba(220,38,38,0.3);">Hatalı şifre.</div>
+        <button type="submit" id="btnLogin" class="btn-gold mt-1">Giriş Yap</button>
+      </form>
+    </div>
+
+    <p class="text-center mt-6"><a href="/randevu" class="text-xs" style="color:var(--cream-soft);">← Randevu sayfasına dön</a></p>
+  </div>
+
+  <script>
+    if (localStorage.getItem('randevu_admin_token')) location.href = '/randevu/admin';
+    async function handleLogin(e){
+      e.preventDefault();
+      const btn = document.getElementById('btnLogin');
+      const err = document.getElementById('errorMsg');
+      const password = document.getElementById('password').value;
+      err.classList.add('hidden');
+      btn.disabled = true; btn.textContent = 'Giriş yapılıyor…';
+      try{
+        const res = await fetch('/randevu/api/admin/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ password }) });
+        const data = await res.json();
+        if(!res.ok){ err.textContent = data.error || 'Hatalı şifre.'; err.classList.remove('hidden'); return; }
+        localStorage.setItem('randevu_admin_token', data.token);
+        location.href = '/randevu/admin';
+      }catch{ err.textContent = 'Bağlantı hatası.'; err.classList.remove('hidden'); }
+      finally{ btn.disabled = false; btn.textContent = 'Giriş Yap'; }
+    }
+  </script>
+</body>
+</html>

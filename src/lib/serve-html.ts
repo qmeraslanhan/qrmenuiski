@@ -8,6 +8,12 @@ import menuHtml from '@/projects/qr-menu/html/menu.html';
 import printMenuHtml from '@/projects/qr-menu/html/print-menu.html';
 import tesislerHtml from '@/projects/qr-menu/html/tesisler.html';
 
+// Randevu (berber & kuaför) projesi
+import randevuSalonlarHtml from '@/projects/randevu/html/salonlar.html';
+import randevuBookingHtml from '@/projects/randevu/html/randevu.html';
+import randevuLoginHtml from '@/projects/randevu/html/login.html';
+import randevuAdminHtml from '@/projects/randevu/html/admin.html';
+
 // Filename → bundled string. Yeni HTML eklerken bu map'e ekle.
 const HTML: Record<string, string> = {
   'qr-menu/admin.html': adminHtml,
@@ -15,6 +21,11 @@ const HTML: Record<string, string> = {
   'qr-menu/menu.html': menuHtml,
   'qr-menu/print-menu.html': printMenuHtml,
   'qr-menu/tesisler.html': tesislerHtml,
+  // Randevu projesi
+  'randevu/salonlar.html': randevuSalonlarHtml,
+  'randevu/randevu.html': randevuBookingHtml,
+  'randevu/login.html': randevuLoginHtml,
+  'randevu/admin.html': randevuAdminHtml,
   // Geri uyumluluk için kısa isim alias'ları (eski çağrılar bozulmasın)
   'admin.html': adminHtml,
   'login.html': loginHtml,

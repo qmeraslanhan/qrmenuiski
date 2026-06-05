@@ -1,0 +1,58 @@
+import { NextRequest, NextResponse } from 'next/server';
+import slugify from 'slugify';
+import { db, isUniqueError } from '@/lib/d1';
+import { ensureRandevuInit } from '@/projects/randevu/db-schema';
+import { getAuth, isAdmin, unauthorized, forbidden } from '@/lib/auth';
+import { parseSalonInput } from '@/projects/randevu/admin-util';
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  await ensureRandevuInit();
+  const auth = await getAuth(req);
+  if (!auth) return unauthorized();
+  if (!isAdmin(auth)) return forbidden();
+  const { id } = await params;
+
+  const cur = await db.execute({ sql: 'SELECT * FROM randevu_salons WHERE id = ?', args: [id] });
+  const existing: any = cur.rows[0];
+  if (!existing) return NextResponse.json({ error: 'Salon bulunamadı' }, { status: 404 });
+
+  const b = await req.json().catch(() => ({} as any));
+  const f = parseSalonInput(b, existing);
+  if (!f.name) return NextResponse.json({ error: 'Salon adı zorunludur' }, { status: 400 });
+
+  const slug = f.name !== existing.name
+    ? slugify(f.name, { lower: true, strict: true, locale: 'tr' })
+    : existing.slug;
+
+  try {
+    await db.execute({
+      sql: `UPDATE randevu_salons SET
+              name=?, slug=?, type=?, description=?, address=?, phone=?, image_url=?,
+              open_time=?, close_time=?, slot_minutes=?, work_days=?, is_active=?, sort_order=?
+            WHERE id=?`,
+      args: [f.name, slug, f.type, f.description, f.address, f.phone, f.image_url,
+             f.open_time, f.close_time, f.slot_minutes, f.work_days, f.is_active, f.sort_order, id],
+    });
+    const row = await db.execute({ sql: 'SELECT * FROM randevu_salons WHERE id = ?', args: [id] });
+    return NextResponse.json(row.rows[0]);
+  } catch (err: any) {
+    if (isUniqueError(err)) return NextResponse.json({ error: 'Bu isimde bir salon zaten var' }, { status: 409 });
+    throw err;
+  }
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  await ensureRandevuInit();
+  const auth = await getAuth(req);
+  if (!auth) return unauthorized();
+  if (!isAdmin(auth)) return forbidden();
+  const { id } = await params;
+
+  // İlişkili hizmet/usta/randevuları temizle (D1'de FK cascade garanti değil)
+  await db.execute({ sql: 'DELETE FROM randevu_appointments WHERE salon_id = ?', args: [id] });
+  await db.execute({ sql: 'DELETE FROM randevu_services WHERE salon_id = ?', args: [id] });
+  await db.execute({ sql: 'DELETE FROM randevu_staff WHERE salon_id = ?', args: [id] });
+  const info = await db.execute({ sql: 'DELETE FROM randevu_salons WHERE id = ?', args: [id] });
+  if (!info.rowsAffected) return NextResponse.json({ error: 'Salon bulunamadı' }, { status: 404 });
+  return NextResponse.json({ success: true });
+}
