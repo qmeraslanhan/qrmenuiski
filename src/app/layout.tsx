@@ -3,14 +3,14 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: {
-    default: 'İSKİ Sosyal İşler Şube Müdürlüğü',
-    template: '%s — İSKİ Sosyal İşler Şube Müdürlüğü',
+    default: 'İSKİ Kültür ve Sosyal İşler Şube Müdürlüğü',
+    template: '%s — İSKİ Kültür ve Sosyal İşler Şube Müdürlüğü',
   },
-  description: 'İSKİ Sosyal İşler Şube Müdürlüğü dijital hizmetler portalı.',
+  description: 'İSKİ Kültür ve Sosyal İşler Şube Müdürlüğü dijital hizmetler portalı.',
   icons: { icon: '/favicon.svg' },
   openGraph: {
     type: 'website',
-    siteName: 'İSKİ Sosyal İşler Şube Müdürlüğü',
+    siteName: 'İSKİ Kültür ve Sosyal İşler Şube Müdürlüğü',
     url: 'https://omeraslanhan.com',
   },
 };

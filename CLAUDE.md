@@ -1,4 +1,4 @@
-# İSKİ Sosyal İşler Şube Müdürlüğü — Dijital Portal
+# İSKİ Kültür ve Sosyal İşler Şube Müdürlüğü — Dijital Portal
 
 Çoklu-proje portalı. `omeraslanhan.com` üzerinde Cloudflare Workers'da çalışır.
 Şu an aktif: **QR Menü Sistemi**. Gelecekte yeni alt projeler buraya eklenir.

@@ -1,6 +1,6 @@
 # QR Menü Sistemi
 
-İSKİ Sosyal İşler Şube Müdürlüğü tesisleri için çoklu-tesis dijital menü.
+İSKİ Kültür ve Sosyal İşler Şube Müdürlüğü tesisleri için çoklu-tesis dijital menü.
 
 ## URL'ler
 

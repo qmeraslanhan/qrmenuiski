@@ -1,5 +1,5 @@
 // Tüm portal sayfalarında kullanılabilen standart footer:
-// © İSKİ Sosyal İşler Şube Müdürlüğü + opsiyonel butonlar.
+// © İSKİ Kültür ve Sosyal İşler Şube Müdürlüğü + opsiyonel butonlar.
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
@@ -18,7 +18,7 @@ export function PortalFooter({ year, children }: Props) {
         </div>
       )}
       <div className="text-center text-xs text-[var(--ink-mute)]">
-        © {y} İSKİ Sosyal İşler Şube Müdürlüğü
+        © {y} İSKİ Kültür ve Sosyal İşler Şube Müdürlüğü
       </div>
     </footer>
   );

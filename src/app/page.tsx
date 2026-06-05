@@ -117,7 +117,7 @@ export default function Dashboard() {
         {/* Header */}
         <header className="text-center mb-10 md:mb-14">
           <p className="anim-fade-up d-1 text-[11px] md:text-xs font-semibold tracking-[0.35em] uppercase text-[var(--ink-mute)] mb-4">
-            İSKİ Sosyal İşler Şube Müdürlüğü
+            İSKİ Kültür ve Sosyal İşler Şube Müdürlüğü
           </p>
           <h1 className="anim-fade-up d-2 serif text-3xl md:text-5xl font-medium text-[var(--ink)] mb-4 leading-[1.1]">
             Dijital Hizmetler{' '}
@@ -218,7 +218,7 @@ export default function Dashboard() {
         {/* Footer */}
         <footer className="mt-20 pt-8 border-t border-[var(--line)] anim-fade-up" style={{ animationDelay: '700ms' }}>
           <div className="text-center text-xs text-[var(--ink-mute)]">
-            © {year} İSKİ Sosyal İşler Şube Müdürlüğü
+            © {year} İSKİ Kültür ve Sosyal İşler Şube Müdürlüğü
           </div>
         </footer>
       </div>
