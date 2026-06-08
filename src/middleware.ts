@@ -6,9 +6,22 @@ import { getCloudflareContext } from '@opennextjs/cloudflare';
 //
 // GÜVENLİK İLKESİ: fail-open. Durum okunamazsa (DB/şema hatası) erişime
 // İZİN verilir — çalışan production hiçbir koşulda kilitlenmez.
+// Pasif sistemde bile AÇIK kalan yönetim yolları (slug'dan sonraki kısım).
+// Böylece admin pasif bir sistemin içeriğini yönetmeye devam edebilir.
+// Asıl güvenlik bu yolların kendi token kontrolünde — burası sadece public
+// erişimi keser, admin panel/login/admin-API'lerini değil.
+const ADMIN_PREFIXES = ['/admin', '/login', '/api/admin'];
+
 export async function middleware(req: NextRequest) {
-  const slug = req.nextUrl.pathname.split('/')[1];
+  const parts = req.nextUrl.pathname.split('/');
+  const slug = parts[1];
   if (!slug) return NextResponse.next();
+
+  // '/qr-menu/admin' -> '/admin', '/randevu/api/admin/me' -> '/api/admin/me'
+  const rest = '/' + parts.slice(2).join('/');
+  if (ADMIN_PREFIXES.some((p) => rest === p || rest.startsWith(p + '/'))) {
+    return NextResponse.next();
+  }
 
   try {
     const { env } = await getCloudflareContext({ async: true });
