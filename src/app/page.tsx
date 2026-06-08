@@ -136,11 +136,11 @@ export default function Dashboard() {
         </header>
 
         {/* Divider */}
-        <div className="divider mb-10 md:mb-12 anim-fade-up d-3" />
+        <div className="divider mb-6 md:mb-8 anim-fade-up d-3" />
 
         {/* Projects */}
         <section>
-          <div className="flex items-baseline justify-between mb-7 anim-fade-up d-4">
+          <div className="flex items-baseline justify-between mb-5 anim-fade-up d-4">
             <h2 className="text-xs font-semibold tracking-[0.25em] uppercase text-[var(--ink-mute)]">
               Sistemler
             </h2>
@@ -156,7 +156,7 @@ export default function Dashboard() {
                 <Link
                   key={p.slug}
                   href={p.href}
-                  className={`group lift relative rounded-2xl bg-[var(--surface)] border border-[var(--line)] p-7 anim-fade-up d-${5 + idx}`}
+                  className={`group lift relative rounded-2xl bg-[var(--surface)] border border-[var(--line)] p-6 anim-fade-up d-${5 + idx}`}
                   style={{ animationDelay: `${400 + idx * 80}ms` }}
                 >
                   {/* Status badge */}
@@ -165,7 +165,7 @@ export default function Dashboard() {
                   </span>
 
                   {/* Icon */}
-                  <div className="w-12 h-12 rounded-xl bg-[var(--accent-glow)] flex items-center justify-center mb-6 border border-[var(--line)]">
+                  <div className="w-11 h-11 rounded-xl bg-[var(--accent-glow)] flex items-center justify-center mb-4 border border-[var(--line)]">
                     <ProjectIcon id={p.icon} />
                   </div>
 
@@ -173,7 +173,7 @@ export default function Dashboard() {
                   <h3 className="serif text-2xl font-medium text-[var(--ink)] mb-3 leading-tight">
                     {p.title}
                   </h3>
-                  <p className="text-sm text-[var(--ink-soft)] leading-relaxed mb-6">
+                  <p className="text-sm text-[var(--ink-soft)] leading-relaxed mb-4">
                     {p.description}
                   </p>
 
@@ -190,7 +190,7 @@ export default function Dashboard() {
                   </div>
 
                   {/* CTA arrow */}
-                  <div className="flex items-center gap-2 mt-6 pt-6 border-t border-[var(--line)] text-sm font-medium text-[var(--accent)]">
+                  <div className="flex items-center gap-2 mt-5 pt-5 border-t border-[var(--line)] text-sm font-medium text-[var(--accent)]">
                     <span>Sisteme Git</span>
                     <svg
                       className="magnet-arrow w-4 h-4"
@@ -208,7 +208,7 @@ export default function Dashboard() {
 
             {/* Coming soon placeholder */}
             <div
-              className="anim-fade-up rounded-2xl border-2 border-dashed border-[var(--line-strong)] p-7 flex flex-col items-center justify-center text-center min-h-[260px]"
+              className="anim-fade-up rounded-2xl border-2 border-dashed border-[var(--line-strong)] p-6 flex flex-col items-center justify-center text-center min-h-[210px]"
               style={{ animationDelay: `${400 + PROJECTS.length * 80}ms` }}
             >
               <div className="w-12 h-12 rounded-xl bg-[var(--bg-soft)] flex items-center justify-center text-[var(--ink-mute)] mb-3 border border-[var(--line)]">
