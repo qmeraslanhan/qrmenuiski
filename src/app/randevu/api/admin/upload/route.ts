@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureRandevuInit } from '@/projects/randevu/db-schema';
-import { getAuth, isAdmin, unauthorized, forbidden } from '@/lib/auth';
+import { guard } from '@/projects/randevu/admin-auth';
 import { uploadImage } from '@/lib/r2';
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -9,9 +9,8 @@ const OK_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/a
 // Admin görsel yükleme → R2 (randevu/ klasörü), public CDN URL döner.
 export async function POST(req: NextRequest) {
   await ensureRandevuInit();
-  const auth = await getAuth(req);
-  if (!auth) return unauthorized();
-  if (!isAdmin(auth)) return forbidden();
+  const _g = await guard(req, 'editor');
+  if ('res' in _g) return _g.res;
 
   const ct = req.headers.get('content-type') || '';
   if (!ct.includes('multipart/form-data')) {

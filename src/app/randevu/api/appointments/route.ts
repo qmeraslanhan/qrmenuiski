@@ -6,6 +6,7 @@ import {
 } from '@/projects/randevu/slots';
 import { getMember } from '@/projects/randevu/member-auth';
 import { sendEmail, bookingEmailHtml } from '@/projects/randevu/email';
+import { logActivity } from '@/projects/randevu/activity';
 
 const TIME_RE = /^\d{2}:\d{2}$/;
 
@@ -109,6 +110,12 @@ export async function POST(req: NextRequest) {
     args: [salon.id, service.id, service.name, service.duration_min, staff_id, member.id,
            customer_name, phone, email, date, time, code, note],
   });
+
+  await logActivity(
+    { type: 'member', id: member.id, name: member.name },
+    'appointment.book', 'appointment', Number(ins.lastInsertRowid),
+    `${member.name} randevu aldı — ${salon.name} · ${service.name}${staff_name ? ' · ' + staff_name : ''} · ${date} ${time} (${code})`
+  );
 
   // Onay maili (Resend) — hata randevuyu bozmaz
   let mailed = false;

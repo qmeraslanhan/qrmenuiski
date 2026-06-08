@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/d1';
 import { ensureRandevuInit } from '@/projects/randevu/db-schema';
-import { getAuth, isAdmin, unauthorized, forbidden } from '@/lib/auth';
+import { guard } from '@/projects/randevu/admin-auth';
 import { istanbulNow } from '@/projects/randevu/slots';
 
 // Admin özet kartları
 export async function GET(req: NextRequest) {
   await ensureRandevuInit();
-  const auth = await getAuth(req);
-  if (!auth) return unauthorized();
-  if (!isAdmin(auth)) return forbidden();
+  const _g = await guard(req, 'viewer');
+  if ('res' in _g) return _g.res;
 
   const today = istanbulNow().dateStr;
   const weekEnd = new Date(Date.now() + 3 * 3600 * 1000 + 7 * 86400 * 1000).toISOString().slice(0, 10);

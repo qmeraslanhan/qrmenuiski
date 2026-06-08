@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureRandevuInit } from '@/projects/randevu/db-schema';
-import {
-  loginAdmin, clientIp, tooManyAttempts, recordFailedAttempt, clearAttempts, LOGIN_WINDOW_MIN,
-} from '@/lib/auth';
+import { clientIp, tooManyAttempts, recordFailedAttempt, clearAttempts, LOGIN_WINDOW_MIN } from '@/lib/auth';
+import { loginAdminUser } from '@/projects/randevu/admin-auth';
+import { logActivity } from '@/projects/randevu/activity';
 
-// Admin girişi (portal ADMIN_PASSWORD ile ortak)
+// Admin paneli girişi — e-posta + şifre (DB kullanıcısı) veya yalnız şifre (süper yönetici)
 export async function POST(req: NextRequest) {
   await ensureRandevuInit();
   const ip = clientIp(req);
@@ -14,12 +14,19 @@ export async function POST(req: NextRequest) {
       { status: 429 }
     );
   }
-  const { password } = await req.json().catch(() => ({} as any));
-  const result = await loginAdmin(String(password || ''));
+  const body = await req.json().catch(() => ({} as any));
+  const email = String(body.email || body.identifier || '');
+  const password = String(body.password || '');
+
+  const result = await loginAdminUser(email, password);
   if (!result) {
     await recordFailedAttempt(ip);
-    return NextResponse.json({ error: 'Hatalı şifre' }, { status: 401 });
+    return NextResponse.json({ error: 'Hatalı e-posta veya şifre' }, { status: 401 });
   }
   await clearAttempts(ip);
-  return NextResponse.json(result);
+  await logActivity(
+    { type: 'admin', id: result.ctx.id, name: result.ctx.name },
+    'admin.login', 'session', result.ctx.id, `${result.ctx.name} giriş yaptı`
+  );
+  return NextResponse.json({ token: result.token, role: result.ctx.role, name: result.ctx.name });
 }

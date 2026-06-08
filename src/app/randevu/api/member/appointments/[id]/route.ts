@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/d1';
 import { ensureRandevuInit } from '@/projects/randevu/db-schema';
 import { getMember } from '@/projects/randevu/member-auth';
+import { logActivity } from '@/projects/randevu/activity';
 import {
   hasConflict, weekday, toMin, istanbulNow, DATE_RE, breakBusy, type Busy,
 } from '@/projects/randevu/slots';
@@ -36,6 +37,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       sql: `UPDATE randevu_appointments SET status='cancelled', decided_note='Üye iptal etti', decided_at=CURRENT_TIMESTAMP WHERE id=?`,
       args: [id],
     });
+    await logActivity(
+      { type: 'member', id: member.id, name: member.name },
+      'appointment.cancel', 'appointment', Number(id),
+      `${member.name} randevusunu iptal etti — ${appt.service_name || ''} · ${appt.date} ${appt.time}`
+    );
     return NextResponse.json({ success: true, status: 'cancelled' });
   }
 
@@ -89,6 +95,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       sql: `UPDATE randevu_appointments SET date=?, time=?, staff_id=?, status='approved', reminder_sent=0, decided_note='Üye erteledi', decided_at=CURRENT_TIMESTAMP WHERE id=?`,
       args: [date, time, staff_id, id],
     });
+    await logActivity(
+      { type: 'member', id: member.id, name: member.name },
+      'appointment.reschedule', 'appointment', Number(id),
+      `${member.name} randevusunu erteledi — ${appt.date} ${appt.time} → ${date} ${time}`
+    );
     return NextResponse.json({ success: true, status: 'approved', date, time });
   }
 

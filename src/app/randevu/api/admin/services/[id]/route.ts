@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/d1';
 import { ensureRandevuInit } from '@/projects/randevu/db-schema';
-import { getAuth, isAdmin, unauthorized, forbidden } from '@/lib/auth';
+import { guard } from '@/projects/randevu/admin-auth';
+import { logActivity } from '@/projects/randevu/activity';
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await ensureRandevuInit();
-  const auth = await getAuth(req);
-  if (!auth) return unauthorized();
-  if (!isAdmin(auth)) return forbidden();
+  const _g = await guard(req, 'editor');
+  if ('res' in _g) return _g.res;
   const { id } = await params;
 
   const cur = await db.execute({ sql: 'SELECT * FROM randevu_services WHERE id = ?', args: [id] });
@@ -32,12 +32,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await ensureRandevuInit();
-  const auth = await getAuth(req);
-  if (!auth) return unauthorized();
-  if (!isAdmin(auth)) return forbidden();
+  const _g = await guard(req, 'editor');
+  if ('res' in _g) return _g.res;
   const { id } = await params;
 
+  const nm = await db.execute({ sql: 'SELECT name FROM randevu_services WHERE id = ?', args: [id] });
+  const sName = (nm.rows[0] as any)?.name || ('#' + id);
   const info = await db.execute({ sql: 'DELETE FROM randevu_services WHERE id = ?', args: [id] });
   if (!info.rowsAffected) return NextResponse.json({ error: 'Hizmet bulunamadı' }, { status: 404 });
+  await logActivity(
+    { type: 'admin', id: _g.ctx.id, name: _g.ctx.name },
+    'service.delete', 'service', Number(id), `${_g.ctx.name} hizmet sildi: ${sName}`
+  );
   return NextResponse.json({ success: true });
 }

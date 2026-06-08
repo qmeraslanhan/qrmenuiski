@@ -147,6 +147,42 @@ export async function ensureRandevuInit(): Promise<void> {
     `CREATE INDEX IF NOT EXISTS idx_randevu_appt_member ON randevu_appointments(member_id)`,
     `CREATE INDEX IF NOT EXISTS idx_randevu_appt_reminder ON randevu_appointments(date, status, reminder_sent)`,
 
+    // Yönetici kullanıcıları (admin paneli) — rol bazlı yetki
+    // role: 'admin' (tam yetki + kullanıcı yönetimi) | 'editor' | 'viewer'
+    `CREATE TABLE IF NOT EXISTS randevu_admin_users (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      name       TEXT    NOT NULL,
+      email      TEXT    NOT NULL UNIQUE,
+      password   TEXT    NOT NULL,
+      role       TEXT    NOT NULL DEFAULT 'editor',
+      is_active  INTEGER NOT NULL DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS randevu_admin_sessions (
+      token      TEXT    PRIMARY KEY,
+      user_id    INTEGER,
+      role       TEXT    NOT NULL,
+      name       TEXT,
+      email      TEXT,
+      expires_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    // İşlem kaydı (audit log) — üye/operatör/admin tüm mutasyonları
+    `CREATE TABLE IF NOT EXISTS randevu_activity_log (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      actor_type TEXT    NOT NULL,
+      actor_id   INTEGER,
+      actor_name TEXT,
+      action     TEXT    NOT NULL,
+      entity     TEXT,
+      entity_id  INTEGER,
+      detail     TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_randevu_activity ON randevu_activity_log(created_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_randevu_activity_actor ON randevu_activity_log(actor_type, actor_id)`,
+
     // ── Paylaşılan auth tabloları (qr-menu ile ortak; idempotent) ──
     `CREATE TABLE IF NOT EXISTS sessions (
       token      TEXT    PRIMARY KEY,

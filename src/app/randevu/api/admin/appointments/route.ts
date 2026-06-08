@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/d1';
 import { ensureRandevuInit } from '@/projects/randevu/db-schema';
-import { getAuth, isAdmin, unauthorized, forbidden } from '@/lib/auth';
+import { guard } from '@/projects/randevu/admin-auth';
 
 // Admin: randevu listesi (status / date / salon filtreli)
 export async function GET(req: NextRequest) {
   await ensureRandevuInit();
-  const auth = await getAuth(req);
-  if (!auth) return unauthorized();
-  if (!isAdmin(auth)) return forbidden();
+  const _g = await guard(req, 'viewer');
+  if ('res' in _g) return _g.res;
 
   const url = new URL(req.url);
   const status = url.searchParams.get('status') || '';

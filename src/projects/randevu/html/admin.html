@@ -64,6 +64,7 @@
         </div>
       </div>
       <div class="flex items-center gap-2">
+        <span id="whoami" class="text-xs hidden sm:inline" style="color:var(--ink-mute);"></span>
         <a href="/randevu" target="_blank" class="btn btn-ghost btn-sm">Siteyi Gör</a>
         <button onclick="logout()" class="btn btn-ghost btn-sm">Çıkış</button>
       </div>
@@ -74,6 +75,8 @@
       <div id="tabAppts" class="tab active" onclick="switchTab('appts')">Randevular <span id="pendingPill" class="badge b-pending ml-1 hidden">0</span></div>
       <div id="tabSalons" class="tab" onclick="switchTab('salons')">Salonlar</div>
       <div id="tabReports" class="tab" onclick="switchTab('reports')">Raporlar</div>
+      <div id="tabActivity" class="tab" onclick="switchTab('activity')">İşlem Kaydı</div>
+      <div id="tabUsers" class="tab hidden" onclick="switchTab('users')">Yöneticiler</div>
     </div>
 
     <!-- ───── Appointments ───── -->
@@ -138,6 +141,38 @@
       <div id="repLoading" class="hidden text-center py-16"><div class="spinner inline-block"></div></div>
       <div id="repEmpty" class="hidden text-center py-16" style="color:var(--ink-mute);">Seçilen aralıkta randevu yok.</div>
     </section>
+
+    <!-- ───── İşlem Kaydı (audit log) ───── -->
+    <section id="viewActivity" class="hidden">
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <h2 class="serif text-lg font-semibold">İşlem Kaydı</h2>
+        <button class="btn btn-ghost btn-sm" onclick="loadActivity()">↻ Yenile</button>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 mb-4">
+        <div class="flex flex-wrap gap-1.5" id="actChips">
+          <button class="chip active" data-at="">Tümü</button>
+          <button class="chip" data-at="member">Üyeler</button>
+          <button class="chip" data-at="operator">Operatörler</button>
+          <button class="chip" data-at="admin">Yönetim</button>
+        </div>
+        <input id="actSearch" class="fld ml-auto" placeholder="Ara: kişi, işlem…" style="width:auto; min-width:180px; padding:8px 12px; font-size:13px;">
+      </div>
+      <div id="actList" class="space-y-2"></div>
+      <div id="actEmpty" class="hidden text-center py-16" style="color:var(--ink-mute);">Kayıt bulunamadı.</div>
+      <div id="actLoading" class="text-center py-16"><div class="spinner inline-block"></div></div>
+    </section>
+
+    <!-- ───── Yöneticiler (kullanıcı & rol) ───── -->
+    <section id="viewUsers" class="hidden">
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <h2 class="serif text-lg font-semibold">Yöneticiler & Yetkiler</h2>
+        <button class="btn btn-primary btn-sm" onclick="openUserForm()">+ Yeni Kullanıcı</button>
+      </div>
+      <p class="text-xs mb-4" style="color:var(--ink-mute);">Roller — <b>Yönetici</b>: tam yetki + kullanıcı yönetimi · <b>Editör</b>: randevu/salon yönetir · <b>Görüntüleyici</b>: yalnızca görüntüler. Süper yönetici (panel şifresi) her zaman tam yetkilidir.</p>
+      <div id="userList" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+      <div id="userEmpty" class="hidden text-center py-16" style="color:var(--ink-mute);">Henüz ek kullanıcı yok.</div>
+      <div id="userLoading" class="text-center py-16"><div class="spinner inline-block"></div></div>
+    </section>
   </div>
 
   <div id="overlay" class="overlay hidden"></div>
@@ -154,6 +189,11 @@
     let curStatus = 'all';
     let APPT_LIST = [];
     let viewMode = 'list';
+    let ROLE = 'admin'; let ME = null;
+    const RANK = { viewer:1, editor:2, admin:3 };
+    const ROLE_LABEL = { viewer:'Görüntüleyici', editor:'Editör', admin:'Yönetici' };
+    function rank(r){ return RANK[r] || 1; }
+    function canEdit(){ return rank(ROLE) >= 2; }
 
     function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
     function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2200); }
@@ -166,32 +206,48 @@
       if(res.status === 401){ localStorage.removeItem('randevu_admin_token'); location.href='/randevu/login'; throw new Error('unauth'); }
       return res;
     }
-    function logout(){ api('/randevu/api/admin/logout', { method:'POST' }).finally(()=>{ localStorage.removeItem('randevu_admin_token'); location.href='/randevu/login'; }); }
+    function logout(){ api('/randevu/api/admin/logout', { method:'POST' }).finally(()=>{ ['randevu_admin_token','randevu_admin_role','randevu_admin_name'].forEach(k=>localStorage.removeItem(k)); location.href='/randevu/login'; }); }
+
+    function applyRole(){
+      $('tabUsers').classList.toggle('hidden', ROLE !== 'admin');
+      $('tabSalons').classList.toggle('hidden', !canEdit());
+      if(ME){ $('whoami').textContent = ME.name + ' · ' + (ROLE_LABEL[ROLE]||ROLE); $('whoami').classList.remove('hidden'); }
+    }
 
     // ── Boot ──
     if(!TOKEN){ location.href='/randevu/login'; }
     else { boot(); }
     async function boot(){
       try{
-        const res = await api('/randevu/api/admin/salons');
-        if(!res.ok) throw new Error('salons');
-        SALONS = await res.json();
+        const meRes = await api('/randevu/api/admin/me');
+        if(!meRes.ok) throw new Error('me');
+        ME = await meRes.json(); ROLE = ME.role || 'viewer';
+        applyRole();
         $('gate').classList.add('hidden'); $('app').classList.remove('hidden');
-        fillSalonFilter(); renderSalons(); refreshPendingPill();
+        // Salon listesi yalnızca editör+ için (görüntüleyici 403 alır)
+        if(canEdit()){
+          const sRes = await api('/randevu/api/admin/salons');
+          if(sRes.ok) SALONS = await sRes.json();
+        }
+        fillSalonFilter();
+        if(canEdit()) renderSalons();
+        refreshPendingPill();
         loadAppts();
       }catch(e){ if(e.message!=='unauth'){ $('gate').innerHTML = '<p style="color:var(--red)">Yüklenemedi. Yenileyin.</p>'; } }
     }
 
+    const TABS = ['appts','salons','reports','activity','users'];
     function switchTab(t){
-      $('tabAppts').classList.toggle('active', t==='appts');
-      $('tabSalons').classList.toggle('active', t==='salons');
-      $('tabReports').classList.toggle('active', t==='reports');
-      $('viewAppts').classList.toggle('hidden', t!=='appts');
-      $('viewSalons').classList.toggle('hidden', t!=='salons');
-      $('viewReports').classList.toggle('hidden', t!=='reports');
+      const map = { appts:'Appts', salons:'Salons', reports:'Reports', activity:'Activity', users:'Users' };
+      for(const k of TABS){
+        $('tab'+map[k]).classList.toggle('active', t===k);
+        $('view'+map[k]).classList.toggle('hidden', t!==k);
+      }
       if(t==='salons') renderSalons();
       if(t==='appts') loadAppts();
       if(t==='reports') initReports();
+      if(t==='activity') loadActivity();
+      if(t==='users') loadUsers();
     }
 
     // ── Appointments ──
@@ -257,7 +313,7 @@
     function agendaRow(a){
       const staff = a.staff_name ? ` · ${esc(a.staff_name)}` : '';
       const tel = String(a.phone||'').replace(/[^\d+]/g,'');
-      const act = a.status==='approved'
+      const act = (canEdit() && a.status==='approved')
         ? `<button class="btn btn-ghost btn-sm" onclick="decide(${a.id},'noshow')">Gelmedi</button><button class="btn btn-red btn-sm" onclick="decide(${a.id},'cancelled')">İptal</button>`
         : '';
       return `<div class="card" style="display:flex;overflow:hidden;">
@@ -293,6 +349,7 @@
         actions = `<button class="btn btn-green btn-sm" onclick="decide(${a.id},'approved')">Tekrar Onayla</button>
                    <button class="btn btn-red btn-sm" onclick="delAppt(${a.id})">Sil</button>`;
       }
+      if(!canEdit()) actions = '';
       return `<div class="card p-4">
         <div class="flex items-start justify-between gap-3 flex-wrap">
           <div class="min-w-0">
@@ -739,6 +796,126 @@
       const url = URL.createObjectURL(blob); const a = document.createElement('a');
       a.href = url; a.download = `randevu-rapor_${REP.range.from}_${REP.range.to}.csv`;
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }
+
+    // ── İşlem Kaydı (audit log) ──
+    let actType = '';
+    const ACTOR_LABEL = { member:'Üye', operator:'Operatör', admin:'Yönetim', system:'Sistem' };
+    const ACTOR_COLOR = { member:'#1E5DA8', operator:'#9A6B00', admin:'#0F7B4F', system:'#777' };
+    $('actChips').querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => {
+      $('actChips').querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
+      c.classList.add('active'); actType = c.dataset.at; loadActivity();
+    }));
+    let _actT; $('actSearch').addEventListener('input', ()=>{ clearTimeout(_actT); _actT=setTimeout(loadActivity, 350); });
+    function fmtTime(s){ try{ const d=new Date(s+'Z'); return d.toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch{ return s; } }
+    async function loadActivity(){
+      $('actLoading').classList.remove('hidden'); $('actEmpty').classList.add('hidden'); $('actList').innerHTML='';
+      const qs = new URLSearchParams(); if(actType) qs.set('type', actType);
+      const q = $('actSearch').value.trim(); if(q) qs.set('q', q);
+      try{
+        const res = await api('/randevu/api/admin/activity?'+qs.toString());
+        const list = await res.json();
+        $('actLoading').classList.add('hidden');
+        if(!Array.isArray(list) || !list.length){ $('actEmpty').classList.remove('hidden'); return; }
+        $('actList').innerHTML = list.map(a=>{
+          const c = ACTOR_COLOR[a.actor_type]||'#777';
+          return `<div class="card p-3 flex items-start gap-3">
+            <span class="badge" style="background:${c}1a;color:${c};white-space:nowrap;">${ACTOR_LABEL[a.actor_type]||a.actor_type}</span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm" style="color:var(--ink);">${esc(a.detail||a.action)}</p>
+              <p class="text-xs mt-0.5" style="color:var(--ink-mute);">${esc(a.actor_name||'—')} · ${fmtTime(a.created_at)}${a.action?` · <span style="font-family:monospace;">${esc(a.action)}</span>`:''}</p>
+            </div>
+          </div>`;
+        }).join('');
+      }catch(e){ $('actLoading').classList.add('hidden'); if(e.message!=='unauth') toast('İşlem kaydı yüklenemedi'); }
+    }
+
+    // ── Yöneticiler (kullanıcı & rol) ──
+    async function loadUsers(){
+      $('userLoading').classList.remove('hidden'); $('userEmpty').classList.add('hidden'); $('userList').innerHTML='';
+      try{
+        const res = await api('/randevu/api/admin/users');
+        const list = await res.json();
+        $('userLoading').classList.add('hidden');
+        if(!Array.isArray(list) || !list.length){ $('userEmpty').classList.remove('hidden'); return; }
+        $('userList').innerHTML = list.map(u=>{
+          const isMe = ME && ME.id===u.id;
+          const off = u.is_active ? '' : '<span class="badge b-cancelled ml-1">pasif</span>';
+          const roleOpts = ['admin','editor','viewer'].map(r=>`<option value="${r}" ${u.role===r?'selected':''}>${ROLE_LABEL[r]}</option>`).join('');
+          return `<div class="card p-3">
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <p class="font-semibold text-sm">${esc(u.name)} ${off} ${isMe?'<span class="text-xs" style="color:var(--ink-mute);">(siz)</span>':''}</p>
+                <p class="text-xs mt-0.5" style="color:var(--ink-mute);">${esc(u.email)}</p>
+              </div>
+              <select class="fld" style="width:auto;padding:6px 8px;font-size:12px;" ${isMe?'disabled':''} onchange="setUserRole(${u.id}, this.value)">${roleOpts}</select>
+            </div>
+            <div class="flex flex-wrap gap-1.5 mt-3">
+              <button class="btn btn-ghost btn-sm" onclick="resetUserPw(${u.id})">Şifre değiştir</button>
+              ${isMe?'':`<button class="btn btn-ghost btn-sm" onclick="toggleUser(${u.id},${u.is_active?0:1})">${u.is_active?'Pasifle':'Aktifle'}</button>
+              <button class="btn btn-red btn-sm" onclick="delUser(${u.id},'${esc(u.email)}')">Sil</button>`}
+            </div>
+          </div>`;
+        }).join('');
+      }catch(e){ $('userLoading').classList.add('hidden'); if(e.message!=='unauth') toast('Kullanıcılar yüklenemedi'); }
+    }
+    function openUserForm(){
+      $('overlay').innerHTML = `<div class="modal">
+        <h3 class="serif text-xl font-semibold mb-4">Yeni Kullanıcı</h3>
+        <div class="space-y-3">
+          <div><label class="lbl">Ad soyad</label><input id="uName" class="fld" placeholder="Ad Soyad"></div>
+          <div><label class="lbl">E-posta</label><input id="uEmail" type="email" class="fld" placeholder="ornek@eposta.com"></div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="lbl">Şifre</label><input id="uPass" type="password" class="fld" placeholder="En az 6 karakter"></div>
+            <div><label class="lbl">Rol</label><select id="uRole" class="fld">
+              <option value="editor">Editör</option>
+              <option value="admin">Yönetici</option>
+              <option value="viewer">Görüntüleyici</option>
+            </select></div>
+          </div>
+        </div>
+        <div id="userErr" class="hidden text-sm mt-3" style="color:var(--red);"></div>
+        <div class="flex gap-2 justify-end mt-5">
+          <button class="btn btn-ghost" onclick="closeModal()">Vazgeç</button>
+          <button class="btn btn-primary" id="userSave" onclick="saveUser()">Ekle</button>
+        </div>
+      </div>`;
+      $('overlay').classList.remove('hidden');
+    }
+    async function saveUser(){
+      const body = { name:$('uName').value.trim(), email:$('uEmail').value.trim(), password:$('uPass').value, role:$('uRole').value };
+      if(!body.name || !body.email || !body.password){ showErr('userErr','Tüm alanlar zorunlu'); return; }
+      if(!confirm(`“${body.email}” kullanıcısı ${ROLE_LABEL[body.role]} olarak eklensin mi?`)) return;
+      const btn=$('userSave'); btn.disabled=true; btn.textContent='Ekleniyor…';
+      try{
+        const res = await api('/randevu/api/admin/users', { method:'POST', body: JSON.stringify(body) });
+        const d = await res.json();
+        if(!res.ok){ showErr('userErr', d.error||'Eklenemedi'); btn.disabled=false; btn.textContent='Ekle'; return; }
+        closeModal(); loadUsers(); toast('Kullanıcı eklendi');
+      }catch{ btn.disabled=false; btn.textContent='Ekle'; }
+    }
+    async function setUserRole(id, role){
+      if(!confirm('Kullanıcının rolü “'+ROLE_LABEL[role]+'” olarak değiştirilsin mi?')){ loadUsers(); return; }
+      const res = await api('/randevu/api/admin/users/'+id, { method:'PATCH', body: JSON.stringify({ role }) });
+      const d = await res.json().catch(()=>({}));
+      if(!res.ok){ toast(d.error||'Güncellenemedi'); }
+      loadUsers();
+    }
+    async function toggleUser(id, active){
+      if(!confirm(active ? 'Kullanıcı aktifleştirilsin mi?' : 'Kullanıcı pasife alınsın mı? Oturumu kapanır.')) return;
+      const res = await api('/randevu/api/admin/users/'+id, { method:'PATCH', body: JSON.stringify({ is_active: active }) });
+      if(res.ok) loadUsers(); else { const d=await res.json().catch(()=>({})); toast(d.error||'Hata'); }
+    }
+    async function resetUserPw(id){
+      const pw = prompt('Yeni şifre (en az 6 karakter):'); if(pw===null) return;
+      if(pw.length<6){ toast('Şifre en az 6 karakter olmalı'); return; }
+      const res = await api('/randevu/api/admin/users/'+id, { method:'PATCH', body: JSON.stringify({ password: pw }) });
+      if(res.ok) toast('Şifre güncellendi'); else { const d=await res.json().catch(()=>({})); toast(d.error||'Hata'); }
+    }
+    async function delUser(id, email){
+      if(!confirm('“'+email+'” kullanıcısı silinsin mi?')) return;
+      const res = await api('/randevu/api/admin/users/'+id, { method:'DELETE' });
+      if(res.ok){ loadUsers(); toast('Kullanıcı silindi'); } else { const d=await res.json().catch(()=>({})); toast(d.error||'Hata'); }
     }
   </script>
 </body>
