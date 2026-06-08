@@ -1,11 +1,11 @@
 // ─────────────────────────────────────────────────────────────────
 // E-posta gönderimi — Resend API (https://resend.com).
 // Secret: RESEND_API_KEY (wrangler secret put RESEND_API_KEY).
-// Opsiyonel: RESEND_FROM (varsayılan: noreply@omeraslanhan.com).
+// Opsiyonel: RESEND_FROM (varsayılan: noreply@iskisosyaltesisler.com).
 // Key yoksa sessizce atlanır — randevu akışı bozulmaz.
 // ─────────────────────────────────────────────────────────────────
 
-const DEFAULT_FROM = 'İSKİ Randevu <noreply@omeraslanhan.com>';
+const DEFAULT_FROM = 'İSKİ Randevu <noreply@iskisosyaltesisler.com>';
 
 export async function sendEmail(opts: { to: string; subject: string; html: string }):
   Promise<{ ok: boolean; skipped?: boolean; error?: string }> {

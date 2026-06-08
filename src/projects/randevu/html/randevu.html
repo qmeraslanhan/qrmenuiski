@@ -387,7 +387,7 @@
       return 'https://calendar.google.com/calendar/render?'+p.toString();
     }
     function icsHref(title,date,time,dur,details,loc){
-      const ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//ISKI//Randevu//TR','BEGIN:VEVENT','UID:'+Date.now()+'@omeraslanhan.com','DTSTAMP:'+calStamp(date,time,0),'DTSTART:'+calStamp(date,time,0),'DTEND:'+calStamp(date,time,dur),'SUMMARY:'+title,'DESCRIPTION:'+details,'LOCATION:'+loc,'END:VEVENT','END:VCALENDAR'].join('\r\n');
+      const ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//ISKI//Randevu//TR','BEGIN:VEVENT','UID:'+Date.now()+'@iskisosyaltesisler.com','DTSTAMP:'+calStamp(date,time,0),'DTSTART:'+calStamp(date,time,0),'DTEND:'+calStamp(date,time,dur),'SUMMARY:'+title,'DESCRIPTION:'+details,'LOCATION:'+loc,'END:VEVENT','END:VCALENDAR'].join('\r\n');
       return 'data:text/calendar;charset=utf-8,'+encodeURIComponent(ics);
     }
 

@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     const fr = await db.execute({ sql: 'SELECT * FROM facilities WHERE id = ?', args: [info.lastInsertRowid!] });
     const facility: any = fr.rows[0];
 
-    const host = req.headers.get('host') || 'omeraslanhan.com';
+    const host = req.headers.get('host') || 'iskisosyaltesisler.com';
     const proto = req.headers.get('x-forwarded-proto') || 'https';
     const menuUrl = `${proto}://${host}/qr-menu/menu/${slug}`;
     const qrCode = await QRCode.toDataURL(menuUrl, { width: 300, margin: 2 });

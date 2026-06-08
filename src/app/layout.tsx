@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: 'İSKİ Kültür ve Sosyal İşler Şube Müdürlüğü',
-    url: 'https://omeraslanhan.com',
+    url: 'https://iskisosyaltesisler.com',
   },
 };
 

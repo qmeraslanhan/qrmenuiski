@@ -56,4 +56,4 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host ""
-Write-Host "OK - Canlida: https://omeraslanhan.com" -ForegroundColor Green
+Write-Host "OK - Canlida: https://iskisosyaltesisler.com" -ForegroundColor Green

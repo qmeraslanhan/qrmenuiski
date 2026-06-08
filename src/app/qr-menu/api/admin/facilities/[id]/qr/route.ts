@@ -14,7 +14,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const f: any = fr.rows[0];
   if (!f) return NextResponse.json({ error: 'Tesis bulunamadı' }, { status: 404 });
 
-  const host = req.headers.get('host') || 'omeraslanhan.com';
+  const host = req.headers.get('host') || 'iskisosyaltesisler.com';
   const proto = req.headers.get('x-forwarded-proto') || 'https';
   const menuUrl = `${proto}://${host}/qr-menu/menu/${f.slug}`;
   const qrCode = await QRCode.toDataURL(menuUrl, { width: 300, margin: 2 });

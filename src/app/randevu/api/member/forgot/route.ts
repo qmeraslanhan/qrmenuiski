@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   await recordFailedAttempt(ip); // her isteği say (abuse önleme)
 
   if (reset) {
-    const host = req.headers.get('host') || 'omeraslanhan.com';
+    const host = req.headers.get('host') || 'iskisosyaltesisler.com';
     const proto = req.headers.get('x-forwarded-proto') || 'https';
     const url = `${proto}://${host}/randevu/sifre-sifirla?token=${reset.token}`;
     try {

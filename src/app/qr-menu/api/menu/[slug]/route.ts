@@ -33,7 +33,7 @@ export async function GET(
   }
 
   // Müşteri-yüzlü URL (yeni Next.js yapısında /qr-menu/menu/<slug>)
-  const host = req.headers.get('host') || 'omeraslanhan.com';
+  const host = req.headers.get('host') || 'iskisosyaltesisler.com';
   const proto = req.headers.get('x-forwarded-proto') || 'https';
   const menuUrl = `${proto}://${host}/qr-menu/menu/${facility.slug}`;
   const qrCode = await QRCode.toDataURL(menuUrl, { width: 200, margin: 1 });
