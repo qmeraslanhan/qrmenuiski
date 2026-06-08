@@ -32,7 +32,7 @@
     .lbl { font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:5px; display:block; }
     .badge { font-size:10.5px; font-weight:700; letter-spacing:.03em; padding:3px 9px; border-radius:999px; white-space:nowrap; }
     .b-pending{ background:var(--amber-bg); color:var(--amber); } .b-approved{ background:var(--green-bg); color:var(--green); }
-    .b-rejected{ background:var(--red-bg); color:var(--red); } .b-cancelled{ background:#EEE; color:#777; }
+    .b-rejected{ background:var(--red-bg); color:var(--red); } .b-cancelled{ background:#EEE; color:#777; } .b-noshow{ background:var(--red-bg); color:var(--red); }
     .tab { font-weight:600; font-size:14px; padding:9px 4px; color:var(--ink-mute); border-bottom:2px solid transparent; cursor:pointer; transition:color .2s, border-color .2s; user-select:none; }
     .tab.active { color:var(--accent); border-color:var(--accent); }
     .chip { font-size:12.5px; font-weight:600; padding:7px 14px; border-radius:999px; border:1px solid var(--line-strong); color:var(--ink-soft); cursor:pointer; background:#fff; transition:all .15s; }
@@ -76,18 +76,24 @@
 
     <!-- ───── Appointments ───── -->
     <section id="viewAppts">
-      <div class="flex flex-wrap items-center gap-2 mb-4">
+      <!-- Özet kartlar -->
+      <div id="statsRow" class="grid grid-cols-2 md:grid-cols-5 gap-2.5 mb-4"></div>
+
+      <div class="flex flex-wrap items-center gap-2 mb-3">
         <div class="flex flex-wrap gap-1.5" id="statusChips">
           <button class="chip active" data-st="all">Tümü</button>
           <button class="chip" data-st="approved">Onaylı</button>
           <button class="chip" data-st="cancelled">İptal</button>
+          <button class="chip" data-st="noshow">Gelmedi</button>
           <button class="chip" data-st="pending">Beklemede</button>
         </div>
-        <div class="flex items-center gap-2 ml-auto">
-          <select id="fSalon" class="fld" style="width:auto; padding:8px 10px; font-size:13px;"><option value="">Tüm salonlar</option></select>
-          <input type="date" id="fDate" class="fld" style="width:auto; padding:8px 10px; font-size:13px;">
-          <button class="btn btn-ghost btn-sm" onclick="clearDate()">Temizle</button>
-        </div>
+        <button id="viewToggle" class="btn btn-ghost btn-sm ml-auto" onclick="toggleView()">Ajanda Görünümü</button>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 mb-4">
+        <input id="search" class="fld" placeholder="Ara: isim, telefon, kod…" style="flex:1; min-width:160px; padding:8px 12px; font-size:13px;">
+        <select id="fSalon" class="fld" style="width:auto; padding:8px 10px; font-size:13px;"><option value="">Tüm salonlar</option></select>
+        <input type="date" id="fDate" class="fld" style="width:auto; padding:8px 10px; font-size:13px;">
+        <button class="btn btn-ghost btn-sm" onclick="clearDate()">Temizle</button>
       </div>
       <div id="apptList" class="space-y-3"></div>
       <div id="apptEmpty" class="hidden text-center py-16" style="color:var(--ink-mute);">Bu kritere uygun randevu yok.</div>
@@ -115,9 +121,11 @@
     const TYPE = { berber:'Berber', kuafor:'Kuaför', both:'Berber & Kuaför', diger:'Diğer' };
     const DAYS = [[1,'Pzt'],[2,'Sal'],[3,'Çar'],[4,'Per'],[5,'Cum'],[6,'Cmt'],[0,'Paz']];
     const DAY_LABEL = { 0:'Paz',1:'Pzt',2:'Sal',3:'Çar',4:'Per',5:'Cum',6:'Cmt' };
-    const ST_LABEL = { pending:'Beklemede', approved:'Onaylı', rejected:'Reddedildi', cancelled:'İptal' };
+    const ST_LABEL = { pending:'Beklemede', approved:'Onaylı', rejected:'Reddedildi', cancelled:'İptal', noshow:'Gelmedi' };
     let SALONS = [];
     let curStatus = 'all';
+    let APPT_LIST = [];
+    let viewMode = 'list';
 
     function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
     function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2200); }
@@ -162,7 +170,16 @@
     }));
     $('fSalon').addEventListener('change', loadAppts);
     $('fDate').addEventListener('change', loadAppts);
+    $('search').addEventListener('input', renderAppts);
     function clearDate(){ $('fDate').value=''; loadAppts(); }
+    function toggleView(){
+      viewMode = viewMode==='agenda' ? 'list' : 'agenda';
+      $('viewToggle').textContent = viewMode==='agenda' ? 'Liste Görünümü' : 'Ajanda Görünümü';
+      $('viewToggle').classList.toggle('btn-primary', viewMode==='agenda');
+      $('viewToggle').classList.toggle('btn-ghost', viewMode!=='agenda');
+      if(viewMode==='agenda' && !$('fDate').value){ $('fDate').value = new Date(Date.now()+3*3600*1000).toISOString().slice(0,10); loadAppts(); return; }
+      renderAppts();
+    }
 
     function fillSalonFilter(){
       $('fSalon').innerHTML = '<option value="">Tüm salonlar</option>' + SALONS.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
@@ -176,11 +193,54 @@
       if($('fDate').value) qs.set('date', $('fDate').value);
       try{
         const res = await api('/randevu/api/admin/appointments?'+qs.toString());
-        const list = await res.json();
+        APPT_LIST = await res.json();
         $('apptLoading').classList.add('hidden');
-        if(!Array.isArray(list) || !list.length){ $('apptEmpty').classList.remove('hidden'); return; }
-        $('apptList').innerHTML = list.map(apptRow).join('');
+        renderAppts();
       }catch(e){ $('apptLoading').classList.add('hidden'); }
+      loadStats();
+    }
+
+    function renderAppts(){
+      const q = ($('search').value||'').trim().toLowerCase();
+      let list = Array.isArray(APPT_LIST) ? APPT_LIST.slice() : [];
+      if(q) list = list.filter(a => (a.customer_name||'').toLowerCase().includes(q) || String(a.phone||'').toLowerCase().includes(q) || String(a.code||'').toLowerCase().includes(q));
+      if(!list.length){ $('apptEmpty').classList.remove('hidden'); $('apptList').innerHTML=''; return; }
+      $('apptEmpty').classList.add('hidden');
+      if(viewMode==='agenda'){
+        list.sort((a,b)=> (String(a.date)+a.time).localeCompare(String(b.date)+b.time));
+        $('apptList').innerHTML = list.map(agendaRow).join('');
+      } else {
+        $('apptList').innerHTML = list.map(apptRow).join('');
+      }
+    }
+
+    async function loadStats(){
+      try{
+        const res = await api('/randevu/api/admin/stats');
+        const s = await res.json();
+        const card = (n,l,c)=>`<div class="card" style="padding:12px 8px;text-align:center;"><div style="font-size:22px;font-weight:800;color:${c};line-height:1;">${n}</div><div style="font-size:11px;color:var(--ink-mute);font-weight:600;margin-top:3px;">${l}</div></div>`;
+        $('statsRow').innerHTML = card(s.today,'Bugün','var(--accent)')+card(s.upcoming,'Yaklaşan','var(--green)')+card(s.week,'Bu hafta','var(--accent)')+card((s.cancelled||0)+(s.noshow||0),'İptal/Gelmedi','var(--red)')+card(s.members,'Üye','var(--gold-dark)');
+      }catch(e){}
+    }
+
+    function agendaRow(a){
+      const staff = a.staff_name ? ` · ${esc(a.staff_name)}` : '';
+      const tel = String(a.phone||'').replace(/[^\d+]/g,'');
+      const act = a.status==='approved'
+        ? `<button class="btn btn-ghost btn-sm" onclick="decide(${a.id},'noshow')">Gelmedi</button><button class="btn btn-red btn-sm" onclick="decide(${a.id},'cancelled')">İptal</button>`
+        : '';
+      return `<div class="card" style="display:flex;overflow:hidden;">
+        <div style="background:var(--accent);color:#fff;min-width:88px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px;">
+          <div style="font-size:18px;font-weight:800;">${esc(a.time)}</div>
+          <div style="font-size:10.5px;opacity:.85;">${esc(a.date)}</div>
+        </div>
+        <div class="flex-1 p-3">
+          <div class="flex items-center gap-2 flex-wrap"><span class="font-semibold text-sm">${esc(a.customer_name)}</span><span class="badge b-${a.status}">${ST_LABEL[a.status]||a.status}</span>${a.code?`<span class="text-xs font-bold" style="color:var(--gold-dark);">${esc(a.code)}</span>`:''}</div>
+          <p class="text-xs mt-1" style="color:var(--ink-soft);">${esc(a.salon_name||'')} — ${esc(a.service_name||'')}${staff} <span style="color:var(--ink-mute);">(${a.duration_min}dk)</span></p>
+          <p class="text-xs mt-0.5"><a href="tel:${esc(tel)}" style="color:var(--accent);font-weight:600;">${esc(a.phone)}</a></p>
+          ${act?`<div class="flex gap-2 mt-2">${act}</div>`:''}
+        </div>
+      </div>`;
     }
 
     function apptRow(a){
@@ -191,7 +251,8 @@
       const decided = a.decided_note ? `<p class="text-xs mt-1" style="color:var(--ink-mute);">Yönetim notu: ${esc(a.decided_note)}</p>` : '';
       let actions = '';
       if(a.status === 'approved'){
-        actions = `<button class="btn btn-red btn-sm" onclick="decide(${a.id},'cancelled')">İptal Et</button>
+        actions = `<button class="btn btn-ghost btn-sm" onclick="decide(${a.id},'noshow')">Gelmedi</button>
+                   <button class="btn btn-red btn-sm" onclick="decide(${a.id},'cancelled')">İptal Et</button>
                    <button class="btn btn-red btn-sm" onclick="delAppt(${a.id})">Sil</button>`;
       } else if(a.status === 'pending'){
         actions = `<button class="btn btn-green btn-sm" onclick="decide(${a.id},'approved')">Onayla</button>
@@ -206,6 +267,7 @@
             <div class="flex items-center gap-2 flex-wrap">
               <span class="font-semibold text-[15px]">${esc(a.customer_name)}</span>
               <span class="badge ${cls}">${ST_LABEL[a.status]||a.status}</span>
+              ${a.code ? `<span class="text-xs font-bold" style="color:var(--gold-dark);">${esc(a.code)}</span>` : ''}
             </div>
             <p class="text-sm mt-1" style="color:var(--ink-soft);">
               <a href="tel:${esc(tel)}" style="color:var(--accent); font-weight:600;">${esc(a.phone)}</a>
@@ -229,7 +291,7 @@
         const res = await api('/randevu/api/admin/appointments/'+id, { method:'PATCH', body: JSON.stringify({ status, decided_note }) });
         const data = await res.json();
         if(!res.ok){ toast(data.error || 'İşlem başarısız'); return; }
-        toast(status==='approved'?'Onaylandı':status==='rejected'?'Reddedildi':status==='cancelled'?'İptal edildi':'Güncellendi');
+        toast(status==='approved'?'Onaylandı':status==='rejected'?'Reddedildi':status==='cancelled'?'İptal edildi':status==='noshow'?'Gelmedi işaretlendi':'Güncellendi');
         loadAppts(); refreshPendingPill();
       }catch(e){}
     }
@@ -276,6 +338,7 @@
             <button class="btn btn-ghost btn-sm" onclick="openSalonForm(${s.id})">Düzenle</button>
             <button class="btn btn-ghost btn-sm" onclick="openServices(${s.id})">Hizmetler</button>
             <button class="btn btn-ghost btn-sm" onclick="openStaff(${s.id})">Ustalar</button>
+            <button class="btn btn-ghost btn-sm" onclick="openClosures(${s.id})">Kapalı Günler</button>
             <button class="btn btn-red btn-sm" onclick="delSalon(${s.id})">Sil</button>
           </div>
         </div>`;
@@ -309,6 +372,10 @@
             <div><label class="lbl">Kapanış</label><input id="sClose" type="time" class="fld" value="${esc(s?.close_time||'18:00')}"></div>
             <div><label class="lbl">Slot (dk)</label><input id="sSlot" type="number" min="5" max="240" step="5" class="fld" value="${esc(s?.slot_minutes||30)}"></div>
           </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="lbl">Mola başlangıç (ops.)</label><input id="sBreakStart" type="time" class="fld" value="${esc(s?.break_start||'')}"></div>
+            <div><label class="lbl">Mola bitiş (ops.)</label><input id="sBreakEnd" type="time" class="fld" value="${esc(s?.break_end||'')}"></div>
+          </div>
           <div><label class="lbl">Çalışma günleri</label><div class="flex flex-wrap gap-2" id="sDays">${dayChecks}</div></div>
           <label class="day-check" style="width:fit-content;"><input type="checkbox" id="sActive" ${(!s || s.is_active)?'checked':''}> Aktif (sitede görünür)</label>
         </div>
@@ -326,7 +393,9 @@
       const body = {
         name: $('sName').value.trim(), type: $('sType').value, phone: $('sPhone').value.trim(),
         address: $('sAddr').value.trim(), description: $('sDesc').value.trim(),
-        open_time: $('sOpen').value, close_time: $('sClose').value, slot_minutes: Number($('sSlot').value)||30,
+        open_time: $('sOpen').value, close_time: $('sClose').value,
+        break_start: $('sBreakStart').value, break_end: $('sBreakEnd').value,
+        slot_minutes: Number($('sSlot').value)||30,
         work_days: days.join(','), is_active: $('sActive').checked ? 1 : 0,
       };
       if(!body.name){ showErr('salonErr','Salon adı zorunlu'); return; }
@@ -406,8 +475,9 @@
         <p class="text-xs mb-4" style="color:var(--ink-mute);">Usta eklerseniz müşteri randevuda usta seçmek zorundadır ve uygunluk usta bazında hesaplanır. Boş bırakırsanız randevular salon bazında çalışır.</p>
         <div id="staffList2" class="space-y-2 mb-4"><div class="spinner"></div></div>
         <div class="card p-3" style="background:var(--bg-soft);">
-          <div class="flex gap-2 items-end">
-            <div class="flex-1"><label class="lbl">Usta adı</label><input id="stName" class="fld" placeholder="Örn. Ahmet Usta"></div>
+          <div class="flex gap-2 items-end flex-wrap">
+            <div class="flex-1" style="min-width:120px;"><label class="lbl">Usta adı</label><input id="stName" class="fld" placeholder="Örn. Ahmet Usta"></div>
+            <div class="flex-1" style="min-width:120px;"><label class="lbl">Fotoğraf URL (ops.)</label><input id="stPhoto" class="fld" placeholder="https://…"></div>
             <button class="btn btn-primary" onclick="addStaff(${salonId})">Ekle</button>
           </div>
         </div>
@@ -420,17 +490,22 @@
       const list = await res.json();
       const box = $('staffList2'); if(!box) return;
       if(!list.length){ box.innerHTML = '<p class="text-sm" style="color:var(--ink-mute);">Usta tanımlı değil (salon bazında çalışıyor).</p>'; return; }
-      box.innerHTML = list.map(st => `<div class="flex items-center gap-2 card p-2.5">
+      box.innerHTML = list.map(st => {
+        const av = st.photo_url
+          ? `<img src="${esc(st.photo_url)}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+          : `<span style="width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;">${esc((st.name||'?').trim().charAt(0).toLocaleUpperCase('tr-TR'))}</span>`;
+        return `<div class="flex items-center gap-2 card p-2.5">${av}
         <div class="flex-1"><span class="font-semibold text-sm">${esc(st.name)}</span>${st.is_active?'':'<span class="badge b-cancelled ml-1">pasif</span>'}</div>
         <button class="btn btn-ghost btn-sm" onclick="toggleStaff(${st.id},${st.is_active?0:1},${salonId})">${st.is_active?'Pasifle':'Aktifle'}</button>
         <button class="btn btn-red btn-sm" onclick="delStaff(${st.id},${salonId})">Sil</button>
-      </div>`).join('');
+      </div>`;
+      }).join('');
     }
     async function addStaff(salonId){
       const name = $('stName').value.trim();
       if(!name){ toast('Usta adı girin'); return; }
-      const res = await api('/randevu/api/admin/salons/'+salonId+'/staff', { method:'POST', body: JSON.stringify({ name }) });
-      if(res.ok){ $('stName').value=''; loadStaff(salonId); toast('Usta eklendi'); }
+      const res = await api('/randevu/api/admin/salons/'+salonId+'/staff', { method:'POST', body: JSON.stringify({ name, photo_url: $('stPhoto').value.trim() }) });
+      if(res.ok){ $('stName').value=''; $('stPhoto').value=''; loadStaff(salonId); toast('Usta eklendi'); }
     }
     async function toggleStaff(id, active, salonId){
       const res = await api('/randevu/api/admin/staff/'+id, { method:'PATCH', body: JSON.stringify({ is_active: active }) });
@@ -440,6 +515,47 @@
       if(!confirm('Usta silinsin mi?')) return;
       const res = await api('/randevu/api/admin/staff/'+id, { method:'DELETE' });
       if(res.ok){ loadStaff(salonId); toast('Silindi'); }
+    }
+
+    // ── Kapalı Günler ──
+    async function openClosures(salonId){
+      const s = SALONS.find(x=>x.id===salonId);
+      $('overlay').innerHTML = `<div class="modal">
+        <div class="flex items-center justify-between mb-2"><h3 class="serif text-xl font-semibold">Kapalı Günler — ${esc(s?.name||'')}</h3><button class="btn btn-ghost btn-sm" onclick="closeModal()">Kapat</button></div>
+        <p class="text-xs mb-4" style="color:var(--ink-mute);">İşaretlenen günlerde randevu alınamaz (resmi tatil, özel kapanış vb.).</p>
+        <div id="closList" class="space-y-2 mb-4"><div class="spinner"></div></div>
+        <div class="card p-3" style="background:var(--bg-soft);">
+          <div class="flex gap-2 items-end flex-wrap">
+            <div><label class="lbl">Tarih</label><input id="closDate" type="date" class="fld"></div>
+            <div class="flex-1" style="min-width:120px;"><label class="lbl">Sebep (ops.)</label><input id="closReason" class="fld" placeholder="Örn. Resmi tatil"></div>
+            <button class="btn btn-primary" onclick="addClosure(${salonId})">Ekle</button>
+          </div>
+        </div>
+      </div>`;
+      $('overlay').classList.remove('hidden');
+      loadClosures(salonId);
+    }
+    async function loadClosures(salonId){
+      const res = await api('/randevu/api/admin/salons/'+salonId+'/closures');
+      const list = await res.json();
+      const box = $('closList'); if(!box) return;
+      if(!list.length){ box.innerHTML = '<p class="text-sm" style="color:var(--ink-mute);">Kapalı gün yok.</p>'; return; }
+      box.innerHTML = list.map(c => `<div class="flex items-center gap-2 card p-2.5">
+        <div class="flex-1"><span class="font-semibold text-sm">${esc(c.date)}</span>${c.reason?`<span class="text-xs ml-2" style="color:var(--ink-mute);">${esc(c.reason)}</span>`:''}</div>
+        <button class="btn btn-red btn-sm" onclick="delClosure(${c.id},${salonId})">Sil</button>
+      </div>`).join('');
+    }
+    async function addClosure(salonId){
+      const date = $('closDate').value;
+      if(!date){ toast('Tarih seçin'); return; }
+      const res = await api('/randevu/api/admin/salons/'+salonId+'/closures', { method:'POST', body: JSON.stringify({ date, reason:$('closReason').value.trim() }) });
+      const d = await res.json();
+      if(!res.ok){ toast(d.error||'Eklenemedi'); return; }
+      $('closDate').value=''; $('closReason').value=''; loadClosures(salonId); toast('Kapalı gün eklendi');
+    }
+    async function delClosure(id, salonId){
+      const res = await api('/randevu/api/admin/closures/'+id, { method:'DELETE' });
+      if(res.ok){ loadClosures(salonId); toast('Silindi'); }
     }
   </script>
 </body>

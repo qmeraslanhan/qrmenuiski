@@ -34,6 +34,26 @@ Public:
 - `GET  /randevu/api/member/me`        — üye + kendi randevuları (Bearer member token)
 - `POST /randevu/api/member/forgot`    — {email} → şifre sıfırlama bağlantısı (var/yok sızdırmaz)
 - `POST /randevu/api/member/reset`     — {token,password} → yeni şifre (token 1 saat geçerli)
+- `PATCH /randevu/api/member/appointments/<id>` — {action:'cancel'} veya {action:'reschedule',date,time,staff_id}
+
+Admin (ek):
+- `GET  /randevu/api/admin/stats` — özet kartlar (bugün/yaklaşan/hafta/iptal/üye)
+- `GET/POST /randevu/api/admin/salons/<id>/closures` · `DELETE /randevu/api/admin/closures/<id>` — kapalı günler
+- appointment PATCH status'a `noshow` (gelmedi) eklendi
+
+## Hatırlatma (cron)
+
+`GET /randevu/api/cron/reminders?key=CRON_SECRET` → yarınki onaylı randevulara hatırlatma maili
+gönderir, `reminder_sent=1` işaretler. Günde 1 kez tetiklenmeli:
+
+```bash
+echo "uzun-rastgele-secret" | npx wrangler secret put CRON_SECRET
+# Sonra harici zamanlayıcı (cron-job.org) veya CF Cron her gün şu URL'i GET'lesin:
+#   https://omeraslanhan.com/randevu/api/cron/reminders?key=<CRON_SECRET>
+```
+
+CRON_SECRET yoksa endpoint kapalıdır (503). RESEND_API_KEY yoksa mail atlanır ama
+`reminder_sent` işaretlenmez (anahtar bağlanınca tekrar denenir).
 
 ## E-posta (Resend)
 

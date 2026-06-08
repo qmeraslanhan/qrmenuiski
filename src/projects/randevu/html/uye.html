@@ -67,6 +67,13 @@
         <div><label class="lbl">E-posta</label><input id="rEmail" type="email" class="fld" placeholder="ornek@eposta.com" required autocomplete="email"></div>
         <div><label class="lbl">Telefon</label><input id="rPhone" type="tel" class="fld" placeholder="05XX XXX XX XX" required autocomplete="tel"></div>
         <div><label class="lbl">Şifre</label><input id="rPass" type="password" class="fld" placeholder="En az 6 karakter" required minlength="6" autocomplete="new-password"></div>
+        <label style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--cream-soft);cursor:pointer;line-height:1.4;">
+          <input type="checkbox" id="rKvkk" style="margin-top:2px;accent-color:var(--gold);" required>
+          <span><b style="color:var(--cream);">KVKK Aydınlatma Metni</b>'ni okudum, kişisel verilerimin randevu amacıyla işlenmesini onaylıyorum. <a href="#" onclick="toggleKvkk(event)" style="color:var(--gold-light);text-decoration:underline;">Detay</a></span>
+        </label>
+        <div id="kvkkText" class="hidden" style="font-size:11.5px;color:var(--cream-soft);background:rgba(255,255,255,0.04);border:1px solid rgba(201,169,97,0.3);border-radius:10px;padding:10px;line-height:1.5;">
+          İSKİ Kültür ve Sosyal İşler Şube Müdürlüğü, randevu hizmetinin sunulabilmesi için ad-soyad, e-posta ve telefon bilgilerinizi 6698 sayılı KVKK kapsamında işler. Verileriniz yalnızca randevu yönetimi ve bilgilendirme amacıyla kullanılır, üçüncü kişilerle paylaşılmaz.
+        </div>
         <div id="regErr" class="hidden text-sm text-center px-3 py-2.5 rounded-xl" style="color:#FCA5A5; background:rgba(220,38,38,0.12); border:1px solid rgba(220,38,38,0.3);"></div>
         <button type="submit" id="rBtn" class="btn-gold">Üye Ol</button>
       </form>
@@ -109,6 +116,7 @@
       $('forgotForm').classList.remove('hidden');
     }
     function backToLogin(){ showTab('login'); }
+    function toggleKvkk(e){ if(e) e.preventDefault(); $('kvkkText').classList.toggle('hidden'); }
 
     async function doForgot(e){
       e.preventDefault();
@@ -150,7 +158,7 @@
       btn.disabled=true; btn.textContent='Kaydediliyor…';
       try{
         const res = await fetch('/randevu/api/member/register', { method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ name:$('rName').value.trim(), email:$('rEmail').value.trim(), phone:$('rPhone').value.trim(), password:$('rPass').value }) });
+          body: JSON.stringify({ name:$('rName').value.trim(), email:$('rEmail').value.trim(), phone:$('rPhone').value.trim(), password:$('rPass').value, kvkk:$('rKvkk').checked }) });
         const data = await res.json();
         if(!res.ok){ fail('regErr', data.error || 'Kayıt başarısız'); return; }
         localStorage.setItem('randevu_member_token', data.token);

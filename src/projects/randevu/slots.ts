@@ -73,3 +73,19 @@ export function istanbulNow(): { dateStr: string; minutes: number } {
 }
 
 export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Salon mola aralığını bir "busy" girişine çevirir (slot üretiminde dışlanır).
+export function breakBusy(breakStart?: string | null, breakEnd?: string | null): Busy[] {
+  if (!breakStart || !breakEnd) return [];
+  const s = toMin(breakStart), e = toMin(breakEnd);
+  if (!(e > s)) return [];
+  return [{ time: breakStart, duration_min: e - s }];
+}
+
+// Kullanıcıya gösterilen kısa randevu kodu (RV-XXXXXX)
+export function genCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return 'RV-' + s;
+}

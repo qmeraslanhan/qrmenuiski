@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     );
   }
   const b = await req.json().catch(() => ({} as any));
-  const result = await registerMember(b.name, b.email, b.phone, b.password);
+  const result = await registerMember(b.name, b.email, b.phone, b.password, !!b.kvkk);
   if ('error' in result) {
     await recordFailedAttempt(ip);
     return NextResponse.json({ error: result.error }, { status: 400 });

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/d1';
 import { ensureRandevuInit } from '@/projects/randevu/db-schema';
 import {
-  availableSlots, weekday, istanbulNow, DATE_RE, type Busy,
+  availableSlots, weekday, istanbulNow, DATE_RE, breakBusy, type Busy,
 } from '@/projects/randevu/slots';
 
 // Public: belirli gün + hizmet (+ usta) için uygun saatler
@@ -43,13 +43,25 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
     return NextResponse.json({ slots: [], reason: 'closed' });
   }
 
-  // Dolu randevular (usta varsa usta bazında)
+  // Kapalı gün / tatil mi?
+  const cl = await db.execute({
+    sql: 'SELECT reason FROM randevu_closures WHERE salon_id = ? AND date = ? LIMIT 1',
+    args: [salon.id, date],
+  });
+  if (cl.rows[0]) {
+    return NextResponse.json({ slots: [], reason: 'closed', closedReason: (cl.rows[0] as any).reason || null });
+  }
+
+  // Dolu randevular (usta varsa usta bazında) + mola aralığı
   let busySql = `SELECT time, duration_min FROM randevu_appointments
                   WHERE salon_id = ? AND date = ? AND status IN ('pending','approved')`;
   const busyArgs: any[] = [salon.id, date];
   if (staffId) { busySql += ' AND staff_id = ?'; busyArgs.push(staffId); }
   const busyRows = await db.execute({ sql: busySql, args: busyArgs });
-  const busy: Busy[] = (busyRows.rows as any[]).map(r => ({ time: r.time, duration_min: r.duration_min }));
+  const busy: Busy[] = [
+    ...(busyRows.rows as any[]).map(r => ({ time: r.time, duration_min: r.duration_min })),
+    ...breakBusy(salon.break_start, salon.break_end),
+  ];
 
   const slots = availableSlots({
     open: salon.open_time,

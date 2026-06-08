@@ -29,6 +29,8 @@ export async function ensureRandevuInit(): Promise<void> {
       image_url    TEXT,
       open_time    TEXT    NOT NULL DEFAULT '09:00',
       close_time   TEXT    NOT NULL DEFAULT '18:00',
+      break_start  TEXT,
+      break_end    TEXT,
       slot_minutes INTEGER NOT NULL DEFAULT 30,
       work_days    TEXT    NOT NULL DEFAULT '1,2,3,4,5,6',
       is_active    INTEGER NOT NULL DEFAULT 1,
@@ -54,20 +56,32 @@ export async function ensureRandevuInit(): Promise<void> {
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
       salon_id   INTEGER NOT NULL REFERENCES randevu_salons(id) ON DELETE CASCADE,
       name       TEXT    NOT NULL,
+      photo_url  TEXT,
       is_active  INTEGER NOT NULL DEFAULT 1,
       sort_order INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
     `CREATE INDEX IF NOT EXISTS idx_randevu_staff_salon ON randevu_staff(salon_id)`,
 
+    // Kapalı günler / tatiller (salon bazında belirli tarihler)
+    `CREATE TABLE IF NOT EXISTS randevu_closures (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      salon_id   INTEGER NOT NULL REFERENCES randevu_salons(id) ON DELETE CASCADE,
+      date       TEXT    NOT NULL,
+      reason     TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_randevu_closures ON randevu_closures(salon_id, date)`,
+
     // Üyeler (randevu alabilmek için kayıt zorunlu)
     `CREATE TABLE IF NOT EXISTS randevu_members (
-      id         INTEGER PRIMARY KEY AUTOINCREMENT,
-      name       TEXT    NOT NULL,
-      email      TEXT    NOT NULL UNIQUE,
-      phone      TEXT    NOT NULL,
-      password   TEXT    NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      name             TEXT    NOT NULL,
+      email            TEXT    NOT NULL UNIQUE,
+      phone            TEXT    NOT NULL,
+      password         TEXT    NOT NULL,
+      kvkk_accepted_at DATETIME,
+      created_at       DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
     `CREATE TABLE IF NOT EXISTS randevu_member_sessions (
       token      TEXT    PRIMARY KEY,
@@ -100,17 +114,26 @@ export async function ensureRandevuInit(): Promise<void> {
       date          TEXT    NOT NULL,
       time          TEXT    NOT NULL,
       status        TEXT    NOT NULL DEFAULT 'pending',
+      code          TEXT,
       note          TEXT,
       decided_note  TEXT,
       decided_at    DATETIME,
+      reminder_sent INTEGER NOT NULL DEFAULT 0,
       created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
     // Mevcut (eski) tablolar için kolonları idempotent ekle (yeni DB'de hata verir → applySchema yutar)
     `ALTER TABLE randevu_appointments ADD COLUMN member_id INTEGER`,
     `ALTER TABLE randevu_appointments ADD COLUMN email TEXT`,
+    `ALTER TABLE randevu_appointments ADD COLUMN code TEXT`,
+    `ALTER TABLE randevu_appointments ADD COLUMN reminder_sent INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE randevu_salons ADD COLUMN break_start TEXT`,
+    `ALTER TABLE randevu_salons ADD COLUMN break_end TEXT`,
+    `ALTER TABLE randevu_staff ADD COLUMN photo_url TEXT`,
+    `ALTER TABLE randevu_members ADD COLUMN kvkk_accepted_at DATETIME`,
     `CREATE INDEX IF NOT EXISTS idx_randevu_appt_day ON randevu_appointments(salon_id, date, status)`,
     `CREATE INDEX IF NOT EXISTS idx_randevu_appt_staff ON randevu_appointments(staff_id, date)`,
     `CREATE INDEX IF NOT EXISTS idx_randevu_appt_member ON randevu_appointments(member_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_randevu_appt_reminder ON randevu_appointments(date, status, reminder_sent)`,
 
     // ── Paylaşılan auth tabloları (qr-menu ile ortak; idempotent) ──
     `CREATE TABLE IF NOT EXISTS sessions (

@@ -20,9 +20,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     args: [salon.id],
   });
   const staff = await db.execute({
-    sql: `SELECT id, name FROM randevu_staff
+    sql: `SELECT id, name, photo_url FROM randevu_staff
            WHERE salon_id = ? AND is_active = 1 ORDER BY sort_order, id`,
     args: [salon.id],
+  });
+
+  // Gelecekteki kapalı günler (tarih picker'da uyarmak için)
+  const today = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
+  const closures = await db.execute({
+    sql: 'SELECT date, reason FROM randevu_closures WHERE salon_id = ? AND date >= ? ORDER BY date',
+    args: [salon.id, today],
   });
 
   return NextResponse.json({
@@ -37,10 +44,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
       image_url: salon.image_url,
       open_time: salon.open_time,
       close_time: salon.close_time,
+      break_start: salon.break_start,
+      break_end: salon.break_end,
       slot_minutes: salon.slot_minutes,
       work_days: salon.work_days,
     },
     services: services.rows,
     staff: staff.rows,
+    closures: closures.rows,
   });
 }

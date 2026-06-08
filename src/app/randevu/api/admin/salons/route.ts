@@ -37,10 +37,10 @@ export async function POST(req: NextRequest) {
     const ins = await db.execute({
       sql: `INSERT INTO randevu_salons
               (name, slug, type, description, address, phone, image_url,
-               open_time, close_time, slot_minutes, work_days, is_active, sort_order)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+               open_time, close_time, break_start, break_end, slot_minutes, work_days, is_active, sort_order)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [f.name, slug, f.type, f.description, f.address, f.phone, f.image_url,
-             f.open_time, f.close_time, f.slot_minutes, f.work_days, f.is_active, f.sort_order],
+             f.open_time, f.close_time, f.break_start, f.break_end, f.slot_minutes, f.work_days, f.is_active, f.sort_order],
     });
     const row = await db.execute({ sql: 'SELECT * FROM randevu_salons WHERE id = ?', args: [ins.lastInsertRowid] });
     return NextResponse.json(row.rows[0], { status: 201 });

@@ -18,7 +18,17 @@
     .card { background:var(--surface); color:var(--ink); border:1.5px solid var(--gold); border-radius:14px; }
     .badge { font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:999px; }
     .b-pending{ background:var(--amber-bg); color:var(--amber); } .b-approved{ background:var(--green-bg); color:var(--green); }
-    .b-rejected{ background:var(--red-bg); color:var(--red); } .b-cancelled{ background:#EEE; color:#777; }
+    .b-rejected{ background:var(--red-bg); color:var(--red); } .b-cancelled{ background:#EEE; color:#777; } .b-noshow{ background:var(--red-bg); color:var(--red); }
+    .mini-btn{ font-size:12px; font-weight:600; padding:6px 12px; border-radius:9px; border:1px solid var(--gold); color:var(--gold-dark); background:#fff; cursor:pointer; transition:background .15s; }
+    .mini-btn:hover{ background:rgba(201,169,97,0.12); }
+    .mini-btn.red{ border-color:rgba(185,28,28,0.4); color:var(--red); }
+    .mini-btn.red:hover{ background:var(--red-bg); }
+    .mini-btn:disabled{ cursor:not-allowed; }
+    .rdate{ border:1px solid #D4C9B5; border-radius:9px; padding:8px 10px; font-size:13px; color:var(--ink); background:#fff; outline:none; }
+    .rslot{ border:1px solid #E7DEC9; border-radius:8px; padding:7px 0; text-align:center; font-size:12.5px; font-weight:600; cursor:pointer; background:#fff; color:var(--ink); }
+    .rslot:hover{ border-color:var(--gold); }
+    .rslot.sel{ background:var(--gold-dark); color:#fff; border-color:var(--gold-dark); }
+    .code-chip{ display:inline-block; font-size:11px; font-weight:700; letter-spacing:.05em; color:var(--gold-dark); background:rgba(201,169,97,0.14); border:1px solid var(--gold); border-radius:7px; padding:2px 8px; }
     .btn-outline { display:inline-flex; align-items:center; gap:7px; padding:10px 20px; border:1.5px solid var(--gold); border-radius:999px; color:var(--cream); font-size:13px; font-weight:600; text-decoration:none; background:rgba(201,169,97,0.06); cursor:pointer; transition:all .25s; }
     .btn-outline:hover { background:var(--gold); color:var(--bg-deep); }
     .spinner { width:34px; height:34px; border:2px solid rgba(201,169,97,0.3); border-top-color:var(--gold); border-radius:50%; animation:spin 1s linear infinite; }
@@ -58,9 +68,15 @@
   <script>
     const $ = (id) => document.getElementById(id);
     const TOKEN = localStorage.getItem('randevu_member_token');
-    const ST = { pending:'Beklemede', approved:'Onaylandı', rejected:'Reddedildi', cancelled:'İptal' };
+    const ST = { pending:'Beklemede', approved:'Onaylandı', rejected:'Reddedildi', cancelled:'İptal', noshow:'Gelmedi' };
     function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
     if(!TOKEN) location.href = '/randevu/uye?next=/randevu/hesabim';
+
+    const APPTS = {};   // id -> randevu
+    const RESCH = {};   // id -> seçilen saat
+    function istNow(){ const d=new Date(Date.now()+3*3600*1000); return { date:d.toISOString().slice(0,10), min:d.getUTCHours()*60+d.getUTCMinutes() }; }
+    function toMin(t){ const [h,m]=String(t).split(':').map(Number); return h*60+m; }
+    function isFuture(a){ const n=istNow(); return a.date>n.date || (a.date===n.date && toMin(a.time)>n.min); }
 
     async function logout(){
       try{ await fetch('/randevu/api/member/logout', { method:'POST', headers:{'Authorization':'Bearer '+TOKEN} }); }catch{}
@@ -74,23 +90,89 @@
         if(res.status === 401){ localStorage.removeItem('randevu_member_token'); location.href='/randevu/uye?next=/randevu/hesabim'; return; }
         const data = await res.json();
         $('greet').textContent = data.member.name + '  ·  ' + data.member.email;
-        $('loading').classList.add('hidden');
+        $('loading').classList.add('hidden'); $('empty').classList.add('hidden');
         const appts = data.appointments || [];
-        if(!appts.length){ $('empty').classList.remove('hidden'); return; }
+        if(!appts.length){ $('empty').classList.remove('hidden'); $('list').classList.add('hidden'); return; }
         $('list').classList.remove('hidden');
-        $('list').innerHTML = appts.map(a => {
-          const staff = a.staff_name ? ' · ' + esc(a.staff_name) : '';
-          return `<div class="card p-4 flex items-start justify-between gap-3">
-            <div>
-              <p class="font-semibold" style="font-size:15px;">${esc(a.salon_name||'')}</p>
-              <p class="text-sm mt-0.5" style="color:var(--ink-soft);">${esc(a.service_name||'')}${staff} <span style="color:#8A8275;">(${a.duration_min} dk)</span></p>
-              <p class="text-sm mt-1" style="color:var(--gold-dark); font-weight:600;">${esc(a.date)} · ${esc(a.time)}</p>
-            </div>
-            <span class="badge b-${a.status}">${ST[a.status]||a.status}</span>
-          </div>`;
-        }).join('');
+        $('list').innerHTML = appts.map(renderAppt).join('');
       }catch(e){ $('loading').classList.add('hidden'); $('empty').classList.remove('hidden'); }
     }
+    function reload(){ $('list').innerHTML=''; $('list').classList.add('hidden'); $('loading').classList.remove('hidden'); load(); }
+
+    function renderAppt(a){
+      APPTS[a.id] = a;
+      const staff = a.staff_name ? ' · ' + esc(a.staff_name) : '';
+      const code = a.code ? ` <span class="code-chip">${esc(a.code)}</span>` : '';
+      const canChange = (a.status==='approved' || a.status==='pending') && isFuture(a);
+      const actions = canChange ? `
+        <div class="flex gap-2 mt-3">
+          <button class="mini-btn" onclick="openResched(${a.id})">Ertele</button>
+          <button class="mini-btn red" onclick="cancelAppt(${a.id})">İptal Et</button>
+        </div>
+        <div id="resch-${a.id}" class="hidden mt-3" style="border-top:1px solid #E7DEC9;padding-top:12px;">
+          <label class="text-xs font-semibold" style="color:var(--ink-soft);">Yeni tarih</label>
+          <input type="date" id="rdate-${a.id}" class="rdate block mt-1" onchange="reschedSlots(${a.id})">
+          <div id="rslots-${a.id}" class="grid grid-cols-4 gap-2 mt-3"></div>
+          <div id="rmsg-${a.id}" class="text-xs mt-2" style="color:var(--red);"></div>
+          <div class="flex gap-2 mt-3">
+            <button class="mini-btn" id="rok-${a.id}" onclick="confirmResched(${a.id})" disabled style="opacity:.5;">Onayla</button>
+            <button class="mini-btn" onclick="closeResched(${a.id})">Vazgeç</button>
+          </div>
+        </div>` : '';
+      return `<div class="card p-4">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="font-semibold" style="font-size:15px;">${esc(a.salon_name||'')}${code}</p>
+            <p class="text-sm mt-0.5" style="color:var(--ink-soft);">${esc(a.service_name||'')}${staff} <span style="color:#8A8275;">(${a.duration_min} dk)</span></p>
+            <p class="text-sm mt-1" style="color:var(--gold-dark); font-weight:600;">${esc(a.date)} · ${esc(a.time)}</p>
+          </div>
+          <span class="badge b-${a.status}">${ST[a.status]||a.status}</span>
+        </div>
+        ${actions}
+      </div>`;
+    }
+
+    function openResched(id){ $('resch-'+id).classList.remove('hidden'); $('rdate-'+id).min = istNow().date; }
+    function closeResched(id){ $('resch-'+id).classList.add('hidden'); }
+    function setRok(id,on){ const b=$('rok-'+id); if(!b) return; b.disabled=!on; b.style.opacity=on?'1':'.5'; }
+
+    async function reschedSlots(id){
+      const a = APPTS[id]; const date = $('rdate-'+id).value;
+      const box = $('rslots-'+id); const msg = $('rmsg-'+id);
+      msg.textContent=''; box.innerHTML=''; RESCH[id]=null; setRok(id,false);
+      if(!date) return;
+      try{
+        const qs = new URLSearchParams({ date, service_id:a.service_id });
+        if(a.staff_id) qs.set('staff_id', a.staff_id);
+        const res = await fetch(`/randevu/api/salons/${encodeURIComponent(a.salon_slug)}/slots?`+qs.toString());
+        const d = await res.json();
+        const slots = d.slots || [];
+        if(!slots.length){ msg.textContent = d.reason==='closed' ? 'Salon o gün kapalı.' : 'Uygun saat yok.'; return; }
+        box.innerHTML = slots.map(t=>`<button type="button" class="rslot" data-t="${t}" onclick="pickResched(${id},this)">${t}</button>`).join('');
+      }catch(e){ msg.textContent='Saatler alınamadı.'; }
+    }
+    function pickResched(id, el){ const box=$('rslots-'+id); box.querySelectorAll('.rslot').forEach(x=>x.classList.remove('sel')); el.classList.add('sel'); RESCH[id]=el.dataset.t; setRok(id,true); }
+
+    async function confirmResched(id){
+      const date=$('rdate-'+id).value; const time=RESCH[id]; const a=APPTS[id];
+      if(!date||!time) return;
+      const b=$('rok-'+id); b.disabled=true; b.textContent='…';
+      try{
+        const res = await fetch('/randevu/api/member/appointments/'+id, { method:'PATCH', headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN}, body: JSON.stringify({ action:'reschedule', date, time, staff_id:a.staff_id||null }) });
+        const d = await res.json();
+        if(!res.ok){ $('rmsg-'+id).textContent = d.error||'İşlem başarısız.'; b.disabled=false; b.textContent='Onayla'; return; }
+        reload();
+      }catch{ $('rmsg-'+id).textContent='Bağlantı hatası.'; b.disabled=false; b.textContent='Onayla'; }
+    }
+
+    async function cancelAppt(id){
+      if(!confirm('Randevunuzu iptal etmek istediğinize emin misiniz?')) return;
+      try{
+        const res = await fetch('/randevu/api/member/appointments/'+id, { method:'PATCH', headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN}, body: JSON.stringify({ action:'cancel' }) });
+        if(res.ok) reload();
+      }catch{}
+    }
+
     load();
   </script>
 </body>

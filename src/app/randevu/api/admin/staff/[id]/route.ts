@@ -16,12 +16,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const b = await req.json().catch(() => ({} as any));
   const name = b.name !== undefined ? String(b.name).trim() || e.name : e.name;
+  const photo_url = b.photo_url !== undefined ? (String(b.photo_url).trim() || null) : e.photo_url;
   const is_active = b.is_active !== undefined ? (b.is_active ? 1 : 0) : e.is_active;
   const sort_order = b.sort_order !== undefined ? Math.round(Number(b.sort_order) || 0) : e.sort_order;
 
   await db.execute({
-    sql: 'UPDATE randevu_staff SET name=?, is_active=?, sort_order=? WHERE id=?',
-    args: [name, is_active, sort_order, id],
+    sql: 'UPDATE randevu_staff SET name=?, photo_url=?, is_active=?, sort_order=? WHERE id=?',
+    args: [name, photo_url, is_active, sort_order, id],
   });
   const row = await db.execute({ sql: 'SELECT * FROM randevu_staff WHERE id = ?', args: [id] });
   return NextResponse.json(row.rows[0]);

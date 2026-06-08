@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/d1';
 import { ensureRandevuInit } from '@/projects/randevu/db-schema';
 import {
-  hasConflict, weekday, toMin, istanbulNow, DATE_RE, type Busy,
+  hasConflict, weekday, toMin, istanbulNow, DATE_RE, breakBusy, genCode, type Busy,
 } from '@/projects/randevu/slots';
 import { getMember } from '@/projects/randevu/member-auth';
 import { sendEmail, bookingEmailHtml } from '@/projects/randevu/email';
@@ -73,6 +73,13 @@ export async function POST(req: NextRequest) {
   const workDays = String(salon.work_days || '').split(',').map((s: string) => s.trim());
   if (!workDays.includes(String(weekday(date)))) return bad('Salon bu gün kapalı');
 
+  // Kapalı gün / tatil
+  const cl = await db.execute({
+    sql: 'SELECT 1 FROM randevu_closures WHERE salon_id = ? AND date = ? LIMIT 1',
+    args: [salon.id, date],
+  });
+  if (cl.rows[0]) return bad('Salon seçilen gün kapalı');
+
   const startM = toMin(time);
   const endM = startM + Number(service.duration_min);
   if (startM < toMin(salon.open_time) || endM > toMin(salon.close_time)) {
@@ -85,18 +92,22 @@ export async function POST(req: NextRequest) {
   const busyArgs: any[] = [salon.id, date];
   if (staff_id != null) { busySql += ' AND staff_id = ?'; busyArgs.push(staff_id); }
   const busyRows = await db.execute({ sql: busySql, args: busyArgs });
-  const busy: Busy[] = (busyRows.rows as any[]).map(r => ({ time: r.time, duration_min: r.duration_min }));
+  const busy: Busy[] = [
+    ...(busyRows.rows as any[]).map(r => ({ time: r.time, duration_min: r.duration_min })),
+    ...breakBusy(salon.break_start, salon.break_end),
+  ];
   if (hasConflict(time, Number(service.duration_min), busy)) {
     return NextResponse.json({ error: 'Bu saat az önce doldu, lütfen başka bir saat seçin' }, { status: 409 });
   }
 
   // Otomatik onay — randevu anında 'approved'
+  const code = genCode();
   const ins = await db.execute({
     sql: `INSERT INTO randevu_appointments
-            (salon_id, service_id, service_name, duration_min, staff_id, member_id, customer_name, phone, email, date, time, status, note)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?)`,
+            (salon_id, service_id, service_name, duration_min, staff_id, member_id, customer_name, phone, email, date, time, status, code, note)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, ?)`,
     args: [salon.id, service.id, service.name, service.duration_min, staff_id, member.id,
-           customer_name, phone, email, date, time, note],
+           customer_name, phone, email, date, time, code, note],
   });
 
   // Onay maili (Resend) — hata randevuyu bozmaz
@@ -107,7 +118,7 @@ export async function POST(req: NextRequest) {
       subject: `Randevunuz Onaylandı — ${salon.name}`,
       html: bookingEmailHtml({
         name: customer_name, salon: salon.name, service: service.name,
-        staff: staff_name, date, time,
+        staff: staff_name, date, time, durationMin: Number(service.duration_min), code,
       }),
     });
     mailed = r.ok;
@@ -116,6 +127,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     success: true,
     id: ins.lastInsertRowid,
+    code,
     salon: salon.name,
     service: service.name,
     date, time,

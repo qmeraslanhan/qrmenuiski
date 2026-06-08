@@ -164,7 +164,8 @@
       <h2 class="display text-3xl font-semibold mb-2" style="color:var(--ink);">Randevunuz Oluşturuldu</h2>
       <p class="muted mb-5">Randevunuz başarıyla oluşturuldu ve <b style="color:var(--gold-dark);">onaylandı</b>.</p>
       <div id="successSummary" class="text-sm mx-auto max-w-xs text-left space-y-1.5 mb-4" style="color:var(--ink-soft);"></div>
-      <p id="successMail" class="muted mb-5"></p>
+      <p id="successMail" class="muted mb-3"></p>
+      <div id="successCal" class="flex gap-2 justify-center flex-wrap mb-5"></div>
       <div class="flex gap-2 justify-center">
         <a href="/randevu/hesabim" class="inline-block text-sm font-semibold" style="color:var(--gold-dark);">Randevularım</a>
         <span style="color:var(--ink-mute);">·</span>
@@ -262,7 +263,13 @@
       $('numInfo').textContent = hasStaff ? '5' : '4';
       if(!hasStaff) return;
       const box = $('staffList');
-      box.innerHTML = state.staff.map(st => `<button type="button" class="opt" data-staff="${st.id}"><span class="o-name">${esc(st.name)}</span></button>`).join('');
+      box.innerHTML = state.staff.map(st => {
+        const ini = esc((st.name || '?').trim().charAt(0).toLocaleUpperCase('tr-TR'));
+        const av = st.photo_url
+          ? `<img src="${esc(st.photo_url)}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--line);">`
+          : `<span style="width:36px;height:36px;border-radius:50%;background:var(--gold-dark);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;">${ini}</span>`;
+        return `<button type="button" class="opt" data-staff="${st.id}"><span style="display:flex;align-items:center;gap:11px;">${av}<span class="o-name">${esc(st.name)}</span></span></button>`;
+      }).join('');
       box.querySelectorAll('[data-staff]').forEach(b => b.addEventListener('click', () => {
         box.querySelectorAll('.opt').forEach(x => x.classList.remove('sel'));
         b.classList.add('sel');
@@ -368,10 +375,27 @@
       finally { btn.disabled = false; btn.textContent = 'Randevuyu Oluştur'; updateSubmit(); }
     });
 
+    function pad(n){ return String(n).padStart(2,'0'); }
+    function calStamp(date, time, addMin){
+      const [y,mo,d] = date.split('-').map(Number); const [hh,mm] = time.split(':').map(Number);
+      const dt = new Date(Date.UTC(y, mo-1, d, hh-3, mm)); // İstanbul = UTC+3
+      if(addMin) dt.setUTCMinutes(dt.getUTCMinutes()+addMin);
+      return dt.getUTCFullYear()+pad(dt.getUTCMonth()+1)+pad(dt.getUTCDate())+'T'+pad(dt.getUTCHours())+pad(dt.getUTCMinutes())+'00Z';
+    }
+    function googleCal(title,date,time,dur,details,loc){
+      const p = new URLSearchParams({ action:'TEMPLATE', text:title, dates: calStamp(date,time,0)+'/'+calStamp(date,time,dur), details, location:loc });
+      return 'https://calendar.google.com/calendar/render?'+p.toString();
+    }
+    function icsHref(title,date,time,dur,details,loc){
+      const ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//ISKI//Randevu//TR','BEGIN:VEVENT','UID:'+Date.now()+'@omeraslanhan.com','DTSTAMP:'+calStamp(date,time,0),'DTSTART:'+calStamp(date,time,0),'DTEND:'+calStamp(date,time,dur),'SUMMARY:'+title,'DESCRIPTION:'+details,'LOCATION:'+loc,'END:VEVENT','END:VCALENDAR'].join('\r\n');
+      return 'data:text/calendar;charset=utf-8,'+encodeURIComponent(ics);
+    }
+
     function showSuccess(d){
       const svc = state.services.find(s => String(s.id) === String(state.serviceId));
       const staff = state.staff.find(s => String(s.id) === String(state.staffId));
       const rows = [
+        d.code ? ['Randevu Kodu', d.code] : null,
         ['Salon', state.salon.name],
         ['Hizmet', svc ? svc.name : '—'],
         staff ? ['Usta', staff.name] : null,
@@ -380,6 +404,14 @@
       ].filter(Boolean);
       $('successSummary').innerHTML = rows.map(([k,v]) => `<div class="flex justify-between gap-3"><span>${esc(k)}</span><b style="color:var(--ink);">${esc(v)}</b></div>`).join('');
       $('successMail').textContent = d.mailed ? ('Onay e-postası ' + (d.email || '') + ' adresine gönderildi.') : '';
+
+      const dur = svc ? Number(svc.duration_min) : 30;
+      const title = state.salon.name + ' — ' + (svc ? svc.name : 'Randevu');
+      const details = 'Randevu' + (d.code ? ' ('+d.code+')' : '');
+      $('successCal').innerHTML =
+        `<a href="${googleCal(title, state.date, state.time, dur, details, state.salon.name)}" target="_blank" rel="noopener" class="btn-gold" style="display:inline-block;width:auto;padding:10px 18px;text-decoration:none;font-size:13.5px;">📅 Google Takvim</a>`+
+        `<a href="${icsHref(title, state.date, state.time, dur, details, state.salon.name)}" download="randevu.ics" style="display:inline-block;padding:10px 18px;border:1.5px solid var(--gold-dark);border-radius:12px;color:var(--gold-dark);font-weight:700;font-size:13.5px;text-decoration:none;">Takvime Ekle (.ics)</a>`;
+
       $('flow').classList.add('hidden');
       $('success').classList.remove('hidden');
       window.scrollTo({ top:0, behavior:'smooth' });

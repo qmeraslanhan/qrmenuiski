@@ -28,7 +28,7 @@ async function createSession(memberId: number): Promise<string> {
 }
 
 export async function registerMember(
-  nameIn: string, emailIn: string, phoneIn: string, password: string
+  nameIn: string, emailIn: string, phoneIn: string, password: string, kvkk: boolean
 ): Promise<{ token: string; member: Member } | { error: string }> {
   const name = String(nameIn || '').trim();
   const email = String(emailIn || '').trim().toLowerCase();
@@ -37,12 +37,13 @@ export async function registerMember(
   if (!EMAIL_RE.test(email)) return { error: 'Geçerli bir e-posta gerekli' };
   if (phone.replace(/\D/g, '').length < 7) return { error: 'Geçerli bir telefon gerekli' };
   if (!password || password.length < 6) return { error: 'Şifre en az 6 karakter olmalı' };
+  if (!kvkk) return { error: 'KVKK aydınlatma metnini onaylamalısınız' };
 
   const hash = bcrypt.hashSync(password, 10);
   try {
     const ins = await db.execute({
-      sql: 'INSERT INTO randevu_members (name, email, phone, password) VALUES (?, ?, ?, ?)',
-      args: [name, email, phone, hash],
+      sql: 'INSERT INTO randevu_members (name, email, phone, password, kvkk_accepted_at) VALUES (?, ?, ?, ?, ?)',
+      args: [name, email, phone, hash, new Date().toISOString()],
     });
     const member: Member = { id: Number(ins.lastInsertRowid), name, email, phone };
     const token = await createSession(member.id);

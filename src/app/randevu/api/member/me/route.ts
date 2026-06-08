@@ -10,8 +10,8 @@ export async function GET(req: NextRequest) {
   if (!member) return NextResponse.json({ error: 'Oturum bulunamadı' }, { status: 401 });
 
   const appts = await db.execute({
-    sql: `SELECT a.id, a.service_name, a.date, a.time, a.status, a.duration_min,
-                 s.name AS salon_name, st.name AS staff_name
+    sql: `SELECT a.id, a.code, a.service_id, a.service_name, a.date, a.time, a.status, a.duration_min, a.staff_id,
+                 s.name AS salon_name, s.slug AS salon_slug, st.name AS staff_name
             FROM randevu_appointments a
             LEFT JOIN randevu_salons s ON s.id = a.salon_id
             LEFT JOIN randevu_staff st ON st.id = a.staff_id

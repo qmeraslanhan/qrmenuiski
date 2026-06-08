@@ -28,10 +28,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     await db.execute({
       sql: `UPDATE randevu_salons SET
               name=?, slug=?, type=?, description=?, address=?, phone=?, image_url=?,
-              open_time=?, close_time=?, slot_minutes=?, work_days=?, is_active=?, sort_order=?
+              open_time=?, close_time=?, break_start=?, break_end=?, slot_minutes=?, work_days=?, is_active=?, sort_order=?
             WHERE id=?`,
       args: [f.name, slug, f.type, f.description, f.address, f.phone, f.image_url,
-             f.open_time, f.close_time, f.slot_minutes, f.work_days, f.is_active, f.sort_order, id],
+             f.open_time, f.close_time, f.break_start, f.break_end, f.slot_minutes, f.work_days, f.is_active, f.sort_order, id],
     });
     const row = await db.execute({ sql: 'SELECT * FROM randevu_salons WHERE id = ?', args: [id] });
     return NextResponse.json(row.rows[0]);
@@ -52,6 +52,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   await db.execute({ sql: 'DELETE FROM randevu_appointments WHERE salon_id = ?', args: [id] });
   await db.execute({ sql: 'DELETE FROM randevu_services WHERE salon_id = ?', args: [id] });
   await db.execute({ sql: 'DELETE FROM randevu_staff WHERE salon_id = ?', args: [id] });
+  await db.execute({ sql: 'DELETE FROM randevu_closures WHERE salon_id = ?', args: [id] });
   const info = await db.execute({ sql: 'DELETE FROM randevu_salons WHERE id = ?', args: [id] });
   if (!info.rowsAffected) return NextResponse.json({ error: 'Salon bulunamadı' }, { status: 404 });
   return NextResponse.json({ success: true });
