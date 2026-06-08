@@ -33,6 +33,7 @@
     .badge { font-size:10.5px; font-weight:700; letter-spacing:.03em; padding:3px 9px; border-radius:999px; white-space:nowrap; }
     .b-pending{ background:var(--amber-bg); color:var(--amber); } .b-approved{ background:var(--green-bg); color:var(--green); }
     .b-rejected{ background:var(--red-bg); color:var(--red); } .b-cancelled{ background:#EEE; color:#777; } .b-noshow{ background:var(--red-bg); color:var(--red); }
+    .b-done{ background:var(--green-bg); color:var(--green); }
     .tab { font-weight:600; font-size:14px; padding:9px 4px; color:var(--ink-mute); border-bottom:2px solid transparent; cursor:pointer; transition:color .2s, border-color .2s; user-select:none; }
     .tab.active { color:var(--accent); border-color:var(--accent); }
     .chip { font-size:12.5px; font-weight:600; padding:7px 14px; border-radius:999px; border:1px solid var(--line-strong); color:var(--ink-soft); cursor:pointer; background:#fff; transition:all .15s; }
@@ -83,6 +84,7 @@
         <div class="flex flex-wrap gap-1.5" id="statusChips">
           <button class="chip active" data-st="all">Tümü</button>
           <button class="chip" data-st="approved">Onaylı</button>
+          <button class="chip" data-st="done">Tamamlandı</button>
           <button class="chip" data-st="cancelled">İptal</button>
           <button class="chip" data-st="noshow">Gelmedi</button>
           <button class="chip" data-st="pending">Beklemede</button>
@@ -121,7 +123,7 @@
     const TYPE = { berber:'Berber', kuafor:'Kuaför', both:'Berber & Kuaför', diger:'Diğer' };
     const DAYS = [[1,'Pzt'],[2,'Sal'],[3,'Çar'],[4,'Per'],[5,'Cum'],[6,'Cmt'],[0,'Paz']];
     const DAY_LABEL = { 0:'Paz',1:'Pzt',2:'Sal',3:'Çar',4:'Per',5:'Cum',6:'Cmt' };
-    const ST_LABEL = { pending:'Beklemede', approved:'Onaylı', rejected:'Reddedildi', cancelled:'İptal', noshow:'Gelmedi' };
+    const ST_LABEL = { pending:'Beklemede', approved:'Onaylı', rejected:'Reddedildi', cancelled:'İptal', noshow:'Gelmedi', done:'Tamamlandı' };
     let SALONS = [];
     let curStatus = 'all';
     let APPT_LIST = [];
@@ -251,7 +253,8 @@
       const decided = a.decided_note ? `<p class="text-xs mt-1" style="color:var(--ink-mute);">Yönetim notu: ${esc(a.decided_note)}</p>` : '';
       let actions = '';
       if(a.status === 'approved'){
-        actions = `<button class="btn btn-ghost btn-sm" onclick="decide(${a.id},'noshow')">Gelmedi</button>
+        actions = `<button class="btn btn-green btn-sm" onclick="decide(${a.id},'done')">Tamamlandı</button>
+                   <button class="btn btn-ghost btn-sm" onclick="decide(${a.id},'noshow')">Gelmedi</button>
                    <button class="btn btn-red btn-sm" onclick="decide(${a.id},'cancelled')">İptal Et</button>
                    <button class="btn btn-red btn-sm" onclick="delAppt(${a.id})">Sil</button>`;
       } else if(a.status === 'pending'){
@@ -291,7 +294,7 @@
         const res = await api('/randevu/api/admin/appointments/'+id, { method:'PATCH', body: JSON.stringify({ status, decided_note }) });
         const data = await res.json();
         if(!res.ok){ toast(data.error || 'İşlem başarısız'); return; }
-        toast(status==='approved'?'Onaylandı':status==='rejected'?'Reddedildi':status==='cancelled'?'İptal edildi':status==='noshow'?'Gelmedi işaretlendi':'Güncellendi');
+        toast(status==='approved'?'Onaylandı':status==='rejected'?'Reddedildi':status==='cancelled'?'İptal edildi':status==='noshow'?'Gelmedi işaretlendi':status==='done'?'Tamamlandı işaretlendi':'Güncellendi');
         loadAppts(); refreshPendingPill();
       }catch(e){}
     }
@@ -339,6 +342,7 @@
             <button class="btn btn-ghost btn-sm" onclick="openServices(${s.id})">Hizmetler</button>
             <button class="btn btn-ghost btn-sm" onclick="openStaff(${s.id})">Ustalar</button>
             <button class="btn btn-ghost btn-sm" onclick="openClosures(${s.id})">Kapalı Günler</button>
+            <button class="btn btn-ghost btn-sm" onclick="openOperators(${s.id})">Kullanıcılar</button>
             <button class="btn btn-red btn-sm" onclick="delSalon(${s.id})">Sil</button>
           </div>
         </div>`;
@@ -367,6 +371,17 @@
           </div>
           <div><label class="lbl">Adres</label><input id="sAddr" class="fld" value="${esc(s?.address||'')}" placeholder="Adres"></div>
           <div><label class="lbl">Açıklama</label><textarea id="sDesc" class="fld" rows="2" placeholder="Kısa açıklama">${esc(s?.description||'')}</textarea></div>
+          <div>
+            <label class="lbl">Salon görseli (ops.)</label>
+            <div class="flex items-center gap-3 flex-wrap">
+              <img id="sImgPreview" src="${esc(s?.image_url||'')}" class="${s?.image_url?'':'hidden'}" style="width:60px;height:60px;border-radius:10px;object-fit:cover;border:1px solid var(--line);">
+              <input type="file" id="sImgFile" accept="image/*" class="hidden" onchange="uploadSalonImg(this)">
+              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('sImgFile').click()">Görsel Yükle</button>
+              <button type="button" id="sImgClear" class="btn btn-red btn-sm ${s?.image_url?'':'hidden'}" onclick="clearSalonImg()">Kaldır</button>
+              <span id="sImgStatus" class="text-xs" style="color:var(--ink-mute);"></span>
+            </div>
+            <input type="hidden" id="sImageUrl" value="${esc(s?.image_url||'')}">
+          </div>
           <div class="grid grid-cols-3 gap-3">
             <div><label class="lbl">Açılış</label><input id="sOpen" type="time" class="fld" value="${esc(s?.open_time||'09:00')}"></div>
             <div><label class="lbl">Kapanış</label><input id="sClose" type="time" class="fld" value="${esc(s?.close_time||'18:00')}"></div>
@@ -394,6 +409,7 @@
         name: $('sName').value.trim(), type: $('sType').value, phone: $('sPhone').value.trim(),
         address: $('sAddr').value.trim(), description: $('sDesc').value.trim(),
         open_time: $('sOpen').value, close_time: $('sClose').value,
+        image_url: $('sImageUrl').value || null,
         break_start: $('sBreakStart').value, break_end: $('sBreakEnd').value,
         slot_minutes: Number($('sSlot').value)||30,
         work_days: days.join(','), is_active: $('sActive').checked ? 1 : 0,
@@ -409,6 +425,28 @@
       }catch(e){ btn.disabled=false; btn.textContent='Kaydet'; }
     }
     function showErr(id,msg){ const el=$(id); el.textContent=msg; el.classList.remove('hidden'); }
+
+    // Salon görseli yükleme (R2)
+    async function uploadSalonImg(input){
+      const file = input.files && input.files[0]; if(!file) return;
+      const st = $('sImgStatus'); st.textContent='Yükleniyor…'; st.style.color='var(--ink-mute)';
+      const fd = new FormData(); fd.append('file', file);
+      try{
+        const res = await fetch('/randevu/api/admin/upload', { method:'POST', headers:{'Authorization':'Bearer '+TOKEN}, body: fd });
+        if(res.status===401){ localStorage.removeItem('randevu_admin_token'); location.href='/randevu/login'; return; }
+        const d = await res.json();
+        if(!res.ok){ st.textContent = d.error||'Yüklenemedi'; st.style.color='var(--red)'; return; }
+        $('sImageUrl').value = d.url;
+        const img=$('sImgPreview'); img.src=d.url; img.classList.remove('hidden');
+        $('sImgClear').classList.remove('hidden');
+        st.textContent='Yüklendi ✓'; st.style.color='var(--green)';
+      }catch{ st.textContent='Bağlantı hatası'; st.style.color='var(--red)'; }
+      input.value='';
+    }
+    function clearSalonImg(){
+      $('sImageUrl').value=''; const img=$('sImgPreview'); img.src=''; img.classList.add('hidden');
+      $('sImgClear').classList.add('hidden'); $('sImgStatus').textContent='';
+    }
 
     async function delSalon(id){
       const s = SALONS.find(x=>x.id===id);
@@ -556,6 +594,52 @@
     async function delClosure(id, salonId){
       const res = await api('/randevu/api/admin/closures/'+id, { method:'DELETE' });
       if(res.ok){ loadClosures(salonId); toast('Silindi'); }
+    }
+
+    // ── Salon Kullanıcıları (operatörler) ──
+    async function openOperators(salonId){
+      const s = SALONS.find(x=>x.id===salonId);
+      $('overlay').innerHTML = `<div class="modal">
+        <div class="flex items-center justify-between mb-2"><h3 class="serif text-xl font-semibold">Kullanıcılar — ${esc(s?.name||'')}</h3><button class="btn btn-ghost btn-sm" onclick="closeModal()">Kapat</button></div>
+        <p class="text-xs mb-4" style="color:var(--ink-mute);">Atanan üye, hesabım sayfasından bu salonun günlük randevularını görüp yönetebilir (tamamlandı / gelmedi / iptal). Üye önce siteden kayıt olmuş olmalı.</p>
+        <div id="opList" class="space-y-2 mb-4"><div class="spinner"></div></div>
+        <div class="card p-3" style="background:var(--bg-soft);">
+          <div class="flex gap-2 items-end flex-wrap">
+            <div class="flex-1" style="min-width:160px;"><label class="lbl">Üye e-postası</label><input id="opEmail" class="fld" placeholder="uye@ornek.com"></div>
+            <button class="btn btn-primary" onclick="addOperator(${salonId})">Ata</button>
+          </div>
+          <div id="opErr" class="hidden text-sm mt-2" style="color:var(--red);"></div>
+        </div>
+      </div>`;
+      $('overlay').classList.remove('hidden');
+      loadOperators(salonId);
+    }
+    async function loadOperators(salonId){
+      const res = await api('/randevu/api/admin/salons/'+salonId+'/operators');
+      const list = await res.json();
+      const box = $('opList'); if(!box) return;
+      if(!Array.isArray(list) || !list.length){ box.innerHTML = '<p class="text-sm" style="color:var(--ink-mute);">Atanmış kullanıcı yok.</p>'; return; }
+      box.innerHTML = list.map(o => `<div class="flex items-center gap-2 card p-2.5">
+        <div class="flex-1 min-w-0">
+          <span class="font-semibold text-sm">${esc(o.name)}</span>
+          <span class="text-xs ml-2" style="color:var(--ink-mute);">${esc(o.email)}${o.phone?' · '+esc(o.phone):''}</span>
+        </div>
+        <button class="btn btn-red btn-sm" onclick="delOperator(${o.id},${salonId})">Kaldır</button>
+      </div>`).join('');
+    }
+    async function addOperator(salonId){
+      const email = $('opEmail').value.trim();
+      const err = $('opErr'); err.classList.add('hidden');
+      if(!email){ err.textContent='E-posta girin'; err.classList.remove('hidden'); return; }
+      const res = await api('/randevu/api/admin/salons/'+salonId+'/operators', { method:'POST', body: JSON.stringify({ email }) });
+      const d = await res.json();
+      if(!res.ok){ err.textContent = d.error||'Atanamadı'; err.classList.remove('hidden'); return; }
+      $('opEmail').value=''; loadOperators(salonId); toast('Kullanıcı atandı');
+    }
+    async function delOperator(id, salonId){
+      if(!confirm('Bu kullanıcının salon yetkisi kaldırılsın mı?')) return;
+      const res = await api('/randevu/api/admin/operators/'+id, { method:'DELETE' });
+      if(res.ok){ loadOperators(salonId); toast('Kaldırıldı'); }
     }
   </script>
 </body>

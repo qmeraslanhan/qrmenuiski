@@ -19,6 +19,14 @@
     .badge { font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:999px; }
     .b-pending{ background:var(--amber-bg); color:var(--amber); } .b-approved{ background:var(--green-bg); color:var(--green); }
     .b-rejected{ background:var(--red-bg); color:var(--red); } .b-cancelled{ background:#EEE; color:#777; } .b-noshow{ background:var(--red-bg); color:var(--red); }
+    .b-done{ background:var(--green-bg); color:var(--green); }
+    .op-row{ display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px solid #EFE7D6; flex-wrap:wrap; }
+    .op-row:first-child{ border-top:none; }
+    .op-time{ font-weight:700; font-size:14px; color:var(--ink); min-width:46px; }
+    .op-stat{ text-align:center; background:#FBF7EE; border:1px solid #EFE3CC; border-radius:9px; padding:7px 4px; }
+    .op-stat b{ display:block; font-size:17px; color:var(--ink); } .op-stat span{ font-size:10.5px; color:var(--ink-soft); }
+    .field{ width:100%; border:1px solid #D4C9B5; border-radius:9px; padding:9px 11px; font-size:13.5px; color:var(--ink); background:#fff; outline:none; }
+    .field:focus{ border-color:var(--gold); }
     .mini-btn{ font-size:12px; font-weight:600; padding:6px 12px; border-radius:9px; border:1px solid var(--gold); color:var(--gold-dark); background:#fff; cursor:pointer; transition:background .15s; }
     .mini-btn:hover{ background:rgba(201,169,97,0.12); }
     .mini-btn.red{ border-color:rgba(185,28,28,0.4); color:var(--red); }
@@ -55,6 +63,24 @@
       </div>
     </header>
 
+    <!-- Operatör paneli (yalnızca atanmış üyelere görünür) -->
+    <section id="opPanel" class="hidden mb-9">
+      <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h2 class="text-xs font-semibold tracking-widest uppercase" style="color:var(--gold);">Salon Yönetimi</h2>
+        <select id="opSalon" class="rdate" onchange="opLoad()"></select>
+      </div>
+      <div class="card p-4">
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <button class="mini-btn" onclick="opDay(-1)">‹ Önceki</button>
+          <input type="date" id="opDate" class="rdate text-center" onchange="opLoad()" style="flex:1;">
+          <button class="mini-btn" onclick="opDay(1)">Sonraki ›</button>
+        </div>
+        <div id="opStats" class="grid grid-cols-4 gap-2 mb-3"></div>
+        <div id="opLoading" class="text-center py-6 hidden"><div class="spinner inline-block"></div></div>
+        <div id="opList"></div>
+      </div>
+    </section>
+
     <h2 class="text-xs font-semibold tracking-widest uppercase mb-3" style="color:var(--cream-soft);">Randevularım</h2>
 
     <div id="loading" class="text-center py-16"><div class="spinner inline-block"></div></div>
@@ -63,12 +89,36 @@
       <a href="/randevu" class="inline-block mt-2 mb-4 font-semibold text-sm" style="color:var(--gold-dark);">Randevu al →</a>
     </div>
     <div id="list" class="hidden space-y-3"></div>
+
+    <!-- Hesap ayarları: şifre değiştir -->
+    <section class="mt-10">
+      <h2 class="text-xs font-semibold tracking-widest uppercase mb-3" style="color:var(--cream-soft);">Hesap Ayarları</h2>
+      <div class="card p-4">
+        <button id="pwToggle" class="mini-btn" onclick="togglePw()">🔒 Şifre Değiştir</button>
+        <div id="pwForm" class="hidden mt-4 space-y-3" style="max-width:340px;">
+          <div>
+            <label class="text-xs font-semibold" style="color:var(--ink-soft);">Mevcut şifre</label>
+            <input type="password" id="pwCur" class="field mt-1" autocomplete="current-password">
+          </div>
+          <div>
+            <label class="text-xs font-semibold" style="color:var(--ink-soft);">Yeni şifre (en az 6 karakter)</label>
+            <input type="password" id="pwNew" class="field mt-1" autocomplete="new-password">
+          </div>
+          <div>
+            <label class="text-xs font-semibold" style="color:var(--ink-soft);">Yeni şifre (tekrar)</label>
+            <input type="password" id="pwNew2" class="field mt-1" autocomplete="new-password">
+          </div>
+          <div id="pwMsg" class="text-xs" style="min-height:14px;"></div>
+          <button id="pwSave" class="mini-btn" onclick="savePw()">Kaydet</button>
+        </div>
+      </div>
+    </section>
   </main>
 
   <script>
     const $ = (id) => document.getElementById(id);
     const TOKEN = localStorage.getItem('randevu_member_token');
-    const ST = { pending:'Beklemede', approved:'Onaylandı', rejected:'Reddedildi', cancelled:'İptal', noshow:'Gelmedi' };
+    const ST = { pending:'Beklemede', approved:'Onaylandı', rejected:'Reddedildi', cancelled:'İptal', noshow:'Gelmedi', done:'Tamamlandı' };
     function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
     if(!TOKEN) location.href = '/randevu/uye?next=/randevu/hesabim';
 
@@ -173,7 +223,95 @@
       }catch{}
     }
 
+    // ── Şifre değiştir ──
+    function togglePw(){ $('pwForm').classList.toggle('hidden'); }
+    async function savePw(){
+      const cur=$('pwCur').value, nw=$('pwNew').value, nw2=$('pwNew2').value;
+      const msg=$('pwMsg'); msg.style.color='var(--red)';
+      if(nw.length<6){ msg.textContent='Yeni şifre en az 6 karakter olmalı.'; return; }
+      if(nw!==nw2){ msg.textContent='Yeni şifreler eşleşmiyor.'; return; }
+      const b=$('pwSave'); b.disabled=true; b.textContent='…';
+      try{
+        const res=await fetch('/randevu/api/member/password', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN}, body:JSON.stringify({ current:cur, password:nw }) });
+        const d=await res.json();
+        if(!res.ok){ msg.textContent=d.error||'İşlem başarısız.'; b.disabled=false; b.textContent='Kaydet'; return; }
+        msg.style.color='var(--green)'; msg.textContent='Şifreniz güncellendi.';
+        $('pwCur').value=$('pwNew').value=$('pwNew2').value='';
+        b.disabled=false; b.textContent='Kaydet';
+        setTimeout(()=>{ $('pwForm').classList.add('hidden'); msg.textContent=''; }, 1500);
+      }catch{ msg.textContent='Bağlantı hatası.'; b.disabled=false; b.textContent='Kaydet'; }
+    }
+
+    // ── Operatör paneli (salon yönetimi) ──
+    const OP = { salons:[], appts:{} };
+    const OP_ST = { approved:'Bekliyor', pending:'Bekliyor', done:'Tamamlandı', noshow:'Gelmedi', cancelled:'İptal', rejected:'Reddedildi' };
+    async function opInit(){
+      try{
+        const res = await fetch('/randevu/api/member/operator', { headers:{'Authorization':'Bearer '+TOKEN} });
+        if(!res.ok) return;
+        const d = await res.json();
+        OP.salons = d.salons || [];
+        if(!OP.salons.length) return;
+        $('opPanel').classList.remove('hidden');
+        $('opSalon').innerHTML = OP.salons.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+        $('opDate').value = istNow().date;
+        if(OP.salons.length<2) $('opSalon').classList.add('hidden');
+        opLoad();
+      }catch{}
+    }
+    function opDay(delta){
+      const cur=$('opDate').value || istNow().date;
+      const d=new Date(cur+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+delta);
+      $('opDate').value=d.toISOString().slice(0,10); opLoad();
+    }
+    async function opLoad(){
+      const salon_id=$('opSalon').value, date=$('opDate').value;
+      if(!salon_id||!date) return;
+      $('opList').innerHTML=''; $('opStats').innerHTML=''; $('opLoading').classList.remove('hidden');
+      try{
+        const qs=new URLSearchParams({ salon_id, date });
+        const res=await fetch('/randevu/api/member/operator/appointments?'+qs.toString(), { headers:{'Authorization':'Bearer '+TOKEN} });
+        const d=await res.json();
+        $('opLoading').classList.add('hidden');
+        const appts=d.appointments||[];
+        const active=appts.filter(a=>a.status==='approved'||a.status==='pending').length;
+        const done=appts.filter(a=>a.status==='done').length;
+        const off=appts.filter(a=>a.status==='noshow'||a.status==='cancelled'||a.status==='rejected').length;
+        $('opStats').innerHTML = [['Toplam',appts.length],['Bekleyen',active],['Tamamlanan',done],['Gelmedi/İptal',off]]
+          .map(([l,n])=>`<div class="op-stat"><b>${n}</b><span>${l}</span></div>`).join('');
+        if(!appts.length){ $('opList').innerHTML='<p class="text-center py-5 text-sm" style="color:var(--ink-soft);">Bu gün için randevu yok.</p>'; return; }
+        $('opList').innerHTML = appts.map(opRow).join('');
+      }catch{ $('opLoading').classList.add('hidden'); $('opList').innerHTML='<p class="text-center py-5 text-sm" style="color:var(--red);">Yüklenemedi.</p>'; }
+    }
+    function opRow(a){
+      OP.appts[a.id]=a;
+      const phone = a.phone ? ` · <a href="tel:${esc(a.phone)}" style="color:var(--gold-dark);">${esc(a.phone)}</a>` : '';
+      const staff = a.staff_name ? ' · '+esc(a.staff_name) : '';
+      const acts=[];
+      if(a.status!=='done')   acts.push(`<button class="mini-btn" onclick="opSet(${a.id},'done')">Tamamlandı</button>`);
+      if(a.status!=='noshow') acts.push(`<button class="mini-btn red" onclick="opSet(${a.id},'noshow')">Gelmedi</button>`);
+      if(a.status!=='cancelled' && a.status!=='approved') acts.push(`<button class="mini-btn" onclick="opSet(${a.id},'approved')">Geri al</button>`);
+      if(a.status!=='cancelled') acts.push(`<button class="mini-btn red" onclick="opSet(${a.id},'cancelled')">İptal</button>`);
+      return `<div class="op-row" id="op-${a.id}">
+        <span class="op-time">${esc(a.time)}</span>
+        <div style="flex:1; min-width:150px;">
+          <p class="font-semibold" style="font-size:14px; color:var(--ink);">${esc(a.customer_name||'')}</p>
+          <p class="text-xs" style="color:var(--ink-soft);">${esc(a.service_name||'')}${staff} <span style="color:#A89F8C;">(${a.duration_min} dk)</span>${phone}</p>
+        </div>
+        <span class="badge b-${a.status}">${OP_ST[a.status]||a.status}</span>
+        <div class="flex gap-1.5 w-full md:w-auto" style="flex-wrap:wrap;">${acts.join('')}</div>
+      </div>`;
+    }
+    async function opSet(id, status){
+      const row=$('op-'+id); if(row) row.style.opacity='.5';
+      try{
+        const res=await fetch('/randevu/api/member/operator/appointments/'+id, { method:'PATCH', headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN}, body:JSON.stringify({ status }) });
+        if(res.ok){ opLoad(); } else { if(row) row.style.opacity='1'; const d=await res.json().catch(()=>({})); alert(d.error||'İşlem başarısız.'); }
+      }catch{ if(row) row.style.opacity='1'; }
+    }
+
     load();
+    opInit();
   </script>
 </body>
 </html>

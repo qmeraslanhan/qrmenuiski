@@ -99,6 +99,18 @@ export async function ensureRandevuInit(): Promise<void> {
     )`,
     `CREATE INDEX IF NOT EXISTS idx_randevu_pwreset_token ON randevu_password_resets(token)`,
 
+    // Salon operatörleri — admin bir üyeyi salona atar; o üye o salonun
+    // günlük randevularını görüp yönetebilir (kendi salonuyla sınırlı).
+    `CREATE TABLE IF NOT EXISTS randevu_salon_operators (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      salon_id   INTEGER NOT NULL REFERENCES randevu_salons(id) ON DELETE CASCADE,
+      member_id  INTEGER NOT NULL REFERENCES randevu_members(id) ON DELETE CASCADE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(salon_id, member_id)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_randevu_operators_member ON randevu_salon_operators(member_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_randevu_operators_salon ON randevu_salon_operators(salon_id)`,
+
     // Randevular
     `CREATE TABLE IF NOT EXISTS randevu_appointments (
       id            INTEGER PRIMARY KEY AUTOINCREMENT,

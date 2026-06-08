@@ -86,6 +86,22 @@ export async function logoutMember(token: string): Promise<void> {
   if (token) await db.execute({ sql: 'DELETE FROM randevu_member_sessions WHERE token = ?', args: [token] });
 }
 
+// Üye giriş yaptıktan sonra kendi şifresini değiştirir (mevcut şifre doğrulanır).
+export async function changeMemberPassword(
+  memberId: number, currentPassword: string, newPassword: string
+): Promise<{ ok: true } | { error: string }> {
+  if (!newPassword || newPassword.length < 6) return { error: 'Yeni şifre en az 6 karakter olmalı' };
+  const r = await db.execute({ sql: 'SELECT password FROM randevu_members WHERE id = ?', args: [memberId] });
+  const m: any = r.rows[0];
+  if (!m) return { error: 'Üye bulunamadı' };
+  if (!bcrypt.compareSync(String(currentPassword || ''), String(m.password))) {
+    return { error: 'Mevcut şifre hatalı' };
+  }
+  const hash = bcrypt.hashSync(newPassword, 10);
+  await db.execute({ sql: 'UPDATE randevu_members SET password = ? WHERE id = ?', args: [hash, memberId] });
+  return { ok: true };
+}
+
 // ── Şifre sıfırlama ──
 const RESET_TTL_MIN = 60;
 

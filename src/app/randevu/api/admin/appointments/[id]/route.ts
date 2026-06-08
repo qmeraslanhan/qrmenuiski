@@ -4,7 +4,7 @@ import { ensureRandevuInit } from '@/projects/randevu/db-schema';
 import { getAuth, isAdmin, unauthorized, forbidden } from '@/lib/auth';
 import { hasConflict, type Busy } from '@/projects/randevu/slots';
 
-const VALID = ['pending', 'approved', 'rejected', 'cancelled', 'noshow'];
+const VALID = ['pending', 'approved', 'rejected', 'cancelled', 'noshow', 'done'];
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await ensureRandevuInit();
