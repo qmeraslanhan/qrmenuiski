@@ -1,5 +1,10 @@
 import Link from 'next/link';
 import { PROJECTS } from '@/lib/projects';
+import { getSystemStatuses } from '@/lib/dashboard-systems';
+import DashboardAdmin from '@/components/DashboardAdmin';
+
+// Durum D1'den anlık okunur → statik cache yerine her istekte taze render
+export const dynamic = 'force-dynamic';
 
 const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   live: { text: 'Aktif',   cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
@@ -63,8 +68,11 @@ const RIPPLES = [
   { x: 73, delay: 3.5 },
 ];
 
-export default function Dashboard() {
+export default async function Dashboard() {
   const year = new Date().getFullYear();
+  const statuses = await getSystemStatuses();
+  const projects = PROJECTS.map((p) => ({ ...p, active: statuses[p.slug] !== false }));
+  const activeCount = projects.filter((p) => p.active).length;
 
   return (
     <main className="min-h-screen relative overflow-hidden">
@@ -145,20 +153,22 @@ export default function Dashboard() {
               Sistemler
             </h2>
             <span className="text-xs text-[var(--ink-mute)]">
-              {PROJECTS.length} aktif sistem
+              {activeCount} aktif sistem
             </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {PROJECTS.map((p, idx) => {
-              const status = STATUS_LABEL[p.status];
-              return (
-                <Link
-                  key={p.slug}
-                  href={p.href}
-                  className={`group lift relative rounded-2xl bg-[var(--surface)] border border-[var(--line)] p-6 anim-fade-up d-${5 + idx}`}
-                  style={{ animationDelay: `${400 + idx * 80}ms` }}
-                >
+            {projects.map((p, idx) => {
+              const passive = !p.active;
+              const status = passive
+                ? { text: 'Pasif', cls: 'bg-stone-100 text-stone-500 border-stone-300' }
+                : STATUS_LABEL[p.status];
+
+              const cardBase = `relative rounded-2xl bg-[var(--surface)] border border-[var(--line)] p-6 anim-fade-up d-${5 + idx}`;
+              const style = { animationDelay: `${400 + idx * 80}ms` };
+
+              const inner = (
+                <>
                   {/* Status badge */}
                   <span className={`absolute top-5 right-5 text-[10px] font-semibold tracking-wider px-2.5 py-1 rounded-full border ${status.cls}`}>
                     {status.text}
@@ -189,19 +199,36 @@ export default function Dashboard() {
                     ))}
                   </div>
 
-                  {/* CTA arrow */}
-                  <div className="flex items-center gap-2 mt-5 pt-5 border-t border-[var(--line)] text-sm font-medium text-[var(--accent)]">
-                    <span>Sisteme Git</span>
-                    <svg
-                      className="magnet-arrow w-4 h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                    </svg>
+                  {/* CTA */}
+                  <div className={`flex items-center gap-2 mt-5 pt-5 border-t border-[var(--line)] text-sm font-medium ${passive ? 'text-[var(--ink-mute)]' : 'text-[var(--accent)]'}`}>
+                    <span>{passive ? 'Şu an pasif' : 'Sisteme Git'}</span>
+                    {!passive && (
+                      <svg
+                        className="magnet-arrow w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                      </svg>
+                    )}
                   </div>
+                </>
+              );
+
+              return passive ? (
+                <div
+                  key={p.slug}
+                  className={`${cardBase} opacity-60 grayscale cursor-not-allowed select-none`}
+                  style={style}
+                  aria-disabled
+                >
+                  {inner}
+                </div>
+              ) : (
+                <Link key={p.slug} href={p.href} className={`group lift ${cardBase}`} style={style}>
+                  {inner}
                 </Link>
               );
             })}
@@ -229,6 +256,11 @@ export default function Dashboard() {
           </div>
         </footer>
       </div>
+
+      {/* Gizli yönetici paneli — sistemleri aktif/pasif yapar */}
+      <DashboardAdmin
+        systems={projects.map((p) => ({ slug: p.slug, title: p.title, active: p.active }))}
+      />
     </main>
   );
 }
