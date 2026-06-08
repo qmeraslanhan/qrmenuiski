@@ -302,7 +302,9 @@
         <div class="flex gap-1.5 w-full md:w-auto" style="flex-wrap:wrap;">${acts.join('')}</div>
       </div>`;
     }
+    const OP_VERB = { approved:'geri almak (bekliyor)', done:'“tamamlandı” işaretlemek', noshow:'“gelmedi” işaretlemek', cancelled:'iptal etmek' };
     async function opSet(id, status){
+      if(!confirm('Bu randevuyu '+(OP_VERB[status]||'güncellemek')+' istediğinize emin misiniz?')) return;
       const row=$('op-'+id); if(row) row.style.opacity='.5';
       try{
         const res=await fetch('/randevu/api/member/operator/appointments/'+id, { method:'PATCH', headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN}, body:JSON.stringify({ status }) });

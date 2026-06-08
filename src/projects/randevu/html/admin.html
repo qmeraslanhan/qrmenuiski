@@ -73,6 +73,7 @@
     <div class="flex items-center gap-6 border-b mb-6" style="border-color:var(--line);">
       <div id="tabAppts" class="tab active" onclick="switchTab('appts')">Randevular <span id="pendingPill" class="badge b-pending ml-1 hidden">0</span></div>
       <div id="tabSalons" class="tab" onclick="switchTab('salons')">Salonlar</div>
+      <div id="tabReports" class="tab" onclick="switchTab('reports')">Raporlar</div>
     </div>
 
     <!-- ───── Appointments ───── -->
@@ -111,6 +112,31 @@
       <div id="salonList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
       <div id="salonEmpty" class="hidden text-center py-16" style="color:var(--ink-mute);">Henüz salon eklenmemiş. “Yeni Salon” ile başlayın.</div>
       <div id="salonLoading" class="text-center py-16"><div class="spinner inline-block"></div></div>
+    </section>
+
+    <!-- ───── Raporlar ───── -->
+    <section id="viewReports" class="hidden">
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <h2 class="serif text-lg font-semibold">İşlem Takibi & Raporlar</h2>
+        <button class="btn btn-ghost btn-sm" id="repCsv" onclick="exportReport()">⤓ CSV indir</button>
+      </div>
+      <div class="card p-3 mb-4" style="background:var(--bg-soft);">
+        <div class="flex flex-wrap items-end gap-2">
+          <div><label class="lbl">Başlangıç</label><input type="date" id="repFrom" class="fld" style="width:auto; padding:8px 10px; font-size:13px;"></div>
+          <div><label class="lbl">Bitiş</label><input type="date" id="repTo" class="fld" style="width:auto; padding:8px 10px; font-size:13px;"></div>
+          <div><label class="lbl">Salon</label><select id="repSalon" class="fld" style="width:auto; padding:8px 10px; font-size:13px;"><option value="">Tüm salonlar</option></select></div>
+          <button class="btn btn-primary btn-sm" onclick="loadReports()">Rapor Getir</button>
+          <div class="flex gap-1.5 ml-auto">
+            <button class="btn btn-ghost btn-sm" onclick="repPreset(7)">Son 7 gün</button>
+            <button class="btn btn-ghost btn-sm" onclick="repPreset(30)">Son 30 gün</button>
+            <button class="btn btn-ghost btn-sm" onclick="repPreset('month')">Bu ay</button>
+          </div>
+        </div>
+      </div>
+      <div id="repStats" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2.5 mb-4"></div>
+      <div id="repBySalon" class="space-y-2 mb-4"></div>
+      <div id="repLoading" class="hidden text-center py-16"><div class="spinner inline-block"></div></div>
+      <div id="repEmpty" class="hidden text-center py-16" style="color:var(--ink-mute);">Seçilen aralıkta randevu yok.</div>
     </section>
   </div>
 
@@ -159,10 +185,13 @@
     function switchTab(t){
       $('tabAppts').classList.toggle('active', t==='appts');
       $('tabSalons').classList.toggle('active', t==='salons');
+      $('tabReports').classList.toggle('active', t==='reports');
       $('viewAppts').classList.toggle('hidden', t!=='appts');
       $('viewSalons').classList.toggle('hidden', t!=='salons');
+      $('viewReports').classList.toggle('hidden', t!=='reports');
       if(t==='salons') renderSalons();
       if(t==='appts') loadAppts();
+      if(t==='reports') initReports();
     }
 
     // ── Appointments ──
@@ -287,7 +316,9 @@
       </div>`;
     }
 
+    const DECIDE_VERB = { approved:'onaylamak', rejected:'reddetmek', cancelled:'iptal etmek', noshow:'“gelmedi” olarak işaretlemek', done:'“tamamlandı” olarak işaretlemek' };
     async function decide(id, status){
+      if(!confirm('Bu randevuyu '+(DECIDE_VERB[status]||'güncellemek')+' istediğinize emin misiniz?')) return;
       let decided_note = null;
       if(status === 'rejected'){ decided_note = prompt('Ret nedeni (opsiyonel):') || null; }
       try{
@@ -416,6 +447,7 @@
       };
       if(!body.name){ showErr('salonErr','Salon adı zorunlu'); return; }
       if(!days.length){ showErr('salonErr','En az bir çalışma günü seçin'); return; }
+      if(!confirm(id ? 'Salon bilgileri güncellensin mi?' : 'Yeni salon eklensin mi?')) return;
       const btn = $('salonSave'); btn.disabled=true; btn.textContent='Kaydediliyor…';
       try{
         const res = await api(id ? '/randevu/api/admin/salons/'+id : '/randevu/api/admin/salons', { method: id?'PATCH':'POST', body: JSON.stringify(body) });
@@ -491,10 +523,12 @@
     async function addService(salonId){
       const name = $('svcName').value.trim();
       if(!name){ toast('Hizmet adı girin'); return; }
+      if(!confirm('“'+name+'” hizmeti eklensin mi?')) return;
       const res = await api('/randevu/api/admin/salons/'+salonId+'/services', { method:'POST', body: JSON.stringify({ name, duration_min:Number($('svcDur').value)||30, price:Number($('svcPrice').value)||0 }) });
       if(res.ok){ $('svcName').value=''; $('svcPrice').value='0'; loadServices(salonId); toast('Hizmet eklendi'); }
     }
     async function toggleService(id, active){
+      if(!confirm(active ? 'Hizmet aktifleştirilsin mi?' : 'Hizmet pasife alınsın mı?')) return;
       const res = await api('/randevu/api/admin/services/'+id, { method:'PATCH', body: JSON.stringify({ is_active: active }) });
       if(res.ok){ const sid = currentServiceSalon(); if(sid) loadServices(sid); }
     }
@@ -542,10 +576,12 @@
     async function addStaff(salonId){
       const name = $('stName').value.trim();
       if(!name){ toast('Usta adı girin'); return; }
+      if(!confirm('“'+name+'” ustası eklensin mi?')) return;
       const res = await api('/randevu/api/admin/salons/'+salonId+'/staff', { method:'POST', body: JSON.stringify({ name, photo_url: $('stPhoto').value.trim() }) });
       if(res.ok){ $('stName').value=''; $('stPhoto').value=''; loadStaff(salonId); toast('Usta eklendi'); }
     }
     async function toggleStaff(id, active, salonId){
+      if(!confirm(active ? 'Usta aktifleştirilsin mi?' : 'Usta pasife alınsın mı?')) return;
       const res = await api('/randevu/api/admin/staff/'+id, { method:'PATCH', body: JSON.stringify({ is_active: active }) });
       if(res.ok) loadStaff(salonId);
     }
@@ -586,12 +622,14 @@
     async function addClosure(salonId){
       const date = $('closDate').value;
       if(!date){ toast('Tarih seçin'); return; }
+      if(!confirm(date+' tarihi kapalı gün olarak eklensin mi? O gün randevu alınamaz.')) return;
       const res = await api('/randevu/api/admin/salons/'+salonId+'/closures', { method:'POST', body: JSON.stringify({ date, reason:$('closReason').value.trim() }) });
       const d = await res.json();
       if(!res.ok){ toast(d.error||'Eklenemedi'); return; }
       $('closDate').value=''; $('closReason').value=''; loadClosures(salonId); toast('Kapalı gün eklendi');
     }
     async function delClosure(id, salonId){
+      if(!confirm('Bu kapalı gün kaldırılsın mı?')) return;
       const res = await api('/randevu/api/admin/closures/'+id, { method:'DELETE' });
       if(res.ok){ loadClosures(salonId); toast('Silindi'); }
     }
@@ -631,6 +669,7 @@
       const email = $('opEmail').value.trim();
       const err = $('opErr'); err.classList.add('hidden');
       if(!email){ err.textContent='E-posta girin'; err.classList.remove('hidden'); return; }
+      if(!confirm('“'+email+'” bu salona kullanıcı olarak atansın mı?')) return;
       const res = await api('/randevu/api/admin/salons/'+salonId+'/operators', { method:'POST', body: JSON.stringify({ email }) });
       const d = await res.json();
       if(!res.ok){ err.textContent = d.error||'Atanamadı'; err.classList.remove('hidden'); return; }
@@ -640,6 +679,66 @@
       if(!confirm('Bu kullanıcının salon yetkisi kaldırılsın mı?')) return;
       const res = await api('/randevu/api/admin/operators/'+id, { method:'DELETE' });
       if(res.ok){ loadOperators(salonId); toast('Kaldırıldı'); }
+    }
+
+    // ── Raporlar ──
+    let repInited = false; let REP = null;
+    const REP_ST = [['done','Tamamlanan','var(--green)'],['approved','Onaylı','var(--accent)'],['noshow','Gelmedi','var(--red)'],['cancelled','İptal','#777'],['pending','Beklemede','var(--amber)'],['rejected','Reddedilen','var(--red)']];
+    function istToday(){ return new Date(Date.now()+3*3600*1000).toISOString().slice(0,10); }
+    function istShift(days){ return new Date(Date.now()+3*3600*1000 - days*86400*1000).toISOString().slice(0,10); }
+    function initReports(){
+      if(repInited){ return; }
+      repInited = true;
+      $('repSalon').innerHTML = '<option value="">Tüm salonlar</option>' + SALONS.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+      $('repTo').value = istToday(); $('repFrom').value = istShift(29);
+      loadReports();
+    }
+    function repPreset(p){
+      $('repTo').value = istToday();
+      if(p==='month'){ const d=new Date(Date.now()+3*3600*1000); $('repFrom').value = d.toISOString().slice(0,7)+'-01'; }
+      else { $('repFrom').value = istShift(p-1); }
+      loadReports();
+    }
+    async function loadReports(){
+      $('repLoading').classList.remove('hidden'); $('repEmpty').classList.add('hidden');
+      $('repStats').innerHTML=''; $('repBySalon').innerHTML='';
+      const qs = new URLSearchParams({ from:$('repFrom').value, to:$('repTo').value });
+      if($('repSalon').value) qs.set('salon_id', $('repSalon').value);
+      try{
+        const res = await api('/randevu/api/admin/reports?'+qs.toString());
+        REP = await res.json();
+        $('repLoading').classList.add('hidden');
+        const t = REP.totals||{};
+        const card=(n,l,c)=>`<div class="card p-3 text-center"><div class="text-2xl font-bold" style="color:${c};">${n||0}</div><div class="text-xs mt-0.5" style="color:var(--ink-mute);">${l}</div></div>`;
+        $('repStats').innerHTML = card(t.total,'Toplam','var(--ink)') + REP_ST.map(([k,l,c])=>card(t[k],l,c)).join('');
+        if(!t.total){ $('repEmpty').classList.remove('hidden'); return; }
+        $('repBySalon').innerHTML = (REP.bySalon||[]).map(s=>{
+          const seg=(n,l,c)=> Number(n)>0 ? `<span class="badge" style="background:${c}1a; color:${c};">${l}: ${n}</span>` : '';
+          return `<div class="card p-3">
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+              <span class="font-semibold text-sm">${esc(s.name)}</span>
+              <span class="text-xs font-bold" style="color:var(--ink);">${s.total} randevu</span>
+            </div>
+            <div class="flex flex-wrap gap-1.5 mt-2">
+              ${seg(s.done,'Tamamlanan','#0F7B4F')}${seg(s.approved,'Onaylı','#1E5DA8')}${seg(s.noshow,'Gelmedi','#B91C1C')}${seg(s.cancelled,'İptal','#777777')}${seg(s.pending,'Beklemede','#9A6B00')}${seg(s.rejected,'Reddedilen','#B91C1C')}
+            </div>
+          </div>`;
+        }).join('');
+      }catch(e){ $('repLoading').classList.add('hidden'); if(e.message!=='unauth') toast('Rapor yüklenemedi'); }
+    }
+    function exportReport(){
+      if(!REP || !REP.rows || !REP.rows.length){ toast('Önce rapor getirin'); return; }
+      const ST = { pending:'Beklemede', approved:'Onaylı', rejected:'Reddedildi', cancelled:'İptal', noshow:'Gelmedi', done:'Tamamlandı' };
+      const head = ['Tarih','Saat','Salon','Müşteri','Telefon','E-posta','Hizmet','Süre (dk)','Durum','Kod'];
+      const q = v => '"'+String(v??'').replace(/"/g,'""')+'"';
+      const lines = [head.map(q).join(',')];
+      for(const r of REP.rows){
+        lines.push([r.date, r.time, r.salon, r.customer_name, r.phone, r.email, r.service_name, r.duration_min, ST[r.status]||r.status, r.code].map(q).join(','));
+      }
+      const blob = new Blob(['﻿'+lines.join('\r\n')], { type:'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob); const a = document.createElement('a');
+      a.href = url; a.download = `randevu-rapor_${REP.range.from}_${REP.range.to}.csv`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     }
   </script>
 </body>

@@ -46,6 +46,14 @@
       border: 3px solid var(--bg); box-shadow: 0 6px 14px rgba(0,0,0,0.4), inset 0 -2px 3px rgba(0,0,0,0.3), inset 0 2px 3px rgba(255,255,255,0.3);
       display: flex; align-items: center; justify-content: center; font-family: 'Cinzel', serif; font-size: 22px; font-weight: 600;
       color: var(--bg-deep); text-shadow: 0 1px 1px rgba(255,255,255,0.3); }
+    /* Salon kapak görseli — monogram alt kenarda avatar gibi durur */
+    .card-photo { position: relative; margin: -30px -18px 30px; height: 132px; }
+    .card-photo img { width: 100%; height: 100%; object-fit: cover; display: block;
+      border-radius: 11px 11px 0 0; border-bottom: 1.5px solid var(--gold);
+      box-shadow: inset 0 -40px 50px -30px rgba(11,30,63,0.55); }
+    .card-photo::after { content: ''; position: absolute; inset: 0; border-radius: 11px 11px 0 0;
+      background: linear-gradient(to bottom, rgba(11,30,63,0) 55%, rgba(11,30,63,0.35)); pointer-events: none; }
+    .monogram-photo { top: auto; bottom: -22px; z-index: 2; }
     .type-badge { display:inline-block; align-self:center; font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
       color: var(--gold-dark); border:1px solid var(--gold); border-radius:999px; padding:3px 12px; margin-bottom:10px; background: rgba(201,169,97,0.08); }
     .card-name { font-size: 17px; font-weight: 700; color: var(--ink); text-align: center; margin-bottom: 6px; line-height: 1.25; min-height: 42px;
@@ -164,9 +172,12 @@
       const desc = s.description ? `<p class="card-desc">${esc(s.description)}</p>` : `<p class="card-desc"></p>`;
       const addr = s.address ? `<div class="card-meta-row"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z"/><circle cx="12" cy="11" r="3"/></svg><span>${esc(s.address)}</span></div>` : '';
       const hours = (s.open_time && s.close_time) ? `<div class="card-meta-row"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 2"/></svg><span>${esc(s.open_time)} – ${esc(s.close_time)}</span></div>` : '';
+      const head = s.image_url
+        ? `<div class="card-photo"><img src="${esc(s.image_url)}" alt="${esc(s.name)}" loading="lazy"><div class="monogram monogram-photo">${ini}</div></div>`
+        : `<div class="monogram">${ini}</div>`;
       return `
         <a href="/randevu/salon/${encodeURIComponent(s.slug)}" class="tesis-card anim-fade-up" style="animation-delay:${400 + idx*90}ms;">
-          <div class="monogram">${ini}</div>
+          ${head}
           ${s.type && s.type !== 'diger' ? `<span class="type-badge">${esc(TYPE[s.type] || '')}</span>` : ''}
           <h3 class="card-name">${esc(s.name)}</h3>
           ${desc}
