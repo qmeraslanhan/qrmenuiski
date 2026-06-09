@@ -12,3 +12,9 @@ binding = "ASSETS"
 binding = "DB"
 database_name = "qrmenu-db"
 database_id = "22f66b28-06bd-49a2-9c74-43f52eec085f"
+
+# Özel yedek bucket'ı — PUBLIC DEĞİL (cdn'e bağlı değil). DB döküm dosyaları
+# burada tutulur; üye PII'si herkese açık olmasın diye qrmenu-hosting'den AYRI.
+[[r2_buckets]]
+binding = "BACKUP_BUCKET"
+bucket_name = "qrmenu-backups"
