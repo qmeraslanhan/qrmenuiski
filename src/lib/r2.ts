@@ -28,13 +28,16 @@ function getConfig() {
   return { accountId, bucket, publicBase: publicBase.replace(/\/+$/, '') };
 }
 
+// Güvenlik: SVG kasıtlı olarak YOK (içine JS gömülüp CDN'den XSS çalıştırılabilir).
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5 MB
+const OK_EXT: Record<string, string> = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+  gif: 'image/gif', webp: 'image/webp', avif: 'image/avif',
+};
+
 function extToContentType(name: string): string {
   const ext = name.toLowerCase().split('.').pop() || '';
-  return {
-    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
-    gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml',
-    avif: 'image/avif',
-  }[ext] || 'application/octet-stream';
+  return OK_EXT[ext] || 'application/octet-stream';
 }
 
 export async function uploadImage(
@@ -44,6 +47,17 @@ export async function uploadImage(
 ): Promise<string> {
   const { accountId, bucket, publicBase } = getConfig();
   const safe = filename.replace(/[^a-zA-Z0-9._-]/g, '-');
+
+  // Merkezi doğrulama — tüm çağıranlar (qr-menu + randevu) için geçerli.
+  const ext = safe.toLowerCase().split('.').pop() || '';
+  if (!(ext in OK_EXT)) {
+    throw new Error('İzin verilmeyen dosya türü (yalnızca jpg, png, webp, gif, avif)');
+  }
+  const byteLength = data instanceof Uint8Array ? data.byteLength : (data as ArrayBuffer).byteLength;
+  if (byteLength > MAX_UPLOAD_BYTES) {
+    throw new Error('Dosya 5 MB sınırını aşıyor');
+  }
+
   const key = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safe}`;
   const url = `https://${accountId}.r2.cloudflarestorage.com/${bucket}/${key}`;
 

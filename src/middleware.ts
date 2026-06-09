@@ -12,6 +12,23 @@ import { getCloudflareContext } from '@opennextjs/cloudflare';
 // erişimi keser, admin panel/login/admin-API'lerini değil.
 const ADMIN_PREFIXES = ['/admin', '/login', '/api/admin'];
 
+// Pasif slug'ları isolate içinde kısa süre cache'le — sıcak yolda (QR ile menü
+// açan her istek) D1 okumasını çoğaltmamak için. Toggle sonrası blok ~5sn'de
+// etkir; dashboard kart görünümü ise force-dynamic ile anında güncellenir.
+let _passiveCache: { at: number; slugs: Set<string> } | null = null;
+const PASSIVE_TTL_MS = 5_000;
+
+async function getPassiveSlugs(): Promise<Set<string>> {
+  if (_passiveCache && Date.now() - _passiveCache.at < PASSIVE_TTL_MS) return _passiveCache.slugs;
+  const { env } = await getCloudflareContext({ async: true });
+  const d1 = (env as any).DB;
+  if (!d1) return new Set();
+  const r = await d1.prepare('SELECT slug FROM dashboard_systems WHERE is_active = 0').all();
+  const slugs = new Set<string>((r.results ?? []).map((x: any) => String(x.slug)));
+  _passiveCache = { at: Date.now(), slugs };
+  return slugs;
+}
+
 export async function middleware(req: NextRequest) {
   const parts = req.nextUrl.pathname.split('/');
   const slug = parts[1];
@@ -24,16 +41,8 @@ export async function middleware(req: NextRequest) {
   }
 
   try {
-    const { env } = await getCloudflareContext({ async: true });
-    const d1 = (env as any).DB;
-    if (!d1) return NextResponse.next();
-
-    const row = await d1
-      .prepare('SELECT is_active FROM dashboard_systems WHERE slug = ?')
-      .bind(slug)
-      .first();
-
-    if (row && Number(row.is_active) === 0) {
+    const passive = await getPassiveSlugs();
+    if (passive.has(slug)) {
       return new NextResponse(maintenancePage(), {
         status: 503,
         headers: {

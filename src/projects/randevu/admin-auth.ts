@@ -9,7 +9,6 @@ import bcrypt from 'bcryptjs';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/d1';
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const TTL_DAYS = 7;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -53,7 +52,9 @@ export async function loginAdminUser(
     // yine de ADMIN_PASSWORD ile süper yönetici girişine izin ver (kilitlenmeyi önler).
   }
 
-  if (pw && pw === ADMIN_PASSWORD) {
+  // Süper yönetici: fail-closed — secret tanımsızsa devre dışı ('admin123' fallback'i kaldırıldı).
+  const superPw = process.env.ADMIN_PASSWORD;
+  if (superPw && pw && pw === superPw) {
     const ctx: AdminCtx = { id: null, name: 'Süper Yönetici', email: email || null, role: 'admin' };
     return { token: await createSession(ctx), ctx };
   }
@@ -115,7 +116,7 @@ export async function createAdminUser(
   const role = normRole(roleIn);
   if (!name) return { error: 'Ad soyad gerekli' };
   if (!EMAIL_RE.test(email)) return { error: 'Geçerli bir e-posta gerekli' };
-  if (!password || password.length < 6) return { error: 'Şifre en az 6 karakter olmalı' };
+  if (!password || password.length < 8) return { error: 'Şifre en az 8 karakter olmalı' };
   try {
     const ins = await db.execute({
       sql: 'INSERT INTO randevu_admin_users (name, email, password, role) VALUES (?, ?, ?, ?)',
@@ -136,7 +137,7 @@ export async function updateAdminUser(
   if (fields.role !== undefined) { sets.push('role = ?'); args.push(normRole(fields.role)); }
   if (fields.is_active !== undefined) { sets.push('is_active = ?'); args.push(fields.is_active ? 1 : 0); }
   if (fields.password !== undefined && String(fields.password) !== '') {
-    if (String(fields.password).length < 6) return { error: 'Şifre en az 6 karakter olmalı' };
+    if (String(fields.password).length < 8) return { error: 'Şifre en az 8 karakter olmalı' };
     sets.push('password = ?'); args.push(bcrypt.hashSync(String(fields.password), 10));
   }
   if (!sets.length) return { error: 'Güncellenecek alan yok' };

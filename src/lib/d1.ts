@@ -30,7 +30,13 @@ async function exec(input: ExecInput): Promise<ExecResult> {
   const args = typeof input === 'string' ? [] : (input.args ?? []);
   const stmt = args.length ? d1.prepare(sql).bind(...args) : d1.prepare(sql);
 
-  const isRead = /^\s*(select|with|pragma)/i.test(sql);
+  // WITH ile başlayan CTE'ler yazma da yapabilir (WITH ... DELETE/UPDATE/INSERT);
+  // bu durumda .run() gerekir. Sadece yazma anahtar kelimesi içermeyen WITH'i okuma say.
+  const head = sql.trimStart().toLowerCase();
+  const isRead =
+    head.startsWith('select') ||
+    head.startsWith('pragma') ||
+    (head.startsWith('with') && !/\b(insert|update|delete)\b/i.test(sql));
   if (isRead) {
     const r = await stmt.all();
     return { rows: r.results ?? [], rowsAffected: 0, lastInsertRowid: 0 };

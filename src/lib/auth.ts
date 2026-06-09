@@ -3,7 +3,6 @@ import bcrypt from 'bcryptjs';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from './db';
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const SESSION_TTL_DAYS = 7;
 
 function expiresAt() {
@@ -13,7 +12,10 @@ function expiresAt() {
 }
 
 export async function loginAdmin(password: string) {
-  if (password !== ADMIN_PASSWORD) return null;
+  // Fail-closed: secret tanımsızsa hiçbir şifre kabul edilmez (eski 'admin123' fallback'i kaldırıldı).
+  const secret = process.env.ADMIN_PASSWORD;
+  if (!secret) { console.error('ADMIN_PASSWORD secret tanımlı değil — admin girişi devre dışı'); return null; }
+  if (password !== secret) return null;
   const token = crypto.randomBytes(32).toString('hex');
   await db.execute({
     sql: 'INSERT INTO sessions (token, role, expires_at) VALUES (?, ?, ?)',

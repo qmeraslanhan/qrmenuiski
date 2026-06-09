@@ -1,6 +1,6 @@
 # İSKİ Kültür ve Sosyal İşler Şube Müdürlüğü — Dijital Portal
 
-Çoklu-proje portalı. `omeraslanhan.com` üzerinde Cloudflare Workers'da çalışır.
+Çoklu-proje portalı. `iskisosyaltesisler.com` üzerinde Cloudflare Workers'da çalışır.
 Şu an aktif: **QR Menü Sistemi**. Gelecekte yeni alt projeler buraya eklenir.
 
 ---
@@ -99,12 +99,15 @@ npm run deploy "mesaj"
 # Sadece build:
 npm run cf:build
 
-# Sadece deploy (build dahil, git'e dokunmaz):
-npm run cf:deploy
+# Build + deploy (git'e dokunmaz):
+npm run cf:deploy        # ARTIK build + deploy yapar (önce `opennextjs-cloudflare build`)
+npm run cf:deploy-only   # build YOK, sadece mevcut .open-next'i yükler (nadiren)
 ```
 
-**Önemli**: Cloudflare'a auto-deploy YOK. `git push` alone canlıyı güncellemez.
-Canlıya çıkmak için açık `cf:deploy` çağrısı şart (yukarıdaki `deploy.ps1` ikisini birden yapar).
+**Önemli**:
+- Cloudflare'a auto-deploy YOK. `git push` alone canlıyı güncellemez.
+- `deploy.ps1` doğru yol: `.next`+`.open-next` temizler → build → deploy. Statik prerender (dashboard `/`) bayat kalmasın diye temizlik şart.
+- ⚠️ `cf:deploy-only` build YAPMAZ — yanlışlıkla çağrılırsa eski kod canlıya gider. Normalde `deploy.ps1` veya `cf:deploy` kullan.
 
 ## DB sorguları (üretim D1)
 
@@ -152,12 +155,13 @@ Dashboard otomatik olarak yeni projeyi listeler.
 
 ## Canlı URL'ler
 
-- **Portal**: https://omeraslanhan.com
-- **QR menü**: https://omeraslanhan.com/qr-menu
-- **Yönetim**: https://omeraslanhan.com/qr-menu/admin
-- **CDN**: https://cdn.omeraslanhan.com (R2 görselleri)
+- **Portal**: https://iskisosyaltesisler.com
+- **QR menü**: https://iskisosyaltesisler.com/qr-menu
+- **Yönetim**: https://iskisosyaltesisler.com/qr-menu/admin
+- **CDN**: https://cdn.iskisosyaltesisler.com (R2 görselleri)
 - **Repo**: https://github.com/qmeraslanhan/qrmenuiski
 - **Test (workers.dev fallback)**: https://qrmenu.qmeraslanhan.workers.dev
+- _Not: omeraslanhan.com + cdn.omeraslanhan.com 2026-06-08'de tamamen kaldırıldı._
 
 ## Cloudflare paneller
 

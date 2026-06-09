@@ -4,7 +4,7 @@ import { guard } from '@/projects/randevu/admin-auth';
 import { uploadImage } from '@/lib/r2';
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
-const OK_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/svg+xml'];
+const OK_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']; // SVG yok (XSS)
 
 // Admin görsel yükleme → R2 (randevu/ klasörü), public CDN URL döner.
 export async function POST(req: NextRequest) {
@@ -25,8 +25,9 @@ export async function POST(req: NextRequest) {
   if (file.size > MAX_BYTES) {
     return NextResponse.json({ error: 'Dosya 5 MB sınırını aşıyor' }, { status: 400 });
   }
-  if (file.type && !OK_TYPES.includes(file.type)) {
-    return NextResponse.json({ error: 'Yalnızca görsel dosyaları yüklenebilir' }, { status: 400 });
+  // Boş/bilinmeyen tip de reddedilir (önceki `file.type && ...` bypass'ı kapatıldı).
+  if (!OK_TYPES.includes(file.type)) {
+    return NextResponse.json({ error: 'Yalnızca görsel dosyaları yüklenebilir (jpg, png, webp, gif, avif)' }, { status: 400 });
   }
 
   try {

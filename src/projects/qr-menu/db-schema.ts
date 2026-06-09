@@ -67,6 +67,11 @@ export async function ensureInit(): Promise<void> {
       attempted_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
     `CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip, attempted_at)`,
+    // FK / sık sorgu kolonları — join'lerde tam tarama yerine index
+    `CREATE INDEX IF NOT EXISTS idx_categories_facility ON categories(facility_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_session_facilities_token ON session_facilities(token)`,
+    `CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)`,
   ]);
   initialized = true;
 }

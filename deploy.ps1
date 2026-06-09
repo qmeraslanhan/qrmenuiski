@@ -37,21 +37,12 @@ Write-Step "Build cache temizleniyor (.next, .open-next)"
 if (Test-Path .next)      { Remove-Item -Recurse -Force .next }
 if (Test-Path .open-next) { Remove-Item -Recurse -Force .open-next }
 
-# 3) Cloudflare build (cf:deploy bu surumde build YAPMAZ; once cf:build sart)
-Write-Step "Cloudflare: build (.open-next uretiliyor)"
-npm run cf:build
-if ($LASTEXITCODE -ne 0) {
-  Write-Host ""
-  Write-Host "X Build basarisiz" -ForegroundColor Red
-  exit 1
-}
-
-# 4) Cloudflare deploy
-Write-Step "Cloudflare: deploy"
+# 3) Cloudflare build + deploy (cf:deploy artik once build yapar)
+Write-Step "Cloudflare: build + deploy"
 npm run cf:deploy
 if ($LASTEXITCODE -ne 0) {
   Write-Host ""
-  Write-Host "X Deploy basarisiz" -ForegroundColor Red
+  Write-Host "X Build/Deploy basarisiz" -ForegroundColor Red
   exit 1
 }
 
