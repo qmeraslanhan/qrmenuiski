@@ -22,11 +22,13 @@ export type ProjectMeta = {
 // Kayıtlı projeler — her birinin `src/projects/<slug>/meta.ts` dosyası var.
 import qrMenuMeta from '@/projects/qr-menu/meta';
 import randevuMeta from '@/projects/randevu/meta';
+import siparisTakipMeta from '@/projects/siparis-takip/meta';
 // Yeni proje: import yeniProjeMeta from '@/projects/yeni-proje/meta';
 
 export const PROJECTS: ProjectMeta[] = [
   qrMenuMeta,
   randevuMeta,
+  siparisTakipMeta,
   // yeniProjeMeta,
 ];
 

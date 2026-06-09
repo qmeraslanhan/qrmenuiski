@@ -30,6 +30,16 @@ function ProjectIcon({ id }: { id: string }) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 14.25l1.75 1.75L15 12.5" />
         </svg>
       );
+    case 'siparis':
+      // Pano + saat: sipariş listesi ve zamanında hazır olma takibi
+      return (
+        <svg className={common} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-4.5" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5a2 2 0 012-2h2a2 2 0 012 2 1 1 0 01-1 1h-4a1 1 0 01-1-1z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M17.5 3.5a4 4 0 11-2.83 6.83A4 4 0 0117.5 3.5zm0 1.7V7l1.3.8" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 13.5h4M8.5 17h6" />
+        </svg>
+      );
     default:
       return (
         <svg className={common} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>

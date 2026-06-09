@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0B3D7A" />
+  <title>İkram & Sipariş Takip</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    // Tema tercihini (flash önlemek için) body'den önce uygula
+    try { document.documentElement.setAttribute('data-theme', localStorage.getItem('stk-theme') || 'light'); } catch (e) {}
+  </script>
+  <style>
+/* =========================================================================
+   İkram & Sipariş Takip — Kurumsal Operasyon Konsolu
+   IBM Plex Sans / Mono · Lacivert · Açık + Koyu tema (style.css birebir)
+   ========================================================================= */
+:root {
+  --brand: #0B3D7A; --brand-2: #1357C0; --brand-soft: #E8F0FB; --accent: #1357C0;
+  --bg: #EEF1F6; --surface: #FFFFFF; --surface-2: #F7F9FC; --surface-3: #F0F4F9;
+  --ink: #0E1B2E; --ink-2: #4C5C70; --ink-3: #8A99AC; --line: #E1E7EF; --line-2: #EDF1F6;
+  --ring-track: #E6ECF3;
+  --shadow: 0 1px 2px rgba(13,27,46,.05), 0 6px 20px rgba(13,27,46,.06);
+  --shadow-lg: 0 8px 30px rgba(13,27,46,.12);
+  --green: #16A34A; --green-bg: #E8F6EE; --green-ink: #11793A;
+  --amber: #D97706; --amber-bg: #FBF1E0; --amber-ink: #A65907;
+  --red: #DC2626;   --red-bg: #FBE9E9;   --red-ink: #B81C1C;
+  --blue: #1357C0;  --blue-bg: #E6EFFB;  --blue-ink: #0E459C;
+  --teal: #0E7490;  --teal-bg: #E1F1F4;  --teal-ink: #0B5A70;
+  --slate: #64748B; --slate-bg: #EEF1F6; --slate-ink: #475569;
+  --done: #0E7490;  --done-bg: #E4EEF0;  --done-ink: #0B5468;
+  --r: 14px; --r-sm: 10px; --r-lg: 20px;
+  --sans: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+[data-theme="dark"] {
+  --brand: #2D6FE0; --brand-2: #3B82F6; --brand-soft: #15294A; --accent: #4F8DF5;
+  --bg: #060E1A; --surface: #0E1B2E; --surface-2: #13243A; --surface-3: #182E47;
+  --ink: #E9EFF7; --ink-2: #97A8C0; --ink-3: #5E718B; --line: #1D3047; --line-2: #172940;
+  --ring-track: #1E344E;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,.5);
+  --green-bg: #10301F; --green-ink: #4ADE80; --amber-bg: #33260F; --amber-ink: #FBBF55;
+  --red-bg: #3A1718;   --red-ink: #F87171;  --blue-bg: #15294A;  --blue-ink: #6FA6F5;
+  --teal-bg: #0E2E36;  --teal-ink: #4BD0E0; --slate-bg: #1A2A40; --slate-ink: #9DB0C8;
+  --done-bg: #11303A;  --done-ink: #54C6DA;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { font-family: var(--sans); background: var(--bg); color: var(--ink); -webkit-font-smoothing: antialiased; font-size: 15px; line-height: 1.45; }
+#root { height: 100%; }
+.mono { font-family: var(--mono); font-feature-settings: "tnum" 1; }
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, select, textarea { font-family: inherit; font-size: 15px; color: var(--ink); }
+::selection { background: color-mix(in srgb, var(--brand) 25%, transparent); }
+
+/* APP SHELL */
+.app { display: grid; grid-template-columns: 248px 1fr; height: 100%; }
+.content { grid-column: 2; overflow-y: auto; height: 100vh; padding: 30px 36px 64px; }
+.sidebar { grid-column: 1; background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 20px 14px; position: sticky; top: 0; height: 100vh; }
+.sb-brand { display: flex; align-items: center; gap: 11px; padding: 6px 8px 20px; }
+.brand-logo { width: 38px; height: 38px; border-radius: 11px; background: linear-gradient(150deg, var(--brand-2), var(--brand)); color: #fff; display: grid; place-items: center; box-shadow: 0 4px 12px color-mix(in srgb, var(--brand) 40%, transparent); flex: none; }
+.brand-logo.sm { width: 32px; height: 32px; border-radius: 9px; }
+.sb-name { font-weight: 600; font-size: 15px; letter-spacing: -.2px; }
+.sb-sub { font-size: 11.5px; color: var(--ink-3); letter-spacing: .2px; }
+.sb-nav { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
+.sb-link { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--r-sm); color: var(--ink-2); font-size: 14.5px; font-weight: 500; text-align: left; position: relative; transition: .14s; width: 100%; }
+.sb-link:hover { background: var(--surface-3); color: var(--ink); }
+.sb-link.is-on { background: var(--brand-soft); color: var(--brand-2); font-weight: 600; }
+.sb-link.is-on svg { color: var(--brand-2); }
+.sb-badge { margin-left: auto; background: var(--red); color: #fff; font-size: 11px; font-weight: 700; min-width: 19px; height: 19px; border-radius: 10px; display: grid; place-items: center; padding: 0 5px; }
+.sb-foot { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
+.theme-btn, .logout-btn { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; color: var(--ink-2); border: 1px solid var(--line); flex: none; transition: .14s; }
+.theme-btn:hover, .logout-btn:hover { background: var(--surface-3); color: var(--ink); }
+.sb-user { display: flex; align-items: center; gap: 9px; min-width: 0; flex: 1; }
+.sb-user-txt { min-width: 0; }
+.sb-user-ad { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-user-rol { font-size: 11.5px; color: var(--ink-3); }
+.avatar { border-radius: 50%; background: linear-gradient(150deg, var(--brand-2), var(--brand)); color: #fff; display: grid; place-items: center; font-weight: 600; flex: none; }
+.topbar, .tabbar { display: none; }
+
+/* HEADERS */
+.screen { max-width: 1080px; margin: 0 auto; }
+.screen-narrow { max-width: 860px; }
+.scr-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+.scr-kicker { font-size: 12px; font-weight: 600; letter-spacing: .8px; text-transform: uppercase; color: var(--brand-2); margin-bottom: 4px; }
+.scr-title { font-size: 27px; font-weight: 600; letter-spacing: -.6px; }
+.scr-sub { color: var(--ink-2); font-size: 14px; margin-top: 5px; }
+
+/* CARDS */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); }
+.stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+.stat { padding: 16px 18px; display: flex; flex-direction: column; gap: 2px; position: relative; overflow: hidden; }
+.stat-ico { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; margin-bottom: 8px; color: var(--slate-ink); background: var(--slate-bg); }
+.stat-blue .stat-ico { color: var(--blue-ink); background: var(--blue-bg); }
+.stat-red .stat-ico { color: var(--red-ink); background: var(--red-bg); }
+.stat-teal .stat-ico { color: var(--teal-ink); background: var(--teal-bg); }
+.stat-val { font-size: 28px; font-weight: 600; letter-spacing: -1px; line-height: 1; }
+.stat-lbl { font-size: 13px; color: var(--ink-2); margin-top: 4px; }
+.stat-sub { font-size: 11.5px; color: var(--ink-3); }
+
+/* TOOLBAR */
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 99px; font-size: 13.5px; font-weight: 500; color: var(--ink-2); background: var(--surface); border: 1px solid var(--line); transition: .14s; }
+.chip:hover { border-color: var(--brand-2); color: var(--ink); }
+.chip.is-on { background: var(--brand); color: #fff; border-color: var(--brand); }
+.chip-n { font-size: 11.5px; font-weight: 700; background: color-mix(in srgb, currentColor 16%, transparent); padding: 1px 7px; border-radius: 10px; }
+.chip.is-on .chip-n { background: rgba(255,255,255,.22); }
+.search { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 99px; padding: 8px 15px; color: var(--ink-3); min-width: 230px; }
+.search input { border: none; outline: none; background: none; width: 100%; }
+.search input::placeholder { color: var(--ink-3); }
+
+/* ORDER CARD */
+.ocard-list { display: flex; flex-direction: column; gap: 12px; }
+.ocard { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; padding-left: 6px; transition: .16s; cursor: pointer; }
+.ocard:hover { box-shadow: var(--shadow-lg); transform: translateY(-1px); border-color: color-mix(in srgb, var(--brand) 30%, var(--line)); }
+.ocard-spine { position: absolute; left: 0; top: 0; bottom: 0; width: 5px; }
+.ocard.is-alarm { border-color: color-mix(in srgb, var(--red) 45%, var(--line)); }
+.ocard.is-alarm::after { content: ""; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 30%, transparent); border-radius: var(--r); }
+.ocard-body { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 20px; padding: 16px 20px 16px 18px; }
+.ocard-main { min-width: 0; }
+.ocard-head { display: flex; align-items: center; gap: 9px; margin-bottom: 7px; flex-wrap: wrap; }
+.ocard-kod { font-size: 12.5px; font-weight: 600; color: var(--ink-3); letter-spacing: .3px; }
+.ocard-birim { font-size: 17px; font-weight: 600; letter-spacing: -.3px; }
+.ocard-kalem { color: var(--ink-2); font-size: 13px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ocard-meta { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.omchip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); font-weight: 500; }
+.omchip-sep { width: 1px; height: 14px; background: var(--line); }
+.ocard-time { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; text-align: right; }
+.ocard-time-lbl { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .5px; }
+.ocard-clock { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--ink-3); }
+.ring-num { font-size: 12px; font-weight: 600; }
+.ocard-foot { border-top: 1px solid var(--line-2); padding: 11px 18px; background: var(--surface-2); }
+.wh-actions { display: flex; gap: 9px; flex-wrap: wrap; }
+
+/* BADGES */
+.badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 99px; white-space: nowrap; background: var(--slate-bg); color: var(--slate-ink); }
+.badge-green { background: var(--green-bg); color: var(--green-ink); }
+.badge-amber { background: var(--amber-bg); color: var(--amber-ink); }
+.badge-red { background: var(--red-bg); color: var(--red-ink); }
+.badge-blue { background: var(--blue-bg); color: var(--blue-ink); }
+.badge-teal { background: var(--teal-bg); color: var(--teal-ink); }
+.badge-done { background: var(--done-bg); color: var(--done-ink); }
+.badge-solid { background: var(--red); color: #fff; box-shadow: 0 1px 6px color-mix(in srgb, var(--red) 40%, transparent); }
+.badge-green.badge-solid { background: var(--green); }
+.is-alarm .badge-solid { animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .6; } }
+.ring { position: relative; display: grid; place-items: center; flex: none; }
+.ring svg { position: absolute; inset: 0; }
+.ring-label { display: grid; place-items: center; }
+
+/* BUTTONS */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; font-size: 14px; border-radius: var(--r-sm); transition: .15s; white-space: nowrap; border: 1px solid transparent; }
+.btn-sm { padding: 7px 12px; font-size: 13px; border-radius: 9px; }
+.btn-md { padding: 10px 16px; }
+.btn-lg { padding: 13px 20px; font-size: 15px; }
+.btn-full { width: 100%; }
+.btn-primary { background: var(--brand); color: #fff; box-shadow: 0 2px 8px color-mix(in srgb, var(--brand) 32%, transparent); }
+.btn-primary:hover { background: var(--brand-2); }
+.btn-primary:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+.btn-soft { background: var(--brand-soft); color: var(--brand-2); }
+.btn-soft:hover { background: color-mix(in srgb, var(--brand) 18%, var(--surface)); }
+.btn-ghost { background: transparent; color: var(--ink-2); border-color: var(--line); }
+.btn-ghost:hover { background: var(--surface-3); color: var(--ink); }
+.btn:disabled { cursor: not-allowed; }
+
+/* ALARM BANNER */
+.alarm-banner { display: flex; align-items: center; gap: 11px; width: 100%; background: var(--red-bg); color: var(--red-ink); border: 1px solid color-mix(in srgb, var(--red) 35%, transparent); padding: 13px 18px; border-radius: var(--r); margin-bottom: 20px; font-size: 14px; text-align: left; }
+.alarm-banner b { font-weight: 700; }
+.alarm-banner svg { flex: none; }
+.alarm-cta { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-weight: 600; white-space: nowrap; }
+
+/* LOGIN */
+.login { min-height: 100vh; display: grid; place-items: center; padding: 24px; position: relative; overflow: hidden; }
+.login-bg { position: absolute; inset: 0; background: radial-gradient(900px 500px at 18% 10%, color-mix(in srgb, var(--brand) 22%, transparent), transparent 60%), radial-gradient(700px 500px at 95% 100%, color-mix(in srgb, var(--brand-2) 18%, transparent), transparent 55%), var(--bg); }
+.login-grid { position: relative; width: min(940px, 100%); display: grid; grid-template-columns: 5fr 6fr; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-lg); overflow: hidden; }
+.login-brand { background: linear-gradient(165deg, var(--brand) 0%, #082a55 100%); color: #fff; padding: 40px 36px; display: flex; flex-direction: column; }
+[data-theme="dark"] .login-brand { background: linear-gradient(165deg, #11305c 0%, #060e1a 100%); }
+.brand-mark { display: flex; align-items: center; gap: 13px; }
+.brand-mark .brand-logo { background: rgba(255,255,255,.15); box-shadow: none; backdrop-filter: blur(4px); }
+.brand-name { font-size: 18px; font-weight: 600; letter-spacing: -.3px; }
+.brand-sub { font-size: 12.5px; opacity: .7; }
+.login-clock { margin: 38px 0 30px; }
+.login-time { font-size: 46px; font-weight: 600; letter-spacing: -1px; display: block; }
+.login-day { font-size: 13.5px; opacity: .7; text-transform: capitalize; }
+.login-points { list-style: none; display: flex; flex-direction: column; gap: 14px; margin-top: auto; }
+.login-points li { display: flex; align-items: center; gap: 11px; font-size: 13.5px; opacity: .92; }
+.login-points svg { flex: none; opacity: .85; }
+.login-foot { margin-top: 26px; font-size: 11.5px; opacity: .5; font-family: var(--mono); }
+.login-form { padding: 44px 42px; display: flex; flex-direction: column; }
+.login-kicker { font-size: 12px; font-weight: 600; letter-spacing: .8px; text-transform: uppercase; color: var(--brand-2); }
+.login-h1 { font-size: 26px; font-weight: 600; letter-spacing: -.5px; margin: 6px 0 6px; }
+.login-lead { color: var(--ink-2); font-size: 14px; margin-bottom: 22px; }
+.role-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.role-card { text-align: left; border: 1.5px solid var(--line); border-radius: var(--r); padding: 16px 15px; background: var(--surface-2); transition: .16s; display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.role-card:hover { border-color: color-mix(in srgb, var(--brand) 40%, var(--line)); }
+.role-card.is-active { border-color: var(--brand-2); background: var(--brand-soft); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 12%, transparent); }
+.role-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.role-ico { width: 40px; height: 40px; border-radius: 11px; background: var(--surface); border: 1px solid var(--line); display: grid; place-items: center; color: var(--brand-2); }
+.role-card.is-active .role-ico { background: var(--brand); color: #fff; border-color: var(--brand); }
+.role-radio { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--line); transition: .14s; }
+.role-card.is-active .role-radio { border-color: var(--brand); background: radial-gradient(circle at center, var(--brand) 42%, transparent 46%); }
+.role-name { font-size: 15.5px; font-weight: 600; }
+.role-alt { font-size: 12px; color: var(--ink-3); }
+.role-list { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.role-list li { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; color: var(--ink-2); line-height: 1.35; }
+.role-list svg { color: var(--green); margin-top: 2px; flex: none; }
+.login-note { font-size: 11.5px; color: var(--ink-3); margin-top: 13px; text-align: center; }
+
+/* FORMS */
+.back { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-2); font-size: 13.5px; font-weight: 500; margin-bottom: 14px; }
+.back:hover { color: var(--brand-2); }
+.form-grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; }
+.form-col { display: flex; flex-direction: column; gap: 16px; }
+.form-card { padding: 20px 22px; }
+.form-sec { font-size: 14px; font-weight: 600; margin-bottom: 14px; letter-spacing: -.2px; }
+.form-sec-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.form-sec-row .form-sec { margin: 0; }
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.field:last-child { margin-bottom: 0; }
+.field-label { font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+.req { color: var(--red); margin-left: 3px; font-style: normal; }
+.field-hint { font-size: 11.5px; color: var(--ink-3); }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+input[type="text"], input[type="number"], input[type="date"], input[type="time"], select, textarea, .input-ico { width: 100%; background: var(--surface-2); border: 1.5px solid var(--line); border-radius: var(--r-sm); padding: 10px 12px; outline: none; transition: .14s; color: var(--ink); }
+textarea { resize: vertical; line-height: 1.5; }
+input:focus, select:focus, textarea:focus { border-color: var(--brand-2); background: var(--surface); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 12%, transparent); }
+.input-ico { display: flex; align-items: center; gap: 9px; padding: 0 12px; color: var(--ink-3); }
+.input-ico input { border: none; background: none; padding: 10px 0; box-shadow: none; }
+.input-ico:focus-within { border-color: var(--brand-2); background: var(--surface); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 12%, transparent); }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+.seg-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px 15px; border: 1.5px solid var(--line); border-radius: var(--r); background: var(--surface-2); text-align: left; transition: .15s; color: var(--ink-2); }
+.seg-btn svg { color: var(--ink-3); }
+.seg-btn span { font-size: 14.5px; font-weight: 600; color: var(--ink); }
+.seg-btn small { font-size: 11.5px; color: var(--ink-3); font-weight: 500; }
+.seg-btn:hover { border-color: color-mix(in srgb, var(--brand) 35%, var(--line)); }
+.seg-btn.is-on { border-color: var(--brand-2); background: var(--brand-soft); }
+.seg-btn.is-on svg { color: var(--brand-2); }
+.kalem-list { display: flex; flex-direction: column; gap: 9px; margin-bottom: 14px; }
+.kalem-row { display: grid; grid-template-columns: 1fr 96px auto auto; gap: 9px; align-items: center; }
+.kalem-ad, .kalem-mik { padding: 9px 11px; }
+.kalem-br { font-size: 13px; color: var(--ink-2); min-width: 56px; }
+.br-sel { padding: 9px 6px !important; }
+.kalem-del { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; color: var(--ink-3); border: 1px solid var(--line); }
+.kalem-del:hover { color: var(--red); border-color: var(--red); background: var(--red-bg); }
+.kalem-warn { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--red-ink); }
+.form-side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 0; }
+.ready-card { padding: 20px 22px; border: 1.5px solid color-mix(in srgb, var(--brand) 30%, var(--line)); background: linear-gradient(180deg, var(--brand-soft), var(--surface)); }
+.ready-kicker { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--brand-2); }
+.ready-time { font-size: 44px; font-weight: 600; letter-spacing: -1.5px; margin: 10px 0 2px; color: var(--brand); }
+[data-theme="dark"] .ready-time { color: var(--ink); }
+.ready-date { font-size: 13.5px; color: var(--ink-2); text-transform: capitalize; }
+.ready-formula { font-size: 12.5px; color: var(--ink-2); margin-top: 14px; line-height: 1.5; }
+.ready-alarm { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 12px; color: var(--red-ink); background: var(--red-bg); padding: 9px 11px; border-radius: var(--r-sm); margin-top: 12px; }
+.ready-empty { color: var(--ink-3); font-size: 14px; padding: 14px 0; }
+.side-info { padding: 14px 18px; display: flex; flex-direction: column; gap: 9px; }
+.side-info-row { display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: var(--ink-2); }
+.form-block-warn { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--red-ink); background: var(--red-bg); padding: 10px 12px; border-radius: var(--r-sm); }
+
+/* DETAIL */
+.detail-hero { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 22px 26px 22px 24px; overflow: hidden; margin-bottom: 22px; padding-left: 26px; }
+.detail-hero.is-alarm { border-color: color-mix(in srgb, var(--red) 45%, var(--line)); }
+.dh-top { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 9px; }
+.dh-kod { font-size: 13px; font-weight: 600; color: var(--ink-3); }
+.dh-birim { font-size: 24px; font-weight: 600; letter-spacing: -.5px; }
+.dh-meta { display: flex; align-items: center; gap: 9px; color: var(--ink-2); font-size: 13.5px; margin-top: 7px; }
+.dot-sep { width: 4px; height: 4px; border-radius: 50%; background: var(--ink-3); }
+.dh-count { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.dh-count-lbl { font-size: 11.5px; text-transform: uppercase; letter-spacing: .5px; color: var(--ink-3); }
+.dh-count-sub { font-size: 12.5px; color: var(--ink-2); }
+.timeline { display: flex; justify-content: space-between; margin: 0 0 22px; padding: 18px 24px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); }
+.tl-step { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; position: relative; }
+.tl-dot { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-3); color: var(--ink-3); border: 2px solid var(--line); z-index: 1; }
+.tl-lbl { font-size: 11.5px; color: var(--ink-3); font-weight: 500; text-align: center; }
+.tl-bar { position: absolute; top: 19px; left: 50%; width: 100%; height: 2px; background: var(--line); z-index: 0; }
+.tl-done .tl-dot { background: var(--green-bg); color: var(--green-ink); border-color: var(--green); }
+.tl-done .tl-bar { background: var(--green); }
+.tl-done .tl-lbl { color: var(--ink-2); }
+.tl-now .tl-dot { background: var(--brand); color: #fff; border-color: var(--brand); box-shadow: 0 0 0 4px var(--brand-soft); }
+.tl-now .tl-lbl { color: var(--brand-2); font-weight: 700; }
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.detail-card { padding: 20px 22px; }
+.kalem-tbl { width: 100%; border-collapse: collapse; }
+.kalem-tbl th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-3); font-weight: 600; padding: 0 0 9px; border-bottom: 1px solid var(--line); }
+.kalem-tbl td { padding: 11px 0; border-bottom: 1px solid var(--line-2); font-size: 14px; }
+.kalem-tbl tr:last-child td { border-bottom: none; }
+.detail-note { display: flex; align-items: flex-start; gap: 8px; margin-top: 14px; font-size: 13px; color: var(--ink-2); background: var(--surface-2); padding: 11px 13px; border-radius: var(--r-sm); }
+.detail-note svg { margin-top: 2px; flex: none; color: var(--ink-3); }
+.inforow { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line-2); }
+.inforow:last-child { border-bottom: none; }
+.inforow-ico { color: var(--ink-3); }
+.inforow-lbl { font-size: 13.5px; color: var(--ink-2); }
+.inforow-val { font-size: 13.5px; font-weight: 600; text-align: right; }
+.ihale-box { margin-top: 14px; background: var(--teal-bg); border-radius: var(--r-sm); padding: 12px 14px; }
+.ihale-box-t { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: var(--teal-ink); text-transform: uppercase; letter-spacing: .3px; margin-bottom: 9px; }
+.ihale-line { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-2); padding: 4px 0; }
+.ihale-line .mono { color: var(--teal-ink); font-weight: 600; }
+.action-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 22px; flex-wrap: wrap; }
+.action-lbl { font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-3); font-weight: 600; }
+.action-cur { font-size: 14px; color: var(--ink-2); }
+.action-info { display: flex; flex-direction: column; gap: 3px; }
+.action-btns { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* TENDER */
+.tender-card { padding: 22px; margin-bottom: 24px; }
+.tender-sub { font-size: 13px; color: var(--ink-2); margin: -8px 0 16px; }
+.tender-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.tender-item { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 14px 16px; }
+.tender-item-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 11px; gap: 10px; }
+.tender-name { font-size: 14.5px; font-weight: 600; }
+.tender-firma { font-size: 11.5px; color: var(--ink-3); white-space: nowrap; }
+.tender-bar { height: 9px; border-radius: 99px; background: var(--ring-track); overflow: hidden; }
+.tender-bar-fill { display: block; height: 100%; border-radius: 99px; transition: width .6s; }
+.tender-nums { display: flex; align-items: baseline; gap: 7px; margin-top: 9px; }
+.tender-nums .mono { font-size: 17px; }
+.tender-tot { font-size: 12.5px; color: var(--ink-3); }
+.tender-nums .badge { margin-left: auto; }
+.list-h { font-size: 16px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 9px; }
+.list-h-n { font-size: 12px; font-weight: 700; color: var(--brand-2); background: var(--brand-soft); padding: 2px 9px; border-radius: 10px; }
+
+/* NOTIFICATIONS */
+.bot-card { padding: 18px 20px; margin-bottom: 22px; border: 1.5px solid color-mix(in srgb, var(--brand) 25%, var(--line)); }
+.bot-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.bot-ico { width: 34px; height: 34px; border-radius: 9px; background: var(--brand); color: #fff; display: grid; place-items: center; flex: none; }
+.bot-t { font-size: 14.5px; font-weight: 600; }
+.bot-s { font-size: 12px; color: var(--ink-3); }
+.bot-head .badge { margin-left: auto; }
+.bot-msg { background: #0b1f33; color: #cfe0f5; border-radius: var(--r-sm); padding: 14px 16px; font-size: 12.5px; line-height: 1.7; white-space: pre-wrap; }
+[data-theme="dark"] .bot-msg { background: #02060d; }
+.log { display: flex; flex-direction: column; gap: 9px; }
+.log-row { display: grid; grid-template-columns: auto 1fr auto; gap: 13px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 13px 16px; box-shadow: var(--shadow); }
+.log-ico { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; flex: none; background: var(--slate-bg); color: var(--slate-ink); }
+.log-red .log-ico { background: var(--red-bg); color: var(--red-ink); }
+.log-green .log-ico { background: var(--green-bg); color: var(--green-ink); }
+.log-blue .log-ico { background: var(--blue-bg); color: var(--blue-ink); }
+.log-amber .log-ico { background: var(--amber-bg); color: var(--amber-ink); }
+.log-title { font-size: 14px; font-weight: 600; }
+.log-sub { font-size: 12.5px; color: var(--ink-2); margin-top: 2px; }
+.log-time { font-size: 12px; color: var(--ink-3); }
+
+/* EMPTY */
+.empty { text-align: center; padding: 60px 20px; }
+.empty-ico { width: 56px; height: 56px; border-radius: 16px; background: var(--surface-3); color: var(--ink-3); display: inline-grid; place-items: center; margin-bottom: 14px; }
+.empty-title { font-size: 16px; font-weight: 600; }
+.empty-sub { font-size: 13.5px; color: var(--ink-3); margin-top: 4px; }
+
+/* TOAST (portal eklentisi) */
+.toast-wrap { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.toast { background: var(--ink); color: var(--surface); font-size: 13.5px; font-weight: 500; padding: 11px 18px; border-radius: 99px; box-shadow: var(--shadow-lg); animation: toastIn .2s ease; max-width: 90vw; }
+.toast.err { background: var(--red); color: #fff; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(8px); } }
+
+/* RESPONSIVE */
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .content { grid-column: 1; padding: 16px 16px 96px; height: auto; }
+  .topbar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 40; }
+  .tb-title { font-weight: 600; font-size: 15px; flex: 1; }
+  .tb-icon { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; color: var(--ink-2); position: relative; }
+  .tb-icon:hover { background: var(--surface-3); }
+  .tb-dot { position: absolute; top: 8px; right: 9px; width: 8px; height: 8px; border-radius: 50%; background: var(--red); border: 2px solid var(--surface); }
+  .tabbar { display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: var(--surface); border-top: 1px solid var(--line); padding: 7px 6px 9px; justify-content: space-around; align-items: center; }
+  .tab { display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--ink-3); flex: 1; padding: 4px 0; }
+  .tab-ico { position: relative; display: grid; place-items: center; }
+  .tab-lbl { font-size: 10.5px; font-weight: 600; }
+  .tab.is-on { color: var(--brand-2); }
+  .tab-dot { position: absolute; top: -2px; right: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--red); border: 2px solid var(--surface); }
+  .tab-fab { flex: none; }
+  .tab-fab .tab-ico { width: 46px; height: 46px; border-radius: 14px; background: var(--brand); color: #fff; box-shadow: 0 4px 14px color-mix(in srgb, var(--brand) 40%, transparent); margin-top: -14px; }
+  .scr-title { font-size: 23px; }
+  .stat-row { grid-template-columns: 1fr 1fr; }
+  .ocard-body { grid-template-columns: 1fr auto; gap: 12px; row-gap: 14px; padding: 14px 16px; }
+  .ring { display: none; }
+  .ocard-kalem { white-space: normal; }
+  .form-grid { grid-template-columns: 1fr; }
+  .form-side { position: static; }
+  .detail-hero { grid-template-columns: 1fr; }
+  .dh-count { text-align: left; align-items: flex-start; margin-top: 6px; }
+  .detail-grid { grid-template-columns: 1fr; }
+  .timeline { padding: 16px 10px; overflow-x: auto; }
+  .tl-lbl { font-size: 10px; }
+  .role-pick { grid-template-columns: 1fr; }
+  .login-grid { grid-template-columns: 1fr; }
+  .login-brand { display: none; }
+  .toolbar { flex-direction: column; align-items: stretch; }
+  .search { min-width: 0; }
+}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <div class="toast-wrap" id="toast-wrap"></div>
+
+  <script>
+  "use strict";
+  // =====================================================================
+  // İkram & Sipariş Takip — Vanilla JS SPA (React prototipinin portu).
+  // Tüm veri /siparis-takip/api/* uçlarından gelir; geri sayım & alarm
+  // mantığı data.jsx ile birebirdir.
+  // =====================================================================
+  const API = '/siparis-takip/api';
+  const MS = { dk: 60000, sa: 3600000 };
+  const TEDARIK = { AMBAR: 'İç Üretim Ambarı', IHALE: 'İhale Firması' };
+  const KOD = { AMBAR: 'IC_URETIM_AMBARI', IHALE: 'IHALE_FIRMASI' };
+  const DURUM = { BEKLEMEDE: 'Beklemede', HAZIRLANIYOR: 'Hazırlanıyor', HAZIR: 'Hazır', YOLDA: 'Yola Çıktı', TESLIM: 'Teslim Edildi' };
+  const DURUM_SIRA = [DURUM.BEKLEMEDE, DURUM.HAZIRLANIYOR, DURUM.HAZIR, DURUM.YOLDA, DURUM.TESLIM];
+  const TAMAMLANMIS = [DURUM.HAZIR, DURUM.YOLDA, DURUM.TESLIM];
+  const BIRIMLER = ['adet', 'kişi', 'bardak', 'tabak', 'kg', 'paket', 'kutu', 'set', 'fincan'];
+  const ROLLER = { yonetici: { etiket: 'Yönetici' }, ambar: { etiket: 'Ambar Çalışanı' } };
+  const LEVEL_META = {
+    yesil: { etiket: 'Zamanında', renk: '#16A34A' },
+    sari: { etiket: 'Yaklaşıyor', renk: '#D97706' },
+    kirmizi: { etiket: 'Kritik', renk: '#DC2626' },
+    tamam: { etiket: 'Tamamlandı', renk: '#0E7490' },
+  };
+  function levelColor(l) { return (LEVEL_META[l] || LEVEL_META.tamam).renk; }
+
+  // ---- İkon seti (ui.jsx'ten) -----------------------------------------
+  const ICONS = {
+    panel: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    truck: '<path d="M3 6h11v9H3zM14 9h4l3 3v3h-7"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/>',
+    box: '<path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8"/>',
+    bell: '<path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    alert: '<path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    checkCircle: '<circle cx="12" cy="12" r="9"/><path d="M8.5 12.5 11 15l4.5-5"/>',
+    doc: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
+    building: '<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 7h.01M15 7h.01M9 11h.01M15 11h.01M9 15h.01M15 15h.01M9 21v-3h6v3"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/>',
+    shield: '<path d="M12 3 5 6v5c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/><path d="M9 12l2 2 4-4"/>',
+    logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+    moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+    chevron: '<path d="M9 18l6-6-6-6"/>',
+    arrowLeft: '<path d="M19 12H5M12 19l-7-7 7-7"/>',
+    calendar: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
+    pkg: '<path d="M12 3 3 7.5v9L12 21l9-4.5v-9z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/>',
+    send: '<path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+    trash: '<path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>',
+    flame: '<path d="M12 2s5 4 5 9a5 5 0 0 1-10 0c0-1.5.6-2.8 1.4-3.7C8.8 8.6 9 10 10 10c1.2 0 1.5-2 1-4-.3-1.4 1-4 1-4z"/>',
+    list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    coffee: '<path d="M4 8h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M17 9h2a2 2 0 0 1 0 6h-2M6 2v2M10 2v2M14 2v2"/>',
+  };
+  function icon(name, size, stroke) {
+    size = size || 20; stroke = stroke || 1.75;
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + stroke + '" stroke-linecap="round" stroke-linejoin="round">' + (ICONS[name] || '') + '</svg>';
+  }
+
+  // ---- Biçimlendiriciler ----------------------------------------------
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  function fmtCountdown(ms) {
+    const neg = ms < 0; let s = Math.floor(Math.abs(ms) / 1000);
+    const h = Math.floor(s / 3600); s -= h * 3600; const m = Math.floor(s / 60); s -= m * 60;
+    const p = x => String(x).padStart(2, '0');
+    return (neg ? '−' : '') + p(h) + ':' + p(m) + ':' + p(s);
+  }
+  const _trDate = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', weekday: 'short' });
+  const _trTime = new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit' });
+  function fmtDate(ts) { return _trDate.format(new Date(ts)); }
+  function fmtTime(ts) { return _trTime.format(new Date(ts)); }
+  function fmtDateTime(ts) { return fmtDate(ts) + ' · ' + fmtTime(ts); }
+  function fmtKalan(ms) {
+    const neg = ms < 0; ms = Math.abs(ms);
+    const h = Math.floor(ms / MS.sa); const m = Math.floor((ms % MS.sa) / MS.dk);
+    let t = h > 0 ? (h + ' sa ' + m + ' dk') : (m + ' dk');
+    return neg ? t + ' gecikme' : t;
+  }
+  function toTs(dateStr, timeStr) { if (!dateStr || !timeStr) return null; const d = new Date(dateStr + 'T' + timeStr); return isNaN(d) ? null : d.getTime(); }
+  function defaultDate() { return new Date(Date.now() + 5 * MS.sa).toISOString().slice(0, 10); }
+
+  // ---- Zamanlama (data.jsx → orderTiming birebir) ---------------------
+  function timing(eventTs, durum, now) {
+    const ready = eventTs - MS.sa;
+    const msToReady = ready - now;
+    const msToEvent = eventTs - now;
+    const tamam = TAMAMLANMIS.indexOf(durum) !== -1;
+    const alarm = !tamam && now >= eventTs - 2 * MS.sa;
+    let level;
+    if (tamam) level = 'tamam';
+    else if (msToReady <= MS.sa) level = 'kirmizi';
+    else if (msToReady <= 3 * MS.sa) level = 'sari';
+    else level = 'yesil';
+    return { ready, msToReady, msToEvent, tamam, alarm, level };
+  }
+  const isIhale = o => o.tedarikKod === KOD.IHALE || o.tedarik === TEDARIK.IHALE;
+
+  // ---- API client ------------------------------------------------------
+  let token = null;
+  async function api(path, opts) {
+    opts = opts || {};
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const res = await fetch(API + path, { method: opts.method || 'GET', headers, body: opts.body ? JSON.stringify(opts.body) : undefined });
+    let data = null; try { data = await res.json(); } catch (e) {}
+    if (!res.ok) { const err = new Error((data && data.error) || ('Hata ' + res.status)); err.status = res.status; throw err; }
+    return data;
+  }
+
+  // ---- State -----------------------------------------------------------
+  const state = {
+    user: null, theme: document.documentElement.getAttribute('data-theme') || 'light',
+    orders: [], tender: [], notifications: [],
+    screen: 'panel', selId: null, loginRol: 'yonetici', filtre: 'hepsi', q: '',
+    form: null, now: Date.now(), _sig: '',
+  };
+  const root = document.getElementById('root');
+
+  async function loadData() {
+    const [o, t, n] = await Promise.all([api('/orders'), api('/tender'), api('/notifications')]);
+    state.orders = o || []; state.tender = t || []; state.notifications = n || [];
+    state._sig = sig();
+  }
+  function sig() {
+    const now = state.now;
+    return state.orders.map(o => { const t = timing(o.eventTs, o.durum, now); return o.id + ':' + t.level + ':' + (t.alarm ? 1 : 0); }).join('|');
+  }
+
+  // ---- Toast -----------------------------------------------------------
+  function toast(msg, kind) {
+    const w = document.getElementById('toast-wrap');
+    const el = document.createElement('div');
+    el.className = 'toast' + (kind === 'err' ? ' err' : '');
+    el.textContent = msg;
+    w.appendChild(el);
+    setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(), 300); }, 2600);
+  }
+
+  // ---- Küçük bileşenler (string döner) --------------------------------
+  function badge(tone, text, opts) {
+    opts = opts || {};
+    return '<span class="badge badge-' + tone + (opts.solid ? ' badge-solid' : '') + '">' + (opts.icon ? icon(opts.icon, 13, 2) : '') + esc(text) + '</span>';
+  }
+  function statusBadge(durum) {
+    const map = { [DURUM.BEKLEMEDE]: 'slate', [DURUM.HAZIRLANIYOR]: 'blue', [DURUM.HAZIR]: 'green', [DURUM.YOLDA]: 'teal', [DURUM.TESLIM]: 'done' };
+    return badge(map[durum] || 'slate', durum);
+  }
+  function levelChip(level) {
+    const m = LEVEL_META[level] || LEVEL_META.tamam;
+    const tone = { yesil: 'green', sari: 'amber', kirmizi: 'red', tamam: 'teal' }[level];
+    const ic = level === 'kirmizi' ? 'alert' : level === 'tamam' ? 'check' : 'clock';
+    return badge(tone, m.etiket, { icon: ic });
+  }
+  function countdown(eventTs, durum, size) {
+    const sizes = { sm: 15, md: 22, lg: 34, xl: 46 };
+    const t = timing(eventTs, durum, state.now);
+    const col = t.msToReady < 0 ? '#DC2626' : levelColor(t.level);
+    return '<span class="mono js-cd" data-ev="' + eventTs + '" data-durum="' + esc(durum) + '" style="font-size:' + sizes[size] + 'px;color:' + col + ';font-weight:600;letter-spacing:.5px;line-height:1">' + fmtCountdown(t.msToReady) + '</span>';
+  }
+  function progressRing(eventTs, durum) {
+    const size = 50, stroke = 4, r = (size - stroke) / 2, c = 2 * Math.PI * r;
+    const t = timing(eventTs, durum, state.now);
+    const pct = t.tamam ? 1 : Math.max(0, Math.min(1, t.msToReady / (6 * MS.sa)));
+    const col = levelColor(t.level);
+    const off = c * (1 - pct);
+    const inner = t.tamam
+      ? '<span style="color:' + col + '">' + icon('check', 18, 2.4) + '</span>'
+      : '<span class="mono ring-num js-ring-num" style="color:' + col + '">' + Math.max(0, Math.ceil(t.msToReady / MS.sa)) + 's</span>';
+    return '<span class="ring js-ring" data-ev="' + eventTs + '" data-durum="' + esc(durum) + '" data-c="' + c + '" style="width:' + size + 'px;height:' + size + 'px">'
+      + '<svg width="' + size + '" height="' + size + '">'
+      + '<circle cx="' + (size / 2) + '" cy="' + (size / 2) + '" r="' + r + '" stroke="var(--ring-track)" stroke-width="' + stroke + '" fill="none"></circle>'
+      + '<circle class="js-ring-fill" cx="' + (size / 2) + '" cy="' + (size / 2) + '" r="' + r + '" stroke="' + col + '" stroke-width="' + stroke + '" fill="none" stroke-dasharray="' + c + '" stroke-dashoffset="' + off + '" stroke-linecap="round" transform="rotate(-90 ' + (size / 2) + ' ' + (size / 2) + ')" style="transition:stroke-dashoffset .5s"></circle>'
+      + '</svg><span class="ring-label">' + inner + '</span></span>';
+  }
+  function empty(ic, title, sub) {
+    return '<div class="empty"><span class="empty-ico">' + icon(ic, 26) + '</span><p class="empty-title">' + esc(title) + '</p>' + (sub ? '<p class="empty-sub">' + esc(sub) + '</p>' : '') + '</div>';
+  }
+  function stat(label, value, ic, tone, sub) {
+    return '<div class="card stat stat-' + (tone || 'slate') + '"><span class="stat-ico">' + icon(ic, 18, 2) + '</span><span class="stat-val">' + esc(value) + '</span><span class="stat-lbl">' + esc(label) + '</span>' + (sub ? '<span class="stat-sub">' + esc(sub) + '</span>' : '') + '</div>';
+  }
+
+  function orderCard(o, footer) {
+    const t = timing(o.eventTs, o.durum, state.now);
+    const col = levelColor(t.level);
+    const ihale = isIhale(o);
+    const kalem = o.kalemler.map(k => esc(k.ad) + ' ×' + k.miktar).join('  ·  ');
+    return '<article class="ocard lvl-' + t.level + (t.alarm ? ' is-alarm' : '') + '" data-act="open-order" data-id="' + o.id + '" role="button" tabindex="0">'
+      + '<span class="ocard-spine" style="background:' + col + '"></span>'
+      + '<div class="ocard-body"><div class="ocard-main"><div class="ocard-head">'
+      + '<span class="mono ocard-kod">' + esc(o.kod) + '</span>' + levelChip(t.level)
+      + (t.alarm ? badge('red', 'ALARM', { solid: true, icon: 'alert' }) : '')
+      + '</div><h3 class="ocard-birim">' + esc(o.birim) + '</h3>'
+      + '<p class="ocard-kalem">' + kalem + '</p>'
+      + '<div class="ocard-meta"><span class="omchip">' + icon(ihale ? 'truck' : 'box', 14) + (ihale ? 'İhale Firması' : 'İç Üretim Ambarı') + '</span>'
+      + '<span class="omchip-sep"></span>' + statusBadge(o.durum) + '</div></div>'
+      + '<div class="ocard-time"><span class="ocard-time-lbl">Hazır olmaya</span>' + countdown(o.eventTs, o.durum, 'md')
+      + '<span class="ocard-clock">' + icon('clock', 13) + fmtTime(t.ready) + ' · etkinlik ' + fmtTime(o.eventTs) + '</span></div>'
+      + progressRing(o.eventTs, o.durum)
+      + '</div>' + (footer ? '<div class="ocard-foot">' + footer + '</div>' : '') + '</article>';
+  }
+
+  // ---- Ekran: Login ----------------------------------------------------
+  function loginView() {
+    const now = state.now;
+    const roller = [
+      { id: 'yonetici', ic: 'shield', ad: 'Yönetici', alt: 'Selim Aktaş · İkram Koordinatörü', ozet: ['Sipariş girişi ve onayı', 'Tüm birimleri ve ihale havuzunu izleme', 'Alarm ve bildirim merkezi'] },
+      { id: 'ambar', ic: 'box', ad: 'Ambar Çalışanı', alt: 'Hakan Demir · Ambar Personeli', ozet: ['Yalnızca atanan siparişler', 'Durum güncelleme (Hazırlandı / Yola Çıktı)', 'Hazır olma vakti uyarıları'] },
+    ];
+    return '<div class="login"><div class="login-bg" aria-hidden="true"></div><div class="login-grid">'
+      + '<aside class="login-brand"><div class="brand-mark"><span class="brand-logo">' + icon('coffee', 26, 2) + '</span>'
+      + '<div><p class="brand-name">İkram & Sipariş Takip</p><p class="brand-sub">Kurumsal Operasyon Konsolu</p></div></div>'
+      + '<div class="login-clock"><span class="mono login-time" id="js-clock">' + fmtTime(now) + '</span><span class="login-day" id="js-clock-day">' + fmtDate(now) + '</span></div>'
+      + '<ul class="login-points"><li>' + icon('clock', 17) + ' Dinamik hazır olma vakti — etkinlikten 1 saat önce</li>'
+      + '<li>' + icon('alert', 17) + ' Kritik gecikme alarmı ve renk kodlu takip</li>'
+      + '<li>' + icon('truck', 17) + ' İç üretim ambarı &amp; ihale firması ayrımı</li></ul>'
+      + '<p class="login-foot">İSKİ Operasyon Konsolu · portal modülü</p></aside>'
+      + '<main class="login-form"><p class="login-kicker">Oturum Aç</p><h1 class="login-h1">Rolünüzü seçin</h1>'
+      + '<p class="login-lead">Sistem, rolünüze göre yalnızca yetkili olduğunuz ekranları gösterir.</p><div class="role-pick">'
+      + roller.map(r => '<button class="role-card' + (state.loginRol === r.id ? ' is-active' : '') + '" data-act="pick-role" data-rol="' + r.id + '" type="button">'
+        + '<span class="role-top"><span class="role-ico">' + icon(r.ic, 22, 1.9) + '</span><span class="role-radio" aria-hidden="true"></span></span>'
+        + '<span class="role-name">' + r.ad + '</span><span class="role-alt">' + esc(r.alt) + '</span>'
+        + '<ul class="role-list">' + r.ozet.map(o => '<li>' + icon('check', 13, 2.4) + esc(o) + '</li>').join('') + '</ul></button>').join('')
+      + '</div><button class="btn btn-primary btn-md btn-full" data-act="do-login">' + icon('logout', 17, 2) + ROLLER[state.loginRol].etiket + ' olarak gir</button>'
+      + '<p class="login-note">Demo girişi — şifre gerekmez. Üretimde rol tabanlı kimlik doğrulama bağlanabilir.</p></main></div></div>';
+  }
+
+  // ---- Ekran: Dashboard (Yönetici) ------------------------------------
+  function dashboardList() {
+    const now = state.now;
+    let liste = state.orders.map(o => ({ o, t: timing(o.eventTs, o.durum, now) })).filter(({ o, t }) => {
+      if (state.filtre === 'kritik' && !(t.alarm || t.level === 'kirmizi')) return false;
+      if (state.filtre === 'ambar' && isIhale(o)) return false;
+      if (state.filtre === 'ihale' && !isIhale(o)) return false;
+      if (state.q && (o.birim + o.kod).toLowerCase().indexOf(state.q.toLowerCase()) === -1) return false;
+      return true;
+    });
+    liste.sort((a, b) => { if (a.t.tamam !== b.t.tamam) return a.t.tamam ? 1 : -1; return a.t.msToReady - b.t.msToReady; });
+    return liste.length ? liste.map(({ o }) => orderCard(o)).join('') : empty('search', 'Sonuç yok', 'Filtre veya aramayı değiştirin.');
+  }
+  function dashboardView() {
+    const now = state.now;
+    const en = state.orders.map(o => timing(o.eventTs, o.durum, now));
+    const kritik = en.filter(t => t.alarm || t.level === 'kirmizi').length;
+    const aktif = en.filter(t => !t.tamam).length;
+    const ihaleSay = state.orders.filter(o => isIhale(o) && TAMAMLANMIS.indexOf(o.durum) === -1).length;
+    const filtreler = [
+      { id: 'hepsi', ad: 'Tümü', n: state.orders.length },
+      { id: 'kritik', ad: 'Kritik', n: kritik },
+      { id: 'ambar', ad: 'İç Üretim', n: state.orders.filter(o => !isIhale(o)).length },
+      { id: 'ihale', ad: 'İhale', n: state.orders.filter(o => isIhale(o)).length },
+    ];
+    return '<div class="screen"><header class="scr-head"><div><p class="scr-kicker">Yönetici Paneli</p><h1 class="scr-title">Sipariş Takibi</h1></div>'
+      + '<button class="btn btn-primary btn-md" data-act="new-order">' + icon('plus', 17, 2) + 'Yeni Sipariş</button></header>'
+      + '<div class="stat-row">'
+      + stat('Aktif sipariş', aktif, 'list', 'blue')
+      + stat('Kritik / alarm', kritik, 'alert', 'red', kritik ? 'müdahale gerekli' : 'temiz')
+      + stat('İhale tedariki', ihaleSay, 'truck', 'teal')
+      + stat('Toplam kayıt', state.orders.length, 'doc', 'slate')
+      + '</div><div class="toolbar"><div class="chips">'
+      + filtreler.map(f => '<button class="chip' + (state.filtre === f.id ? ' is-on' : '') + '" data-act="filter" data-filtre="' + f.id + '">' + f.ad + '<span class="chip-n">' + f.n + '</span></button>').join('')
+      + '</div><label class="search">' + icon('search', 16) + '<input id="js-search" data-act="search" value="' + esc(state.q) + '" placeholder="Birim veya kod ara…"></label></div>'
+      + '<div class="ocard-list" id="js-list">' + dashboardList() + '</div></div>';
+  }
+
+  // ---- Ekran: Yeni Sipariş --------------------------------------------
+  function kalemRow(k, i, ihale) {
+    const left = ihale
+      ? '<select class="kalem-ad" data-act="k-tender" data-i="' + i + '"><option value="">İhale kalemi seçin…</option>'
+        + state.tender.map(t => '<option value="' + t.id + '"' + (String(k.tenderId) === String(t.id) ? ' selected' : '') + '>' + esc(t.kalem) + ' — kalan ' + t.kalan + ' ' + t.birim + '</option>').join('') + '</select>'
+      : '<input class="kalem-ad" data-act="k-ad" data-i="' + i + '" value="' + esc(k.ad) + '" placeholder="Ürün adı (örn. Çay, Pasta)">';
+    const unit = ihale
+      ? '<span class="kalem-br" id="js-unit-' + i + '">' + esc((state.tender.find(t => String(t.id) === String(k.tenderId)) || {}).birim || '—') + '</span>'
+      : '<span class="kalem-br"><select class="br-sel" data-act="k-birim" data-i="' + i + '">' + BIRIMLER.map(b => '<option' + (k.birim === b ? ' selected' : '') + '>' + b + '</option>').join('') + '</select></span>';
+    return '<div class="kalem-row">' + left
+      + '<input class="kalem-mik" data-act="k-mik" data-i="' + i + '" type="number" min="1" value="' + esc(k.miktar) + '" placeholder="Miktar">'
+      + unit
+      + '<button class="kalem-del" data-act="del-kalem" data-i="' + i + '" title="Kaldır">' + icon('trash', 16) + '</button>'
+      + '<span class="kalem-warn" id="js-warn-' + i + '" style="display:none"></span></div>';
+  }
+  function kalemListHtml() {
+    const ihale = state.form.tedarik === KOD.IHALE;
+    return state.form.kalemler.map((k, i) => kalemRow(k, i, ihale)).join('');
+  }
+  function newOrderView() {
+    const f = state.form;
+    const ihale = f.tedarik === KOD.IHALE;
+    return '<div class="screen screen-narrow"><button class="back" data-act="cancel-order">' + icon('arrowLeft', 18) + ' Panele dön</button>'
+      + '<header class="scr-head"><div><p class="scr-kicker">Sipariş Girişi</p><h1 class="scr-title">Yeni Sipariş</h1></div></header>'
+      + '<div class="form-grid"><div class="form-col">'
+      + '<div class="card form-card"><h2 class="form-sec">Talep Bilgisi</h2>'
+      + '<label class="field"><span class="field-label">Talep Eden Birim<i class="req">*</i></span>'
+      + '<div class="input-ico">' + icon('building', 17) + '<input data-act="f-birim" value="' + esc(f.birim) + '" placeholder="örn. İl Sağlık Müdürlüğü"></div></label>'
+      + '<div class="field-row"><label class="field"><span class="field-label">Etkinlik Tarihi<i class="req">*</i></span>'
+      + '<input type="date" data-act="f-tarih" value="' + esc(f.tarih) + '"></label>'
+      + '<label class="field"><span class="field-label">Etkinlik Saati<i class="req">*</i></span>'
+      + '<input type="time" data-act="f-saat" value="' + esc(f.saat) + '"></label></div></div>'
+      + '<div class="card form-card"><h2 class="form-sec">Tedarik Türü</h2><div class="seg">'
+      + [['AMBAR', 'box', 'Ambar personeline düşer'], ['IHALE', 'truck', 'İhale havuzundan düşülür']].map(([key, ic, sub]) =>
+        '<button class="seg-btn' + (f.tedarik === KOD[key] ? ' is-on' : '') + '" data-act="seg-tedarik" data-ted="' + KOD[key] + '" type="button">' + icon(ic, 18) + '<span>' + TEDARIK[key] + '</span><small>' + sub + '</small></button>').join('')
+      + '</div></div>'
+      + '<div class="card form-card"><div class="form-sec-row"><h2 class="form-sec">Ürün Kalemleri</h2>'
+      + '<button class="btn btn-ghost btn-sm" data-act="add-kalem">' + icon('plus', 15, 2) + 'Kalem ekle</button></div>'
+      + '<div class="kalem-list" id="js-kalemlist">' + kalemListHtml() + '</div>'
+      + '<label class="field"><span class="field-label">Not (opsiyonel)</span>'
+      + '<textarea data-act="f-note" rows="2" placeholder="Salon, protokol, özel talepler…">' + esc(f.note) + '</textarea></label></div>'
+      + '</div><aside class="form-side">'
+      + '<div class="card ready-card"><p class="ready-kicker">' + icon('clock', 15) + ' Dinamik Hazır Olma Vakti</p><div id="js-ready"></div></div>'
+      + '<div class="card side-info" id="js-sideinfo"></div>'
+      + '<p class="form-block-warn" id="js-blockwarn" style="display:none">' + icon('alert', 15) + ' Bir kalem ihale kalan stoğunu aşıyor. Miktarı düşürün.</p>'
+      + '<button class="btn btn-primary btn-lg btn-full" id="js-submit" data-act="submit-order">' + icon('check', 17, 2) + 'Siparişi Oluştur</button>'
+      + '<button class="btn btn-ghost btn-md btn-full" data-act="cancel-order">Vazgeç</button>'
+      + '</aside></div></div>';
+  }
+  function syncForm() {
+    const f = state.form; if (!f) return;
+    const ev = toTs(f.tarih, f.saat);
+    const ready = ev ? ev - MS.sa : null, alarmTs = ev ? ev - 2 * MS.sa : null;
+    const ihale = f.tedarik === KOD.IHALE;
+    const rc = document.getElementById('js-ready');
+    if (rc) rc.innerHTML = ready
+      ? '<p class="mono ready-time">' + fmtTime(ready) + '</p><p class="ready-date">' + fmtDate(ready) + '</p>'
+        + '<p class="ready-formula">Etkinlik <b>' + fmtTime(ev) + '</b> − 1 saat olarak otomatik hesaplandı.</p>'
+        + '<div class="ready-alarm">' + icon('alert', 14) + ' Alarm vakti: <b class="mono">' + fmtTime(alarmTs) + '</b> — bu saate dek "Hazır" değilse kırmızı uyarı.</div>'
+      : '<p class="ready-empty">Tarih ve saat girin…</p>';
+    const si = document.getElementById('js-sideinfo');
+    const kc = f.kalemler.filter(k => ihale ? k.tenderId : String(k.ad || '').trim()).length;
+    if (si) si.innerHTML = '<p class="side-info-row">' + icon(ihale ? 'truck' : 'box', 16) + ' ' + (ihale ? TEDARIK.IHALE : TEDARIK.AMBAR) + '</p>'
+      + '<p class="side-info-row">' + icon('pkg', 16) + ' ' + kc + ' kalem</p>';
+    let asim = false;
+    f.kalemler.forEach((k, i) => {
+      const w = document.getElementById('js-warn-' + i); if (!w) return;
+      let over = false, ti = null;
+      if (ihale && k.tenderId && k.miktar) { ti = state.tender.find(t => String(t.id) === String(k.tenderId)); if (ti && Number(k.miktar) > ti.kalan) over = true; }
+      if (over) { asim = true; w.innerHTML = icon('alert', 13) + ' Kalan stok yetersiz (' + ti.kalan + ' ' + ti.birim + ')'; w.style.display = ''; }
+      else { w.innerHTML = ''; w.style.display = 'none'; }
+    });
+    const bw = document.getElementById('js-blockwarn'); if (bw) bw.style.display = asim ? '' : 'none';
+    const dolu = String(f.birim || '').trim() && ev && f.kalemler.some(k => (ihale ? k.tenderId : String(k.ad || '').trim()) && Number(k.miktar) > 0);
+    const sub = document.getElementById('js-submit'); if (sub) sub.disabled = !dolu || asim;
+  }
+
+  // ---- Ekran: Sipariş Detayı ------------------------------------------
+  function timeline(durum) {
+    const idx = DURUM_SIRA.indexOf(durum);
+    const ik = { [DURUM.BEKLEMEDE]: 'doc', [DURUM.HAZIRLANIYOR]: 'flame', [DURUM.HAZIR]: 'checkCircle', [DURUM.YOLDA]: 'truck', [DURUM.TESLIM]: 'check' };
+    return '<div class="timeline">' + DURUM_SIRA.map((d, i) => {
+      const stt = i < idx ? 'done' : i === idx ? 'now' : 'next';
+      return '<div class="tl-step tl-' + stt + '"><span class="tl-dot">' + icon(ik[d], 15, 2.2) + '</span><span class="tl-lbl">' + d + '</span>' + (i < DURUM_SIRA.length - 1 ? '<span class="tl-bar"></span>' : '') + '</div>';
+    }).join('') + '</div>';
+  }
+  function inforow(ic, label, val, mono) {
+    return '<div class="inforow"><span class="inforow-ico">' + icon(ic, 16) + '</span><span class="inforow-lbl">' + esc(label) + '</span><span class="inforow-val' + (mono ? ' mono' : '') + '">' + val + '</span></div>';
+  }
+  function detailView() {
+    const o = state.orders.find(x => String(x.id) === String(state.selId));
+    if (!o) return dashboardView();
+    const now = state.now, t = timing(o.eventTs, o.durum, now), col = levelColor(t.level), ihale = isIhale(o);
+    const idx = DURUM_SIRA.indexOf(o.durum), sonraki = idx < DURUM_SIRA.length - 1 ? DURUM_SIRA[idx + 1] : null;
+    const sub = t.msToReady < 0 ? fmtKalan(t.msToReady) : 'hedef ' + fmtTime(t.ready);
+    const kalemRows = o.kalemler.map(k => '<tr><td>' + esc(k.ad) + '</td><td class="mono">' + k.miktar + ' ' + esc(k.birim) + '</td><td>' + (k.tenderId ? badge('teal', 'İhale') : badge('slate', 'Ambar')) + '</td></tr>').join('');
+    const ihaleBox = ihale ? '<div class="ihale-box"><p class="ihale-box-t">' + icon('truck', 14) + ' Sözleşmeden düşülen kalemler</p>'
+      + o.kalemler.filter(k => k.tenderId).map(k => { const ti = state.tender.find(tt => String(tt.id) === String(k.tenderId)); return '<div class="ihale-line"><span>' + esc(k.ad) + '</span><span class="mono">−' + k.miktar + ' ' + esc(k.birim) + (ti ? ' · kalan ' + ti.kalan : '') + '</span></div>'; }).join('')
+      + '</div>' : '';
+    const actBtns = (state.user.rol === 'yonetici' && o.durum !== DURUM.HAZIR && TAMAMLANMIS.indexOf(o.durum) === -1
+        ? '<button class="btn btn-soft btn-md" data-act="set-durum" data-id="' + o.id + '" data-durum="' + DURUM.HAZIR + '">' + icon('checkCircle', 17, 2) + 'Hazır olarak işaretle</button>' : '')
+      + (sonraki ? '<button class="btn btn-primary btn-md" data-act="advance" data-id="' + o.id + '">' + icon('chevron', 17, 2) + esc(sonraki) + ' →</button>' : badge('done', 'Süreç tamamlandı', { icon: 'check' }));
+    return '<div class="screen screen-narrow"><button class="back" data-act="back">' + icon('arrowLeft', 18) + ' Geri</button>'
+      + '<div class="detail-hero lvl-' + t.level + (t.alarm ? ' is-alarm' : '') + '"><span class="ocard-spine" style="background:' + col + '"></span>'
+      + '<div class="dh-body"><div class="dh-top"><span class="mono dh-kod">' + esc(o.kod) + '</span>' + levelChip(t.level)
+      + (t.alarm ? badge('red', 'ALARM', { solid: true, icon: 'alert' }) : '') + statusBadge(o.durum) + '</div>'
+      + '<h1 class="dh-birim">' + esc(o.birim) + '</h1>'
+      + '<p class="dh-meta">' + icon(ihale ? 'truck' : 'box', 15) + ' ' + esc(o.tedarik) + '<span class="dot-sep"></span>' + icon('user', 15) + ' ' + esc(o.atanan) + '</p></div>'
+      + '<div class="dh-count"><span class="dh-count-lbl">Hazır olmaya kalan</span>' + countdown(o.eventTs, o.durum, 'xl')
+      + '<span class="dh-count-sub js-cd-sub" data-ev="' + o.eventTs + '" data-durum="' + esc(o.durum) + '">' + sub + '</span></div></div>'
+      + timeline(o.durum)
+      + '<div class="detail-grid"><div class="card detail-card"><h2 class="form-sec">Ürün Kalemleri</h2>'
+      + '<table class="kalem-tbl"><thead><tr><th>Ürün</th><th>Miktar</th><th>Kaynak</th></tr></thead><tbody>' + kalemRows + '</tbody></table>'
+      + (o.note ? '<p class="detail-note">' + icon('doc', 14) + ' ' + esc(o.note) + '</p>' : '') + '</div>'
+      + '<div class="card detail-card"><h2 class="form-sec">Zaman &amp; Tedarik</h2>'
+      + inforow('calendar', 'Etkinlik', fmtDateTime(o.eventTs), true)
+      + inforow('clock', 'Hazır olma vakti', fmtDateTime(t.ready), true)
+      + inforow('alert', 'Alarm vakti', fmtTime(o.eventTs - 2 * MS.sa), true)
+      + inforow(ihale ? 'truck' : 'box', 'Tedarik', esc(o.tedarik), false)
+      + ihaleBox + '</div></div>'
+      + '<div class="card action-bar"><div class="action-info"><span class="action-lbl">Durum güncelle</span>'
+      + '<span class="action-cur">Şu an: <b>' + esc(o.durum) + '</b></span></div><div class="action-btns">' + actBtns + '</div></div></div>';
+  }
+
+  // ---- Ekran: Ambar (Görevlerim) --------------------------------------
+  function warehouseView() {
+    const now = state.now;
+    const mine = state.orders.filter(o => !isIhale(o));
+    const enriched = mine.map(o => ({ o, t: timing(o.eventTs, o.durum, now) }))
+      .sort((a, b) => a.t.tamam === b.t.tamam ? a.t.msToReady - b.t.msToReady : a.t.tamam ? 1 : -1);
+    const aktif = mine.filter(o => TAMAMLANMIS.indexOf(o.durum) === -1 || o.durum === DURUM.HAZIR).length;
+    const alarm = enriched.filter(e => e.t.alarm).length;
+    const ad = (state.user.ad || '').split(' ')[0];
+    const cards = enriched.map(({ o }) => {
+      let foot = '<div class="wh-actions">';
+      if (o.durum === DURUM.BEKLEMEDE) foot += '<button class="btn btn-soft btn-sm" data-act="set-durum" data-id="' + o.id + '" data-durum="' + DURUM.HAZIRLANIYOR + '">' + icon('flame', 15, 2) + 'Hazırlamaya başla</button>';
+      if (o.durum === DURUM.BEKLEMEDE || o.durum === DURUM.HAZIRLANIYOR) foot += '<button class="btn btn-primary btn-sm" data-act="set-durum" data-id="' + o.id + '" data-durum="' + DURUM.HAZIR + '">' + icon('checkCircle', 15, 2) + 'Hazırlandı</button>';
+      if (o.durum === DURUM.HAZIR) foot += '<button class="btn btn-primary btn-sm" data-act="set-durum" data-id="' + o.id + '" data-durum="' + DURUM.YOLDA + '">' + icon('truck', 15, 2) + 'Yola Çıktı</button>';
+      if (o.durum === DURUM.YOLDA) foot += '<button class="btn btn-soft btn-sm" data-act="set-durum" data-id="' + o.id + '" data-durum="' + DURUM.TESLIM + '">' + icon('check', 15, 2) + 'Teslim edildi</button>';
+      if (o.durum === DURUM.TESLIM) foot += badge('done', 'Tamamlandı', { icon: 'check' });
+      foot += '</div>';
+      return orderCard(o, foot);
+    }).join('');
+    return '<div class="screen"><header class="scr-head"><div><p class="scr-kicker">İç Üretim Ambarı</p><h1 class="scr-title">Görevlerim</h1>'
+      + '<p class="scr-sub">Merhaba ' + esc(ad) + ' — sana atanan ' + aktif + ' aktif sipariş var.</p></div>'
+      + (alarm > 0 ? badge('red', alarm + ' kritik', { solid: true, icon: 'alert' }) : '') + '</header>'
+      + '<div class="ocard-list">' + (cards || empty('box', 'Sipariş yok', 'Ambara atanmış sipariş bulunmuyor.')) + '</div></div>';
+  }
+
+  // ---- Ekran: İhale Havuzu --------------------------------------------
+  function tenderView() {
+    const now = state.now;
+    const ihaleOrders = state.orders.filter(o => isIhale(o));
+    const enriched = ihaleOrders.map(o => ({ o, t: timing(o.eventTs, o.durum, now) })).sort((a, b) => a.t.msToReady - b.t.msToReady);
+    const items = state.tender.map(t => {
+      const pct = t.sozlesme ? t.kalan / t.sozlesme : 0;
+      const tone = pct < 0.2 ? '#DC2626' : pct < 0.4 ? '#D97706' : '#16A34A';
+      return '<div class="tender-item"><div class="tender-item-head"><span class="tender-name">' + esc(t.kalem) + '</span><span class="tender-firma">' + esc(t.firma) + '</span></div>'
+        + '<div class="tender-bar"><span class="tender-bar-fill" style="width:' + (pct * 100) + '%;background:' + tone + '"></span></div>'
+        + '<div class="tender-nums"><span class="mono" style="color:' + tone + ';font-weight:600">' + t.kalan.toLocaleString('tr-TR') + '</span>'
+        + '<span class="tender-tot">/ ' + t.sozlesme.toLocaleString('tr-TR') + ' ' + t.birim + '</span>'
+        + (pct < 0.2 ? badge('red', 'Düşük stok', { icon: 'alert' }) : '') + '</div></div>';
+    }).join('');
+    return '<div class="screen"><header class="scr-head"><div><p class="scr-kicker">İhale Firması Tedariki</p><h1 class="scr-title">İhale Havuzu</h1></div></header>'
+      + '<div class="card tender-card"><h2 class="form-sec">Sözleşme Kalemleri — Kalan Miktar</h2>'
+      + '<p class="tender-sub">İhale tedarikli her sipariş, ilgili kalemden otomatik düşülür.</p><div class="tender-grid">' + items + '</div></div>'
+      + '<h2 class="list-h">İhale Tedarikli Siparişler <span class="list-h-n">' + ihaleOrders.length + '</span></h2>'
+      + '<div class="ocard-list">' + (enriched.length ? enriched.map(({ o }) => orderCard(o)).join('') : empty('truck', 'İhale siparişi yok')) + '</div></div>';
+  }
+
+  // ---- Ekran: Bildirimler ---------------------------------------------
+  function notificationsView() {
+    const now = state.now;
+    const aktifAlarm = state.orders.map(o => ({ o, t: timing(o.eventTs, o.durum, now) })).filter(e => e.t.alarm);
+    const meta = { alarm: { icon: 'alert', tone: 'red' }, durum: { icon: 'checkCircle', tone: 'green' }, yeni: { icon: 'plus', tone: 'blue' }, sari: { icon: 'clock', tone: 'amber' } };
+    let bot = '';
+    if (aktifAlarm.length) {
+      const lines = aktifAlarm.slice(0, 3).map(e => '• ' + esc(e.o.kod) + ' ' + esc(e.o.birim) + ' → etkinlik ' + fmtTime(e.o.eventTs)).join('<br>');
+      bot = '<div class="card bot-card"><div class="bot-head"><span class="bot-ico">' + icon('send', 16, 2) + '</span>'
+        + '<div><p class="bot-t">Bot bildirimi hazır</p><p class="bot-s">Telegram / WhatsApp entegrasyonu için tetiklenecek mesaj önizlemesi</p></div>'
+        + badge('green', 'Simülasyon', { solid: true }) + '</div>'
+        + '<div class="bot-msg mono">🔴 KRİTİK: ' + aktifAlarm.length + ' sipariş hazır olma vaktine 1 saatten az kaldı, hâlâ "Hazır" değil.<br>' + lines + '</div></div>';
+    }
+    const logs = state.notifications.length ? state.notifications.map(l => {
+      const m = meta[l.tip] || meta.durum;
+      return '<div class="log-row log-' + m.tone + '"><span class="log-ico">' + icon(m.icon, 16, 2) + '</span>'
+        + '<div class="log-body"><p class="log-title">' + esc(l.baslik) + '</p><p class="log-sub">' + esc(l.alt) + '</p></div>'
+        + '<span class="log-time mono">' + fmtTime(l.ts) + '</span></div>';
+    }).join('') : empty('bell', 'Bildirim yok', 'Durum değişimleri ve alarmlar burada listelenir.');
+    return '<div class="screen screen-narrow"><header class="scr-head"><div><p class="scr-kicker">Bildirim Merkezi</p><h1 class="scr-title">Alarm &amp; Bildirimler</h1></div></header>'
+      + bot + '<div class="log">' + logs + '</div></div>';
+  }
+
+  // ---- App kabuğu ------------------------------------------------------
+  const NAV = {
+    yonetici: [{ id: 'panel', ad: 'Panel', icon: 'panel' }, { id: 'yeni', ad: 'Yeni Sipariş', icon: 'plus' }, { id: 'ihale', ad: 'İhale Havuzu', icon: 'truck' }, { id: 'bildirim', ad: 'Bildirimler', icon: 'bell' }],
+    ambar: [{ id: 'gorevlerim', ad: 'Görevlerim', icon: 'box' }, { id: 'bildirim', ad: 'Bildirimler', icon: 'bell' }],
+  };
+  function screenView() {
+    switch (state.screen) {
+      case 'detay': return detailView();
+      case 'yeni': return newOrderView();
+      case 'ihale': return tenderView();
+      case 'bildirim': return notificationsView();
+      case 'gorevlerim': return warehouseView();
+      default: return dashboardView();
+    }
+  }
+  function view() {
+    if (!state.user) return loginView();
+    const rol = state.user.rol, nav = NAV[rol];
+    const aktifAlarm = state.orders.map(o => timing(o.eventTs, o.durum, state.now)).filter(t => t.alarm).length;
+    const navBtns = nav.map(n => {
+      const aktif = state.screen === n.id || (n.id === 'panel' && state.screen === 'detay' && rol === 'yonetici') || (n.id === 'gorevlerim' && state.screen === 'detay' && rol === 'ambar');
+      const rozet = n.id === 'bildirim' && aktifAlarm ? '<span class="sb-badge">' + aktifAlarm + '</span>' : '';
+      return '<button class="sb-link' + (aktif ? ' is-on' : '') + '" data-act="go" data-screen="' + n.id + '">' + icon(n.icon, 19) + '<span>' + n.ad + '</span>' + rozet + '</button>';
+    }).join('');
+    const tabBtns = nav.map(n => {
+      const aktif = state.screen === n.id;
+      const dot = n.id === 'bildirim' && aktifAlarm ? '<span class="tab-dot"></span>' : '';
+      return '<button class="tab' + (aktif ? ' is-on' : '') + '" data-act="go" data-screen="' + n.id + '"><span class="tab-ico">' + icon(n.icon, 21) + dot + '</span><span class="tab-lbl">' + n.ad + '</span></button>';
+    }).join('');
+    const fab = rol === 'yonetici' ? '<button class="tab tab-fab" data-act="go" data-screen="yeni"><span class="tab-ico">' + icon('plus', 22, 2.4) + '</span></button>' : '';
+    const banner = (aktifAlarm > 0 && state.screen !== 'bildirim')
+      ? '<button class="alarm-banner" data-act="go" data-screen="bildirim">' + icon('alert', 18, 2.2) + '<b>' + aktifAlarm + ' kritik sipariş</b> hazır olma vaktine 1 saatten az kaldı, hâlâ hazır değil.<span class="alarm-cta">Bildirimlere git ' + icon('chevron', 15) + '</span></button>' : '';
+    return '<div class="app"><aside class="sidebar">'
+      + '<div class="sb-brand"><span class="brand-logo sm">' + icon('coffee', 19, 2) + '</span><div class="sb-brand-txt"><p class="sb-name">İkram Takip</p><p class="sb-sub">Operasyon Konsolu</p></div></div>'
+      + '<nav class="sb-nav">' + navBtns + '</nav>'
+      + '<div class="sb-foot"><button class="theme-btn" data-act="toggle-theme" title="Tema değiştir">' + icon(state.theme === 'light' ? 'moon' : 'sun', 18) + '</button>'
+      + '<div class="sb-user"><span class="avatar" style="width:34px;height:34px;font-size:13px">' + esc(state.user.bas) + '</span>'
+      + '<div class="sb-user-txt"><p class="sb-user-ad">' + esc(state.user.ad) + '</p><p class="sb-user-rol">' + ROLLER[rol].etiket + '</p></div></div>'
+      + '<button class="logout-btn" data-act="logout" title="Çıkış">' + icon('logout', 17) + '</button></div></aside>'
+      + '<header class="topbar"><span class="brand-logo sm">' + icon('coffee', 17, 2) + '</span><p class="tb-title">İkram Takip</p>'
+      + '<button class="tb-icon" data-act="go" data-screen="bildirim">' + icon('bell', 19) + (aktifAlarm > 0 ? '<span class="tb-dot"></span>' : '') + '</button>'
+      + '<button class="tb-icon" data-act="toggle-theme">' + icon(state.theme === 'light' ? 'moon' : 'sun', 18) + '</button>'
+      + '<button class="tb-icon" data-act="logout">' + icon('logout', 18) + '</button></header>'
+      + '<main class="content">' + banner + screenView() + '</main>'
+      + '<nav class="tabbar">' + tabBtns + fab + '</nav></div>';
+  }
+
+  // ---- Render + scroll/focus koruma -----------------------------------
+  function repaint() {
+    const c = document.querySelector('.content'); const cs = c ? c.scrollTop : 0; const ws = window.scrollY;
+    const ae = document.activeElement; const aid = ae && ae.id;
+    let sel = null; try { if (ae && ae.selectionStart != null) sel = ae.selectionStart; } catch (x) {}
+    root.innerHTML = view();
+    if (state.screen === 'yeni' && state.user) syncForm();
+    const c2 = document.querySelector('.content'); if (c2) c2.scrollTop = cs; window.scrollTo(0, ws);
+    if (aid) { const e = document.getElementById(aid); if (e) { try { e.focus(); if (sel != null && e.setSelectionRange) e.setSelectionRange(sel, sel); } catch (x) {} } }
+  }
+  function tickDom() {
+    const now = state.now;
+    const lc = document.getElementById('js-clock'); if (lc) lc.textContent = fmtTime(now);
+    const ld = document.getElementById('js-clock-day'); if (ld) ld.textContent = fmtDate(now);
+    if (state.screen === 'yeni') return;
+    document.querySelectorAll('.js-cd').forEach(el => {
+      const t = timing(+el.dataset.ev, el.dataset.durum, now);
+      el.textContent = fmtCountdown(t.msToReady);
+      el.style.color = t.msToReady < 0 ? '#DC2626' : levelColor(t.level);
+    });
+    document.querySelectorAll('.js-cd-sub').forEach(el => {
+      const t = timing(+el.dataset.ev, el.dataset.durum, now);
+      el.textContent = t.msToReady < 0 ? fmtKalan(t.msToReady) : 'hedef ' + fmtTime(t.ready);
+    });
+    document.querySelectorAll('.js-ring').forEach(el => {
+      const t = timing(+el.dataset.ev, el.dataset.durum, now), c = +el.dataset.c;
+      const pct = t.tamam ? 1 : Math.max(0, Math.min(1, t.msToReady / (6 * MS.sa)));
+      const fill = el.querySelector('.js-ring-fill'); if (fill) fill.style.strokeDashoffset = c * (1 - pct);
+      const num = el.querySelector('.js-ring-num'); if (num && !t.tamam) num.textContent = Math.max(0, Math.ceil(t.msToReady / MS.sa)) + 's';
+    });
+    // Alarm/seviye eşiği değiştiyse (nadir) tam yeniden çiz
+    const s = sig();
+    if (s !== state._sig) { state._sig = s; repaint(); }
+  }
+
+  // ---- Aksiyonlar ------------------------------------------------------
+  function go(screen) { if (screen !== 'detay') state.selId = null; if (screen === 'yeni') initForm(); state.screen = screen; repaint(); }
+  function backScreen() { return state.user && state.user.rol === 'ambar' ? 'gorevlerim' : 'panel'; }
+  function initForm() { state.form = { birim: '', tarih: defaultDate(), saat: '14:00', tedarik: KOD.AMBAR, note: '', kalemler: [{ ad: '', miktar: '', birim: 'adet', tenderId: '' }] }; }
+
+  function toggleTheme() {
+    state.theme = state.theme === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', state.theme);
+    try { localStorage.setItem('stk-theme', state.theme); } catch (e) {}
+    repaint();
+  }
+  async function login(rol) {
+    try {
+      const r = await api('/auth/login', { method: 'POST', body: { rol } });
+      token = r.token; state.user = r.user;
+      try { localStorage.setItem('stk-token', token); localStorage.setItem('stk-user', JSON.stringify(r.user)); } catch (e) {}
+      state.screen = rol === 'ambar' ? 'gorevlerim' : 'panel';
+      await loadData(); repaint();
+    } catch (e) { toast(e.message, 'err'); }
+  }
+  async function doLogout() {
+    try { await api('/auth/logout', { method: 'POST' }); } catch (e) {}
+    token = null; state.user = null; state.orders = []; state.tender = []; state.notifications = [];
+    try { localStorage.removeItem('stk-token'); localStorage.removeItem('stk-user'); } catch (e) {}
+    repaint();
+  }
+  function openOrder(id) { state.selId = id; state.screen = 'detay'; repaint(); }
+  async function doSetDurum(id, durum) {
+    try { await api('/orders/' + id + '/durum', { method: 'PATCH', body: { durum } }); await loadData(); repaint(); }
+    catch (e) { toast(e.message, 'err'); }
+  }
+  function advance(id) {
+    const o = state.orders.find(x => String(x.id) === String(id)); if (!o) return;
+    const i = DURUM_SIRA.indexOf(o.durum); if (i < DURUM_SIRA.length - 1) doSetDurum(id, DURUM_SIRA[i + 1]);
+  }
+  async function submitOrder() {
+    const f = state.form; const ev = toTs(f.tarih, f.saat); const ihale = f.tedarik === KOD.IHALE;
+    const kalemler = f.kalemler.filter(k => (ihale ? k.tenderId : String(k.ad || '').trim()) && Number(k.miktar) > 0)
+      .map(k => ihale ? { miktar: Number(k.miktar), tenderId: Number(k.tenderId) } : { ad: String(k.ad).trim(), miktar: Number(k.miktar), birim: k.birim || 'adet' });
+    try {
+      await api('/orders', { method: 'POST', body: { birim: f.birim.trim(), eventTs: ev, tedarik: f.tedarik, note: f.note.trim(), kalemler } });
+      await loadData(); go('panel'); toast('Sipariş oluşturuldu');
+    } catch (e) { toast(e.message, 'err'); }
+  }
+
+  // ---- Olay delegasyonu ------------------------------------------------
+  function actEl(t) { return t.closest ? t.closest('[data-act]') : null; }
+  root.addEventListener('click', e => {
+    const el = actEl(e.target); if (!el) return;
+    const a = el.dataset.act, id = el.dataset.id;
+    if (a === 'pick-role') { state.loginRol = el.dataset.rol; repaint(); }
+    else if (a === 'do-login') { login(state.loginRol); }
+    else if (a === 'logout') { doLogout(); }
+    else if (a === 'toggle-theme') { toggleTheme(); }
+    else if (a === 'go') { go(el.dataset.screen); }
+    else if (a === 'new-order') { go('yeni'); }
+    else if (a === 'open-order') { openOrder(id); }
+    else if (a === 'back') { go(backScreen()); }
+    else if (a === 'cancel-order') { go(backScreen()); }
+    else if (a === 'filter') { state.filtre = el.dataset.filtre; repaint(); }
+    else if (a === 'advance') { advance(id); }
+    else if (a === 'set-durum') { doSetDurum(id, el.dataset.durum); }
+    else if (a === 'add-kalem') { state.form.kalemler.push({ ad: '', miktar: '', birim: 'adet', tenderId: '' }); document.getElementById('js-kalemlist').innerHTML = kalemListHtml(); syncForm(); }
+    else if (a === 'del-kalem') { const i = +el.dataset.i; if (state.form.kalemler.length > 1) { state.form.kalemler.splice(i, 1); document.getElementById('js-kalemlist').innerHTML = kalemListHtml(); syncForm(); } }
+    else if (a === 'seg-tedarik') { state.form.tedarik = el.dataset.ted; repaint(); }
+    else if (a === 'submit-order') { if (!el.disabled) submitOrder(); }
+  });
+  root.addEventListener('input', e => {
+    const el = actEl(e.target); if (!el) return;
+    const a = el.dataset.act, f = state.form;
+    if (a === 'search') { state.q = e.target.value; repaint(); }
+    else if (a === 'f-birim') { f.birim = e.target.value; syncForm(); }
+    else if (a === 'f-tarih') { f.tarih = e.target.value; syncForm(); }
+    else if (a === 'f-saat') { f.saat = e.target.value; syncForm(); }
+    else if (a === 'f-note') { f.note = e.target.value; }
+    else if (a === 'k-ad') { f.kalemler[+el.dataset.i].ad = e.target.value; syncForm(); }
+    else if (a === 'k-mik') { f.kalemler[+el.dataset.i].miktar = e.target.value; syncForm(); }
+  });
+  root.addEventListener('change', e => {
+    const el = actEl(e.target); if (!el) return;
+    const a = el.dataset.act, f = state.form;
+    if (a === 'k-birim') { f.kalemler[+el.dataset.i].birim = e.target.value; }
+    else if (a === 'k-tender') {
+      const i = +el.dataset.i; f.kalemler[i].tenderId = e.target.value;
+      const ti = state.tender.find(t => String(t.id) === String(e.target.value));
+      const u = document.getElementById('js-unit-' + i); if (u) u.textContent = ti ? ti.birim : '—';
+      syncForm();
+    }
+  });
+  root.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const el = actEl(e.target); if (el && el.dataset.act === 'open-order') { e.preventDefault(); openOrder(el.dataset.id); }
+  });
+
+  // ---- Başlat ----------------------------------------------------------
+  (async function boot() {
+    try {
+      const t = localStorage.getItem('stk-token'); const u = localStorage.getItem('stk-user');
+      if (t && u) { token = t; state.user = JSON.parse(u); state.screen = state.user.rol === 'ambar' ? 'gorevlerim' : 'panel'; }
+    } catch (e) {}
+    if (state.user) { try { await loadData(); } catch (e) { token = null; state.user = null; try { localStorage.removeItem('stk-token'); localStorage.removeItem('stk-user'); } catch (x) {} } }
+    repaint();
+    setInterval(() => { state.now = Date.now(); tickDom(); }, 1000);
+  })();
+  </script>
+</body>
+</html>

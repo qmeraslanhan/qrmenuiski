@@ -17,6 +17,9 @@ import randevuUyeHtml from '@/projects/randevu/html/uye.html';
 import randevuHesabimHtml from '@/projects/randevu/html/hesabim.html';
 import randevuResetHtml from '@/projects/randevu/html/sifre-sifirla.html';
 
+// İkramlık & Sipariş Takip projesi
+import siparisTakipAppHtml from '@/projects/siparis-takip/html/app.html';
+
 // Filename → bundled string. Yeni HTML eklerken bu map'e ekle.
 const HTML: Record<string, string> = {
   'qr-menu/admin.html': adminHtml,
@@ -32,6 +35,8 @@ const HTML: Record<string, string> = {
   'randevu/uye.html': randevuUyeHtml,
   'randevu/hesabim.html': randevuHesabimHtml,
   'randevu/sifre-sifirla.html': randevuResetHtml,
+  // İkramlık & Sipariş Takip projesi
+  'siparis-takip/app.html': siparisTakipAppHtml,
   // Geri uyumluluk için kısa isim alias'ları (eski çağrılar bozulmasın)
   'admin.html': adminHtml,
   'login.html': loginHtml,
