@@ -8,6 +8,9 @@ compatibility_date = "2025-01-15"
 [vars]
 TARGET_BASE = "https://iskisosyaltesisler.com"
 
-# Her gün 06:00 UTC = 09:00 TR → yedek + (RESEND varsa) hatırlatma
+# İki zamanlama:
+#  - "0 6 * * *"   → her gün 06:00 UTC (09:00 TR): D1 yedek + (RESEND varsa) hatırlatma
+#  - "*/5 * * * *" → 5 dakikada bir: ikram sipariş alarm taraması (alarm-scan)
+# worker.js, event.cron'a bakarak hangi işi çalıştıracağını seçer.
 [triggers]
-crons = ["0 6 * * *"]
+crons = ["0 6 * * *", "*/5 * * * *"]
