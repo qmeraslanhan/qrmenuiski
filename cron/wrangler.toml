@@ -1,0 +1,13 @@
+# Ayrı zamanlayıcı worker'ı (ana qrmenu worker'ından bağımsız).
+# Deploy:  npx wrangler deploy --config cron/wrangler.toml
+# Secret:  echo "<deger>" | npx wrangler secret put CRON_SECRET --config cron/wrangler.toml
+name = "qrmenu-cron"
+main = "worker.js"
+compatibility_date = "2025-01-15"
+
+[vars]
+TARGET_BASE = "https://iskisosyaltesisler.com"
+
+# Her gün 06:00 UTC = 09:00 TR → yedek + (RESEND varsa) hatırlatma
+[triggers]
+crons = ["0 6 * * *"]
