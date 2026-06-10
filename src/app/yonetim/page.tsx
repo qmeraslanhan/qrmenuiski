@@ -1,8 +1,8 @@
 import { PROJECTS } from '@/lib/projects';
-import { getSystemStatuses } from '@/lib/dashboard-systems';
+import { getDashboardData } from '@/lib/dashboard-systems';
 import YonetimPanel from '@/components/YonetimPanel';
 
-// Durumlar D1'den anlık okunur
+// Durumlar/içerik D1'den anlık okunur
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
@@ -11,14 +11,22 @@ export const metadata = {
 };
 
 export default async function YonetimPage() {
-  const statuses = await getSystemStatuses();
-  const rows = PROJECTS.map((p) => ({
-    slug: p.slug,
-    title: p.title,
-    active: statuses[p.slug] !== false,
-    href: p.href,
-    adminHref: p.adminHref || p.href,
-    status: p.status,
-  }));
-  return <YonetimPanel rows={rows} />;
+  const { settings, overrides } = await getDashboardData();
+  const rows = PROJECTS.map((p, i) => {
+    const o = overrides[p.slug];
+    return {
+      slug: p.slug,
+      href: p.href,
+      adminHref: p.adminHref || p.href,
+      active: o ? o.is_active : true,
+      title: o?.title ?? p.title,
+      description: o?.description ?? p.description,
+      tags: o?.tags ?? p.tags,
+      status: (o?.status ?? p.status) as string,
+      sort_order: o?.sort_order ?? i,
+      def: { title: p.title, description: p.description, tags: p.tags, status: p.status as string },
+    };
+  }).sort((a, b) => a.sort_order - b.sort_order);
+
+  return <YonetimPanel settings={settings} rows={rows} />;
 }

@@ -1,8 +1,9 @@
+import type { CSSProperties } from 'react';
 import Link from 'next/link';
 import { PROJECTS } from '@/lib/projects';
-import { getSystemStatuses } from '@/lib/dashboard-systems';
+import { getDashboardData } from '@/lib/dashboard-systems';
 
-// Durum D1'den anlık okunur → statik cache yerine her istekte taze render
+// İçerik/durum D1'den anlık okunur → statik cache yerine her istekte taze render
 export const dynamic = 'force-dynamic';
 
 const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
@@ -79,12 +80,28 @@ const RIPPLES = [
 
 export default async function Dashboard() {
   const year = new Date().getFullYear();
-  const statuses = await getSystemStatuses();
-  const projects = PROJECTS.map((p) => ({ ...p, active: statuses[p.slug] !== false }));
-  const activeCount = projects.filter((p) => p.active).length;
+  const { settings, overrides } = await getDashboardData();
+  const merged = PROJECTS.map((p, i) => {
+    const o = overrides[p.slug];
+    return {
+      ...p,
+      active: o ? o.is_active : true,
+      title: o?.title ?? p.title,
+      description: o?.description ?? p.description,
+      tags: o?.tags ?? p.tags,
+      status: (o?.status as typeof p.status) ?? p.status,
+      _ord: o?.sort_order ?? i,
+    };
+  }).sort((a, b) => a._ord - b._ord);
+  const visible = merged.filter((p) => p.active);
+  const activeCount = visible.length;
+  const accentStyle = {
+    '--accent': settings.accent_color,
+    '--accent-glow': settings.accent_color + '14',
+  } as unknown as CSSProperties;
 
   return (
-    <main className="min-h-screen relative overflow-hidden">
+    <main className="min-h-screen relative overflow-hidden" style={accentStyle}>
       {/* Subtle background ornament */}
       <div
         aria-hidden
@@ -141,14 +158,19 @@ export default async function Dashboard() {
         {/* Header */}
         <header className="text-center mb-10 md:mb-14">
           <p className="anim-fade-up d-1 text-[11px] md:text-xs font-semibold tracking-[0.35em] uppercase text-[var(--ink-mute)] mb-4">
-            İSKİ Kültür ve Sosyal İşler Şube Müdürlüğü
+            {settings.portal_label}
           </p>
           <h1 className="anim-fade-up d-2 serif text-3xl md:text-5xl font-medium text-[var(--ink)] mb-4 leading-[1.1]">
-            Dijital Hizmetler{' '}
-            <span className="italic font-normal text-[var(--accent)]">Portalı</span>
+            {settings.portal_title}
+            {settings.portal_title_accent && (
+              <>
+                {' '}
+                <span className="italic font-normal text-[var(--accent)]">{settings.portal_title_accent}</span>
+              </>
+            )}
           </h1>
           <p className="anim-fade-up d-3 text-sm md:text-base text-[var(--ink-soft)] max-w-xl mx-auto leading-relaxed">
-            Şube müdürlüğümüz bünyesindeki tesisler ve operasyonel sistemler için merkezi erişim noktası.
+            {settings.portal_subtitle}
           </p>
         </header>
 
@@ -167,7 +189,7 @@ export default async function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {projects.filter((p) => p.active).map((p, idx) => {
+            {visible.map((p, idx) => {
               const status = STATUS_LABEL[p.status];
               return (
                 <Link
@@ -242,7 +264,7 @@ export default async function Dashboard() {
         {/* Footer */}
         <footer className="mt-20 pt-8 border-t border-[var(--line)] anim-fade-up" style={{ animationDelay: '700ms' }}>
           <div className="text-center text-xs text-[var(--ink-mute)]">
-            © {year} İSKİ Kültür ve Sosyal İşler Şube Müdürlüğü
+            © {year} {settings.footer_text}
           </div>
         </footer>
       </div>
