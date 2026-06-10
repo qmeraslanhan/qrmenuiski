@@ -276,15 +276,16 @@ async function seedIfEmpty(): Promise<void> {
         kalemler: [{ ad: 'Açılış kokteyli', miktar: 120, birim: 'kişi' }, { ad: 'Limonata', miktar: 120, birim: 'bardak' }] },
     ];
 
-    let kod = 1042;
+    let ambN = 1001, ihlN = 1001; // tedarik türüne göre ayrı kod serileri
     const olusturmaTs = now - 3 * MS_SA;
     for (const o of orders) {
       const eventTs = at(o.saat);
+      const kod = o.tedarik === I ? 'IHL-' + ihlN++ : 'AMB-' + ambN++;
       const ins = await db.execute({
         sql: `INSERT INTO siparis_takip_siparisler
               (kod, talep_eden_birim, etkinlik_ts, hazir_olma_ts, tedarik_turu, durum, atanan, note, olusturan, olusturma_ts)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: ['SP-' + kod++, o.birim, eventTs, eventTs - MS_SA, o.tedarik, o.durum, o.atanan, o.note, 'Selim Aktaş', olusturmaTs],
+        args: [kod, o.birim, eventTs, eventTs, o.tedarik, o.durum, o.atanan, o.note, 'Selim Aktaş', olusturmaTs],
       });
       const sid = Number(ins.lastInsertRowid);
       for (const k of o.kalemler) {

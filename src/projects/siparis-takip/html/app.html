@@ -479,7 +479,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
   // mantığı data.jsx ile birebirdir.
   // =====================================================================
   const API = '/siparis-takip/api';
-  const MS = { dk: 60000, sa: 3600000 };
+  const MS = { dk: 60000, sa: 3600000, gun: 86400000 };
   const TEDARIK = { AMBAR: 'İç Üretim Ambarı', IHALE: 'İhale Firması' };
   const KOD = { AMBAR: 'IC_URETIM_AMBARI', IHALE: 'IHALE_FIRMASI' };
   const DURUM = { BEKLEMEDE: 'Beklemede', HAZIRLANIYOR: 'Hazırlanıyor', HAZIR: 'Hazır', YOLDA: 'Yola Çıktı', TESLIM: 'Teslim Edildi' };
@@ -538,6 +538,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     return (neg ? '−' : '') + p(h) + ':' + p(m) + ':' + p(s);
   }
   const _trDate = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', weekday: 'short' });
+  const _trDateShort = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short', weekday: 'short' });
   const _trTime = new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit' });
   function fmtDate(ts) { return _trDate.format(new Date(ts)); }
   function fmtTime(ts) { return _trTime.format(new Date(ts)); }
@@ -556,19 +557,19 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
   function dateOnly(ts) { const d = new Date(ts); const p = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
   function fmtDateNum(ts) { const d = new Date(ts); const p = n => String(n).padStart(2, '0'); return p(d.getDate()) + '.' + p(d.getMonth() + 1) + '.' + d.getFullYear(); }
 
-  // ---- Zamanlama (data.jsx → orderTiming birebir) ---------------------
+  // ---- Zamanlama -------------------------------------------------------
+  // Sipariş saati BİREBİR esastır (erken alma yok); sayaç teslim saatine
+  // sayar, ALARM son 1 saatte çalar. timing.ts sunucu kopyasıyla aynı.
   function timing(eventTs, durum, now) {
-    const ready = eventTs - MS.sa;
-    const msToReady = ready - now;
     const msToEvent = eventTs - now;
     const tamam = TAMAMLANMIS.indexOf(durum) !== -1;
-    const alarm = !tamam && now >= eventTs - 2 * MS.sa;
+    const alarm = !tamam && now >= eventTs - MS.sa;
     let level;
     if (tamam) level = 'tamam';
-    else if (msToReady <= MS.sa) level = 'kirmizi';
-    else if (msToReady <= 3 * MS.sa) level = 'sari';
+    else if (msToEvent <= MS.sa) level = 'kirmizi';
+    else if (msToEvent <= 3 * MS.sa) level = 'sari';
     else level = 'yesil';
-    return { ready, msToReady, msToEvent, tamam, alarm, level };
+    return { ready: eventTs, msToReady: msToEvent, msToEvent, tamam, alarm, level };
   }
   const isIhale = o => o.tedarikKod === KOD.IHALE || o.tedarik === TEDARIK.IHALE;
 
@@ -648,21 +649,35 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     const ic = level === 'kirmizi' ? 'alert' : level === 'tamam' ? 'check' : 'clock';
     return badge(tone, m.etiket, { icon: ic });
   }
+  // Sayaç metni: teslime 24 saatten fazla varsa tarih+gün ("12 Haz Çar"),
+  // son 24 saatte rakamlı geri sayım. Tarih modunda font küçülür.
+  function cdParts(eventTs, t, baseSize) {
+    const dateMode = t.msToEvent > MS.gun;
+    return {
+      text: dateMode ? _trDateShort.format(new Date(eventTs)) : fmtCountdown(t.msToEvent),
+      size: dateMode ? Math.max(13, Math.round(baseSize * 0.62)) : baseSize,
+    };
+  }
   function countdown(eventTs, durum, size) {
     const sizes = { sm: 15, md: 22, lg: 34, xl: 46 };
     const t = timing(eventTs, durum, state.now);
-    const col = t.msToReady < 0 ? '#DC2626' : levelColor(t.level);
-    return '<span class="mono js-cd" data-ev="' + eventTs + '" data-durum="' + esc(durum) + '" style="font-size:' + sizes[size] + 'px;color:' + col + ';font-weight:600;letter-spacing:.5px;line-height:1">' + fmtCountdown(t.msToReady) + '</span>';
+    const col = t.msToEvent < 0 ? '#DC2626' : levelColor(t.level);
+    const p = cdParts(eventTs, t, sizes[size]);
+    return '<span class="mono js-cd" data-ev="' + eventTs + '" data-durum="' + esc(durum) + '" data-size="' + sizes[size] + '" style="font-size:' + p.size + 'px;color:' + col + ';font-weight:600;letter-spacing:.5px;line-height:1;white-space:nowrap">' + p.text + '</span>';
+  }
+  function ringNum(t) {
+    if (t.msToEvent > MS.gun) return Math.ceil(t.msToEvent / MS.gun) + 'g';
+    return Math.max(0, Math.ceil(t.msToEvent / MS.sa)) + 's';
   }
   function progressRing(eventTs, durum) {
     const size = 50, stroke = 4, r = (size - stroke) / 2, c = 2 * Math.PI * r;
     const t = timing(eventTs, durum, state.now);
-    const pct = t.tamam ? 1 : Math.max(0, Math.min(1, t.msToReady / (6 * MS.sa)));
+    const pct = t.tamam ? 1 : Math.max(0, Math.min(1, t.msToEvent / (6 * MS.sa)));
     const col = levelColor(t.level);
     const off = c * (1 - pct);
     const inner = t.tamam
       ? '<span style="color:' + col + '">' + icon('check', 18, 2.4) + '</span>'
-      : '<span class="mono ring-num js-ring-num" style="color:' + col + '">' + Math.max(0, Math.ceil(t.msToReady / MS.sa)) + 's</span>';
+      : '<span class="mono ring-num js-ring-num" style="color:' + col + '">' + ringNum(t) + '</span>';
     return '<span class="ring js-ring" data-ev="' + eventTs + '" data-durum="' + esc(durum) + '" data-c="' + c + '" style="width:' + size + 'px;height:' + size + 'px">'
       + '<svg width="' + size + '" height="' + size + '">'
       + '<circle cx="' + (size / 2) + '" cy="' + (size / 2) + '" r="' + r + '" stroke="var(--ring-track)" stroke-width="' + stroke + '" fill="none"></circle>'
@@ -694,9 +709,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + (t.tamam
         ? '<div class="ocard-time"><span class="ocard-time-lbl">' + esc(o.durum) + '</span>'
           + '<span style="color:var(--green-ink)">' + icon('checkCircle', 26, 2) + '</span>'
-          + '<span class="ocard-clock">' + icon('clock', 13) + 'etkinlik ' + fmtTime(o.eventTs) + '</span></div>'
-        : '<div class="ocard-time"><span class="ocard-time-lbl">Hazır olmaya</span>' + countdown(o.eventTs, o.durum, 'md')
-          + '<span class="ocard-clock">' + icon('clock', 13) + fmtTime(t.ready) + ' · etkinlik ' + fmtTime(o.eventTs) + '</span></div>')
+          + '<span class="ocard-clock">' + icon('clock', 13) + 'teslim ' + fmtTime(o.eventTs) + '</span></div>'
+        : '<div class="ocard-time"><span class="ocard-time-lbl">Teslimata</span>' + countdown(o.eventTs, o.durum, 'md')
+          + '<span class="ocard-clock">' + icon('clock', 13) + 'teslim ' + fmtTime(o.eventTs) + (t.msToEvent > MS.gun ? ' · ' + fmtDateNum(o.eventTs) : '') + '</span></div>')
       + progressRing(o.eventTs, o.durum)
       + '</div>' + (footer ? '<div class="ocard-foot">' + footer + '</div>' : '') + '</article>';
   }
@@ -708,8 +723,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + '<aside class="login-brand"><div class="brand-mark"><span class="brand-logo">' + icon('coffee', 26, 2) + '</span>'
       + '<div><p class="brand-name">İkram & Sipariş Takip</p><p class="brand-sub">Kurumsal Operasyon Konsolu</p></div></div>'
       + '<div class="login-clock"><span class="mono login-time" id="js-clock">' + fmtTime(now) + '</span><span class="login-day" id="js-clock-day">' + fmtDate(now) + '</span></div>'
-      + '<ul class="login-points"><li>' + icon('clock', 17) + ' Dinamik hazır olma vakti — etkinlikten 1 saat önce</li>'
-      + '<li>' + icon('alert', 17) + ' Kritik gecikme alarmı ve renk kodlu takip</li>'
+      + '<ul class="login-points"><li>' + icon('clock', 17) + ' Sipariş saati birebir — son 24 saatte canlı sayaç</li>'
+      + '<li>' + icon('alert', 17) + ' Teslime 1 saat kala alarm ve renk kodlu takip</li>'
       + '<li>' + icon('truck', 17) + ' İç üretim ambarı &amp; ihale firması ayrımı</li></ul>'
       + '<p class="login-foot">İSKİ Operasyon Konsolu · portal modülü</p></aside>'
       + '<main class="login-form"><p class="login-kicker">Oturum Aç</p><h1 class="login-h1">Giriş yapın</h1>'
@@ -765,7 +780,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + stat('Teslim edilen', teslimSay, 'check', 'slate')
       + '</div><div class="toolbar"><div class="chips">'
       + filtreler.map(f => '<button class="chip' + (state.filtre === f.id ? ' is-on' : '') + '" data-act="filter" data-filtre="' + f.id + '">' + f.ad + '<span class="chip-n">' + f.n + '</span></button>').join('')
-      + '</div><label class="search">' + icon('search', 16) + '<input id="js-search" data-act="search" value="' + esc(state.q) + '" placeholder="Birim veya kod ara…"></label></div>'
+      + '</div><label class="search">' + icon('search', 16) + '<input id="js-search" data-act="search" value="' + esc(state.q) + '" placeholder="Açıklama veya kod ara…"></label></div>'
       + '<div class="ocard-list" id="js-list">' + dashboardList() + '</div></div>';
   }
 
@@ -795,11 +810,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + '<header class="scr-head"><div><p class="scr-kicker">' + (f.editId != null ? 'Sipariş Düzenleme' : 'Sipariş Girişi') + '</p><h1 class="scr-title">' + (f.editId != null ? 'Sipariş Düzenle · ' + esc(f.kod || '') : 'Yeni Sipariş') + '</h1></div></header>'
       + '<div class="form-grid"><div class="form-col">'
       + '<div class="card form-card"><h2 class="form-sec">Talep Bilgisi</h2>'
-      + '<label class="field"><span class="field-label">Talep Eden Birim<i class="req">*</i></span>'
-      + '<div class="input-ico">' + icon('building', 17) + '<input data-act="f-birim" value="' + esc(f.birim) + '" placeholder="örn. İl Sağlık Müdürlüğü"></div></label>'
-      + '<div class="field-row"><label class="field"><span class="field-label">Etkinlik Tarihi<i class="req">*</i></span>'
+      + '<label class="field"><span class="field-label">Talep Açıklaması<i class="req">*</i></span>'
+      + '<div class="input-ico">' + icon('building', 17) + '<input data-act="f-birim" value="' + esc(f.birim) + '" placeholder="açıklama yaz"></div></label>'
+      + '<div class="field-row"><label class="field"><span class="field-label">Teslim Tarihi<i class="req">*</i></span>'
       + '<input type="date" data-act="f-tarih" value="' + esc(f.tarih) + '"></label>'
-      + '<label class="field"><span class="field-label">Etkinlik Saati<i class="req">*</i></span>'
+      + '<label class="field"><span class="field-label">Teslim Saati<i class="req">*</i></span>'
       + '<input type="time" data-act="f-saat" value="' + esc(f.saat) + '"></label></div></div>'
       + '<div class="card form-card"><h2 class="form-sec">Tedarik Türü</h2><div class="seg">'
       + [['AMBAR', 'box', 'Ambar personeline düşer'], ['IHALE', 'truck', 'İhale havuzundan düşülür']].map(([key, ic, sub]) =>
@@ -811,7 +826,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + '<label class="field"><span class="field-label">Not (opsiyonel)</span>'
       + '<textarea data-act="f-note" rows="2" placeholder="Salon, protokol, özel talepler…">' + esc(f.note) + '</textarea></label></div>'
       + '</div><aside class="form-side">'
-      + '<div class="card ready-card"><p class="ready-kicker">' + icon('clock', 15) + ' Dinamik Hazır Olma Vakti</p><div id="js-ready"></div></div>'
+      + '<div class="card ready-card"><p class="ready-kicker">' + icon('clock', 15) + ' Teslim Vakti</p><div id="js-ready"></div></div>'
       + '<div class="card side-info" id="js-sideinfo"></div>'
       + '<p class="form-block-warn" id="js-blockwarn" style="display:none">' + icon('alert', 15) + ' Bir kalem ihale kalan stoğunu aşıyor. Miktarı düşürün.</p>'
       + '<button class="btn btn-primary btn-lg btn-full" id="js-submit" data-act="submit-order">' + icon('check', 17, 2) + (f.editId != null ? 'Değişiklikleri Kaydet' : 'Siparişi Oluştur') + '</button>'
@@ -821,13 +836,13 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
   function syncForm() {
     const f = state.form; if (!f) return;
     const ev = toTs(f.tarih, f.saat);
-    const ready = ev ? ev - MS.sa : null, alarmTs = ev ? ev - 2 * MS.sa : null;
+    const alarmTs = ev ? ev - MS.sa : null;
     const ihale = f.tedarik === KOD.IHALE;
     const rc = document.getElementById('js-ready');
-    if (rc) rc.innerHTML = ready
-      ? '<p class="mono ready-time">' + fmtTime(ready) + '</p><p class="ready-date">' + fmtDate(ready) + '</p>'
-        + '<p class="ready-formula">Etkinlik <b>' + fmtTime(ev) + '</b> − 1 saat olarak otomatik hesaplandı.</p>'
-        + '<div class="ready-alarm">' + icon('alert', 14) + ' Alarm vakti: <b class="mono">' + fmtTime(alarmTs) + '</b> — bu saate dek "Hazır" değilse kırmızı uyarı.</div>'
+    if (rc) rc.innerHTML = ev
+      ? '<p class="mono ready-time">' + fmtTime(ev) + '</p><p class="ready-date">' + fmtDate(ev) + '</p>'
+        + '<p class="ready-formula">Sipariş saati <b>birebir</b> kaydedilir — erken alma yok.</p>'
+        + '<div class="ready-alarm">' + icon('alert', 14) + ' Alarm vakti: <b class="mono">' + fmtTime(alarmTs) + '</b> — teslime 1 saat kala hâlâ "Hazır" değilse görevli uyarılır.</div>'
       : '<p class="ready-empty">Tarih ve saat girin…</p>';
     const si = document.getElementById('js-sideinfo');
     const kc = f.kalemler.filter(k => ihale ? k.tenderId : String(k.ad || '').trim()).length;
@@ -864,7 +879,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     const now = state.now, t = timing(o.eventTs, o.durum, now), col = levelColor(t.level), ihale = isIhale(o);
     const idx = DURUM_SIRA.indexOf(o.durum), sonraki = idx < DURUM_SIRA.length - 1 ? DURUM_SIRA[idx + 1] : null;
     const onceki = idx > 0 ? DURUM_SIRA[idx - 1] : null;
-    const sub = t.msToReady < 0 ? fmtKalan(t.msToReady) : 'hedef ' + fmtTime(t.ready);
+    const sub = t.msToEvent < 0 ? fmtKalan(t.msToEvent) : 'teslim ' + fmtTime(o.eventTs);
     const tutar = orderTutar(o);
     const kalemHead = ihale
       ? '<tr><th>Ürün</th><th>Miktar</th><th>Birim Fiyat</th><th>Tutar</th></tr>'
@@ -893,17 +908,16 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + '<p class="dh-meta">' + icon(ihale ? 'truck' : 'box', 15) + ' ' + esc(o.tedarik) + '<span class="dot-sep"></span>' + icon('user', 15) + ' ' + esc(o.atanan) + '</p></div>'
       + (t.tamam
         ? '<div class="dh-count"><span class="dh-count-lbl">Durum</span><span style="color:var(--green-ink)">' + icon('checkCircle', 44, 2) + '</span>'
-          + '<span class="dh-count-sub">' + esc(o.durum) + ' · etkinlik ' + fmtTime(o.eventTs) + '</span></div>'
-        : '<div class="dh-count"><span class="dh-count-lbl">Hazır olmaya kalan</span>' + countdown(o.eventTs, o.durum, 'xl')
+          + '<span class="dh-count-sub">' + esc(o.durum) + ' · teslim ' + fmtTime(o.eventTs) + '</span></div>'
+        : '<div class="dh-count"><span class="dh-count-lbl">Teslimata kalan</span>' + countdown(o.eventTs, o.durum, 'xl')
           + '<span class="dh-count-sub js-cd-sub" data-ev="' + o.eventTs + '" data-durum="' + esc(o.durum) + '">' + sub + '</span></div>') + '</div>'
       + timeline(o.durum)
       + '<div class="detail-grid"><div class="card detail-card"><h2 class="form-sec">Ürün Kalemleri</h2>'
       + '<div class="tbl-wrap"><table class="kalem-tbl"><thead>' + kalemHead + '</thead><tbody>' + kalemRows + '</tbody></table></div>'
       + (o.note ? '<p class="detail-note">' + icon('doc', 14) + ' ' + esc(o.note) + '</p>' : '') + '</div>'
       + '<div class="card detail-card"><h2 class="form-sec">Zaman &amp; Tedarik</h2>'
-      + inforow('calendar', 'Etkinlik', fmtDateTime(o.eventTs), true)
-      + inforow('clock', 'Hazır olma vakti', fmtDateTime(t.ready), true)
-      + inforow('alert', 'Alarm vakti', fmtTime(o.eventTs - 2 * MS.sa), true)
+      + inforow('calendar', 'Teslim tarihi ve saati', fmtDateTime(o.eventTs), true)
+      + inforow('alert', 'Alarm vakti (1 saat kala)', fmtTime(o.eventTs - MS.sa), true)
       + inforow(ihale ? 'truck' : 'box', 'Tedarik', esc(o.tedarik), false)
       + ihaleBox + '</div></div>'
       + '<div class="card action-bar"><div class="action-info"><span class="action-lbl">Durum güncelle</span>'
@@ -976,9 +990,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     const meta = { alarm: { icon: 'alert', tone: 'red' }, durum: { icon: 'checkCircle', tone: 'green' }, yeni: { icon: 'plus', tone: 'blue' }, sari: { icon: 'clock', tone: 'amber' } };
     let bot = '';
     if (aktifAlarm.length) {
-      const lines = aktifAlarm.slice(0, 3).map(e => '• ' + esc(e.o.kod) + ' ' + esc(e.o.birim) + ' → etkinlik ' + fmtTime(e.o.eventTs)).join('<br>');
+      const lines = aktifAlarm.slice(0, 3).map(e => '• ' + esc(e.o.kod) + ' ' + esc(e.o.birim) + ' → teslim ' + fmtTime(e.o.eventTs)).join('<br>');
       bot = '<div class="card bot-card"><div class="bot-head"><span class="bot-ico">' + icon('alert', 16, 2) + '</span>'
-        + '<div><p class="bot-t">Kritik sipariş özeti</p><p class="bot-s">Hazır olma vaktine 1 saatten az kalan, hâlâ "Hazır" olmayan siparişler</p></div>'
+        + '<div><p class="bot-t">Kritik sipariş özeti</p><p class="bot-s">Teslim saatine 1 saatten az kalan, hâlâ "Hazır" olmayan siparişler</p></div>'
         + badge('red', aktifAlarm.length + ' kritik', { solid: true }) + '</div>'
         + '<div class="bot-msg mono">' + lines + '</div></div>';
     }
@@ -1158,19 +1172,19 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + stat('İç üretim', ambarSay, 'box', 'slate')
       + '</div>'
       + '<div class="card form-card" style="margin-bottom:16px"><div class="field-row rp-grid" style="grid-template-columns:repeat(2,1fr)">'
-      + '<label class="field"><span class="field-label">Başlangıç (etkinlik)</span><input type="date" data-act="rp-bas" value="' + esc(r.bas) + '"></label>'
-      + '<label class="field"><span class="field-label">Bitiş (etkinlik)</span><input type="date" data-act="rp-bit" value="' + esc(r.bit) + '"></label></div>'
+      + '<label class="field"><span class="field-label">Başlangıç (teslim)</span><input type="date" data-act="rp-bas" value="' + esc(r.bas) + '"></label>'
+      + '<label class="field"><span class="field-label">Bitiş (teslim)</span><input type="date" data-act="rp-bit" value="' + esc(r.bit) + '"></label></div>'
       + '<div class="field-row rp-grid" style="grid-template-columns:1fr 1fr 1fr;margin-top:4px">'
       + '<label class="field"><span class="field-label">Tedarik</span><select data-act="rp-tedarik">' + tedarikOpt + '</select></label>'
       + '<label class="field"><span class="field-label">Durum</span><select data-act="rp-durum">' + durumOpt + '</select></label>'
       + '<label class="field"><span class="field-label">Ara</span><input id="js-rep-q" data-act="rp-q" value="' + esc(r.q) + '" placeholder="birim, kod, firma…"></label></div>'
       + ((r.bas || r.bit || r.tedarik !== 'hepsi' || r.durum !== 'hepsi' || r.q) ? '<button class="btn btn-ghost btn-sm" data-act="rp-reset">Filtreleri temizle</button>' : '') + '</div>'
       + firmaCard
-      + '<div class="card detail-card"><div class="tbl-wrap"><table class="kalem-tbl"><thead><tr><th>Kod</th><th>Etkinlik</th><th>Talep Eden</th><th>Tedarik</th><th>Durum</th><th style="text-align:right">Tutar</th></tr></thead><tbody>' + rows + '</tbody></table></div></div></div>';
+      + '<div class="card detail-card"><div class="tbl-wrap"><table class="kalem-tbl"><thead><tr><th>Kod</th><th>Teslim</th><th>Açıklama</th><th>Tedarik</th><th>Durum</th><th style="text-align:right">Tutar</th></tr></thead><tbody>' + rows + '</tbody></table></div></div></div>';
   }
   function exportReportCsv() {
     const list = reportFiltered();
-    const head = ['Kod', 'Etkinlik Tarihi', 'Etkinlik Saati', 'Talep Eden Birim', 'Tedarik', 'Firma/Atanan', 'Durum', 'Ürün', 'Miktar', 'Birim', 'Birim Fiyat', 'Tutar'];
+    const head = ['Kod', 'Teslim Tarihi', 'Teslim Saati', 'Talep Açıklaması', 'Tedarik', 'Firma/Atanan', 'Durum', 'Ürün', 'Miktar', 'Birim', 'Birim Fiyat', 'Tutar'];
     const lines = [head];
     list.forEach(o => {
       const ih = isIhale(o);
@@ -1321,30 +1335,63 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     + '.mk-clauses{margin-top:12px;font-size:11px;line-height:1.5}'
     + '.mk-clauses p{margin:0 0 3px;color:#c0392b}'
     + '.mk-clauses p, .mk-clauses *{color:#c0392b}';
+  // Belgenin yazdırma/görsel için temiz kopyası: form alanları düz metne çevrilir,
+  // logolar data URL olarak gömülür, zoom/kenar stilleri sıfırlanır.
+  async function buildMektupClone() {
+    const src = document.getElementById('mk-doc'); if (!src) return null;
+    const clone = src.cloneNode(true);
+    clone.removeAttribute('id');
+    clone.querySelectorAll('input, textarea').forEach(el => {
+      const isTa = el.tagName === 'TEXTAREA';
+      const sp = document.createElement(isTa ? 'div' : 'span');
+      sp.textContent = (el.value || '').trim() || '-';
+      if (isTa) sp.style.whiteSpace = 'pre-wrap';
+      el.parentNode.replaceChild(sp, el);
+    });
+    clone.querySelectorAll('[onerror]').forEach(el => el.removeAttribute('onerror'));
+    clone.querySelectorAll('[data-act]').forEach(el => el.removeAttribute('data-act'));
+    const imgs = Array.prototype.slice.call(clone.querySelectorAll('img'));
+    for (let i = 0; i < imgs.length; i++) {
+      const du = await imgDataUrl(imgs[i].getAttribute('src'));
+      if (du) imgs[i].setAttribute('src', du); else imgs[i].parentNode.removeChild(imgs[i]);
+    }
+    clone.style.cssText = 'margin:0;border:none;width:794px';
+    return clone;
+  }
+  function mektupKod() {
+    const m = state.mektup; const o = m && state.orders.find(x => String(x.id) === String(m.orderId));
+    return (o && o.kod) || 'siparis-mektubu';
+  }
+  // Yazdır / PDF: gizli iframe'e temiz belgeyi yazıp oradan yazdırır.
+  // SPA print-CSS'ine bağımlılık yok; PDF dosya adı = belge başlığı = sipariş no.
+  async function printMektup() {
+    try {
+      const clone = await buildMektupClone(); if (!clone) return;
+      const kod = mektupKod();
+      const old = document.getElementById('mk-print-frame'); if (old) old.remove();
+      const f = document.createElement('iframe');
+      f.id = 'mk-print-frame';
+      f.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none';
+      document.body.appendChild(f);
+      const d = f.contentDocument || f.contentWindow.document;
+      d.open();
+      d.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc(kod) + '</title>'
+        + '<style>' + MK_PNG_CSS + '@page{size:A4;margin:14mm}body{margin:0}.mk-doc{width:auto;padding:0}</style>'
+        + '</head><body>' + clone.outerHTML + '</body></html>');
+      d.close();
+      setTimeout(function () {
+        try { f.contentWindow.focus(); f.contentWindow.print(); }
+        catch (e) { toast('Yazdırma açılamadı: ' + (e && e.message || ''), 'err'); }
+      }, 300);
+    } catch (e) {
+      toast('Yazdırma hazırlanamadı: ' + ((e && e.message) || 'bilinmeyen hata'), 'err');
+    }
+  }
   async function downloadMektupPng() {
-    const src = document.getElementById('mk-doc'); if (!src) return;
     const m = state.mektup; const o = m && state.orders.find(x => String(x.id) === String(m.orderId));
     toast('Görsel hazırlanıyor…');
     try {
-      const clone = src.cloneNode(true);
-      clone.removeAttribute('id');
-      // Form alanlarını düz metne çevir (input değerleri serialize edilmez)
-      clone.querySelectorAll('input, textarea').forEach(el => {
-        const isTa = el.tagName === 'TEXTAREA';
-        const sp = document.createElement(isTa ? 'div' : 'span');
-        sp.textContent = (el.value || '').trim() || '-';
-        if (isTa) sp.style.whiteSpace = 'pre-wrap';
-        el.parentNode.replaceChild(sp, el);
-      });
-      // XML'i bozabilecek / dış kaynak gerektiren öznitelikleri temizle
-      clone.querySelectorAll('[onerror]').forEach(el => el.removeAttribute('onerror'));
-      clone.querySelectorAll('[data-act]').forEach(el => el.removeAttribute('data-act'));
-      // Logoları data URL'e göm (SVG içinden dış istek yapılamaz)
-      const imgs = Array.prototype.slice.call(clone.querySelectorAll('img'));
-      for (let i = 0; i < imgs.length; i++) {
-        const du = await imgDataUrl(imgs[i].getAttribute('src'));
-        if (du) imgs[i].setAttribute('src', du); else imgs[i].parentNode.removeChild(imgs[i]);
-      }
+      const clone = await buildMektupClone(); if (!clone) return;
       // Yüksekliği ölçmek için görünmez alanda 794px (A4) genişlikte yerleştir
       const W = 794;
       const holder = document.createElement('div');
@@ -1375,7 +1422,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       try { dataUrl = canvas.toDataURL('image/png'); }
       catch (x) { throw new Error('görüntü dışa aktarılamadı (' + (x && x.name || 'güvenlik') + ')'); }
       const a = document.createElement('a');
-      a.href = dataUrl; a.download = 'siparis-mektubu-' + ((o && o.kod) || 'belge') + '.png';
+      a.href = dataUrl; a.download = mektupKod() + '.png';
       document.body.appendChild(a); a.click(); a.remove();
       toast('Görsel indirildi — WhatsApp\'tan fotoğraf olarak gönderebilirsiniz');
     } catch (e) {
@@ -1416,7 +1463,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     }).join('');
     const fab = rol === 'yonetici' ? '<button class="tab tab-fab" data-act="go" data-screen="yeni"><span class="tab-ico">' + icon('plus', 22, 2.4) + '</span></button>' : '';
     const banner = (aktifAlarm > 0 && state.screen !== 'bildirim')
-      ? '<button class="alarm-banner" data-act="go" data-screen="bildirim">' + icon('alert', 18, 2.2) + '<b>' + aktifAlarm + ' kritik sipariş</b> hazır olma vaktine 1 saatten az kaldı, hâlâ hazır değil.<span class="alarm-cta">Bildirimlere git ' + icon('chevron', 15) + '</span></button>' : '';
+      ? '<button class="alarm-banner" data-act="go" data-screen="bildirim">' + icon('alert', 18, 2.2) + '<b>' + aktifAlarm + ' kritik sipariş</b> teslim saatine 1 saatten az kaldı, hâlâ hazır değil.<span class="alarm-cta">Bildirimlere git ' + icon('chevron', 15) + '</span></button>' : '';
     return '<div class="app"><aside class="sidebar">'
       + '<div class="sb-brand"><span class="brand-logo sm">' + icon('coffee', 19, 2) + '</span><div class="sb-brand-txt"><p class="sb-name">İkram Takip</p><p class="sb-sub">Operasyon Konsolu</p></div></div>'
       + '<nav class="sb-nav">' + navBtns + '</nav>'
@@ -1450,19 +1497,22 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     const ld = document.getElementById('js-clock-day'); if (ld) ld.textContent = fmtDate(now);
     if (state.mektup || state.screen === 'yeni' || state.screen === 'yonetim' || state.screen === 'rapor') return;
     document.querySelectorAll('.js-cd').forEach(el => {
-      const t = timing(+el.dataset.ev, el.dataset.durum, now);
-      el.textContent = fmtCountdown(t.msToReady);
-      el.style.color = t.msToReady < 0 ? '#DC2626' : levelColor(t.level);
+      const ev = +el.dataset.ev;
+      const t = timing(ev, el.dataset.durum, now);
+      const p = cdParts(ev, t, +el.dataset.size || 22);
+      el.textContent = p.text;
+      el.style.fontSize = p.size + 'px';
+      el.style.color = t.msToEvent < 0 ? '#DC2626' : levelColor(t.level);
     });
     document.querySelectorAll('.js-cd-sub').forEach(el => {
       const t = timing(+el.dataset.ev, el.dataset.durum, now);
-      el.textContent = t.msToReady < 0 ? fmtKalan(t.msToReady) : 'hedef ' + fmtTime(t.ready);
+      el.textContent = t.msToEvent < 0 ? fmtKalan(t.msToEvent) : 'teslim ' + fmtTime(+el.dataset.ev);
     });
     document.querySelectorAll('.js-ring').forEach(el => {
       const t = timing(+el.dataset.ev, el.dataset.durum, now), c = +el.dataset.c;
-      const pct = t.tamam ? 1 : Math.max(0, Math.min(1, t.msToReady / (6 * MS.sa)));
+      const pct = t.tamam ? 1 : Math.max(0, Math.min(1, t.msToEvent / (6 * MS.sa)));
       const fill = el.querySelector('.js-ring-fill'); if (fill) fill.style.strokeDashoffset = c * (1 - pct);
-      const num = el.querySelector('.js-ring-num'); if (num && !t.tamam) num.textContent = Math.max(0, Math.ceil(t.msToReady / MS.sa)) + 's';
+      const num = el.querySelector('.js-ring-num'); if (num && !t.tamam) num.textContent = ringNum(t);
     });
     // Alarm/seviye eşiği değiştiyse (nadir) tam yeniden çiz
     const s = sig();
@@ -1646,7 +1696,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     else if (a === 'mektup') { openMektup(id); }
     else if (a === 'mk-close' || a === 'mk-backdrop') { closeMektup(); }
     else if (a === 'mk-stop') { /* modal içi tık — kapatma */ }
-    else if (a === 'mk-print') { window.print(); }
+    else if (a === 'mk-print') { printMektup(); }
     else if (a === 'mk-copy') { copyMektup(); }
     else if (a === 'mk-png') { downloadMektupPng(); }
     else if (a === 'rp-csv') { exportReportCsv(); }

@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     await pushBildirim(
       'alarm',
       `Kritik: ${o.kod} ${o.talep_eden_birim}`,
-      `Hazır olma vaktine 1 saatten az — etkinlik ${fmtTime(Number(o.etkinlik_ts))}. Bot bildirimi tetiklendi.`,
+      `Teslim saatine 1 saatten az — teslim ${fmtTime(Number(o.etkinlik_ts))}.`,
       Number(o.id), now
     );
     await botNotifier({ kod: o.kod, birim: o.talep_eden_birim, etkinlik_ts: Number(o.etkinlik_ts) });

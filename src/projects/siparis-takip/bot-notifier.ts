@@ -39,7 +39,7 @@ export async function sendTelegram(text: string): Promise<{ ok: boolean; skipped
 // ── Alarm (kritik gecikme) ──
 export type BotOrder = { kod: string; birim: string; etkinlik_ts: number };
 export function botMessage(order: BotOrder): string {
-  return `🔴 <b>KRİTİK</b>: ${esc(order.kod)} — ${esc(order.birim)}\nHazır olma vaktine 1 saatten az kaldı, sipariş hâlâ "Hazır" değil.\nEtkinlik: ${fmtTime(order.etkinlik_ts)}`;
+  return `🔴 <b>KRİTİK</b>: ${esc(order.kod)} — ${esc(order.birim)}\nTeslim saatine 1 saatten az kaldı, sipariş hâlâ "Hazır" değil.\nTeslim: ${fmtTime(order.etkinlik_ts)}`;
 }
 export async function botNotifier(order: BotOrder): Promise<void> {
   await sendTelegram(botMessage(order));

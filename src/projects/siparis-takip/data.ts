@@ -3,7 +3,6 @@
 // Route handler'lar buradan çağırır (ince tutulur).
 // ─────────────────────────────────────────────────────────────────
 import { db, getDB } from '@/lib/d1';
-import { MS } from './timing';
 import {
   DURUM, DURUM_SIRA, TAMAMLANMIS, TEDARIK_KOD, TEDARIK_ETIKET,
 } from './db-schema';
@@ -101,13 +100,16 @@ export async function pushBildirim(tip: string, baslik: string, alt: string, sip
   });
 }
 
-async function nextKod(): Promise<string> {
-  // En büyük SP-#### son ekini bul, +1. Boşsa 1050'den başla (prototip mantığı).
-  const r = await db.execute(
-    `SELECT MAX(CAST(substr(kod, 4) AS INTEGER)) AS m FROM siparis_takip_siparisler WHERE kod LIKE 'SP-%'`
-  );
+// Sipariş kodu: tedarik türüne göre ayrı seri — ambar AMB-####, ihale IHL-####.
+// (Eski SP-#### kodları legacy olarak kalır; yeni seriler 1001'den başlar.)
+async function nextKod(tedarik: string): Promise<string> {
+  const pfx = tedarik === TEDARIK_KOD.IHALE ? 'IHL-' : 'AMB-';
+  const r = await db.execute({
+    sql: `SELECT MAX(CAST(substr(kod, ?) AS INTEGER)) AS m FROM siparis_takip_siparisler WHERE kod LIKE ?`,
+    args: [pfx.length + 1, pfx + '%'],
+  });
   const m = Number((r.rows[0] as any)?.m || 0);
-  return 'SP-' + (m >= 1050 ? m + 1 : 1050);
+  return pfx + (m >= 1000 ? m + 1 : 1001);
 }
 
 async function ambarPersonel(): Promise<string> {
@@ -124,15 +126,15 @@ export type CreateInput = {
 };
 export type CreateResult = { order: ApiOrder } | { error: string; status: number };
 
-// İş kuralı 1-2: hazır olma = etkinlik − 1sa; ihale ise stok atomik düşülür, yetersizse 422.
+// İş kuralı: sipariş saati BİREBİR esastır (erken alma yok); ihale ise stok atomik düşülür, yetersizse 422.
 export async function createOrder(input: CreateInput, user: AuthCtx): Promise<CreateResult> {
   const birim = String(input.birim || '').trim();
   const eventTs = Number(input.eventTs);
   const tedarik = String(input.tedarik || '');
   const note = String(input.note || '').trim();
 
-  if (!birim) return { error: 'Talep eden birim gerekli', status: 400 };
-  if (!Number.isFinite(eventTs)) return { error: 'Geçerli bir etkinlik zamanı gerekli', status: 400 };
+  if (!birim) return { error: 'Talep açıklaması gerekli', status: 400 };
+  if (!Number.isFinite(eventTs)) return { error: 'Geçerli bir teslim tarihi/saati gerekli', status: 400 };
   if (tedarik !== TEDARIK_KOD.AMBAR && tedarik !== TEDARIK_KOD.IHALE)
     return { error: 'Geçersiz tedarik türü', status: 400 };
 
@@ -176,14 +178,14 @@ export async function createOrder(input: CreateInput, user: AuthCtx): Promise<Cr
 
   const atanan = ihale ? (tenderById.get(kalemler[0].tenderId!)?.firma || 'İhale Firması') : await ambarPersonel();
   const now = Date.now();
-  const kod = await nextKod();
+  const kod = await nextKod(tedarik);
 
-  // Sipariş kaydı
+  // Sipariş kaydı — sipariş saati birebir esastır (1 saat erken alma yok)
   const ins = await db.execute({
     sql: `INSERT INTO siparis_takip_siparisler
           (kod, talep_eden_birim, etkinlik_ts, hazir_olma_ts, tedarik_turu, durum, atanan, note, olusturan, olusturma_ts)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    args: [kod, birim, eventTs, eventTs - MS.sa, tedarik, DURUM.BEKLEMEDE, atanan, note, user.ad, now],
+    args: [kod, birim, eventTs, eventTs, tedarik, DURUM.BEKLEMEDE, atanan, note, user.ad, now],
   });
   const sid = Number(ins.lastInsertRowid);
 
@@ -263,8 +265,8 @@ export async function updateOrder(id: number, input: CreateInput, user: AuthCtx)
   const eventTs = Number(input.eventTs);
   const tedarik = String(input.tedarik || '');
   const note = String(input.note || '').trim();
-  if (!birim) return { error: 'Talep eden birim gerekli', status: 400 };
-  if (!Number.isFinite(eventTs)) return { error: 'Geçerli bir etkinlik zamanı gerekli', status: 400 };
+  if (!birim) return { error: 'Talep açıklaması gerekli', status: 400 };
+  if (!Number.isFinite(eventTs)) return { error: 'Geçerli bir teslim tarihi/saati gerekli', status: 400 };
   if (tedarik !== TEDARIK_KOD.AMBAR && tedarik !== TEDARIK_KOD.IHALE) return { error: 'Geçersiz tedarik türü', status: 400 };
   const ihale = tedarik === TEDARIK_KOD.IHALE;
 
@@ -309,7 +311,7 @@ export async function updateOrder(id: number, input: CreateInput, user: AuthCtx)
   }
 
   const atanan = ihale ? (tenderById.get(kalemler[0].tenderId!)?.firma || 'İhale Firması') : await ambarPersonel();
-  const hazir = eventTs - MS.sa;
+  const hazir = eventTs; // sipariş saati birebir (erken alma yok)
   const alarmFired = Number(o.etkinlik_ts) !== eventTs ? 0 : Number(o.alarm_fired);
 
   try {
