@@ -362,8 +362,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
 .mk-edit { padding: 14px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-bottom: 1px solid var(--line); }
 .mk-edit .field { margin: 0; }
 .mk-scroll { max-height: none; }
+.mk-doc-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 /* Belgenin kendisi — A4 beyaz kâğıt, daima açık tema renkleri (yazdırma için) */
-.mk-doc { background: #fff; color: #1a1a1a; padding: 26px 30px 30px; margin: 18px; border: 1px solid #d8dde5; font-size: 12.5px; line-height: 1.45; }
+.mk-doc { background: #fff; color: #1a1a1a; padding: 26px 30px 30px; margin: 18px; border: 1px solid #d8dde5; font-size: 12.5px; line-height: 1.45; min-width: 620px; }
 .mk-doc * { color: #1a1a1a; }
 .mk-head { display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; gap: 10px; text-align: center; padding-bottom: 10px; }
 .mk-head img { width: 54px; height: 54px; object-fit: contain; }
@@ -382,7 +383,20 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
 .mk-doc input, .mk-doc textarea { width: 100%; border: none; background: transparent; padding: 0; font: inherit; color: #1a1a1a; outline: none; resize: none; box-shadow: none; }
 .mk-doc input:focus, .mk-doc textarea:focus { background: #fffce8; box-shadow: none; }
 .mk-doc .mk-edit-hl { background: #fffce8; border-radius: 3px; }
-@media (max-width: 860px) { .mk-edit { grid-template-columns: 1fr; } }
+/* Yatay taşan tablolar (rapor, detay) mobilde kaydırılır */
+.tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.tbl-wrap .kalem-tbl { min-width: 560px; }
+@media (max-width: 860px) {
+  .mk-edit { grid-template-columns: 1fr; }
+  .mk-overlay { padding: 8px 4px; }
+  .mk-modal { border-radius: 12px; }
+  .mk-bar { padding: 10px 12px; gap: 7px; }
+  .mk-bar h2 { font-size: 14px; flex-basis: 100%; order: -1; }
+  .mk-bar .btn-sm { padding: 6px 9px; font-size: 12px; }
+  .mk-hint { font-size: 11.5px; padding: 8px 12px; }
+  .mk-doc { margin: 10px; }
+  .rp-grid { grid-template-columns: 1fr !important; }
+}
 @media print {
   html, body { height: auto !important; background: #fff !important; }
   #root > .app, #toast-wrap { display: none !important; }
@@ -398,6 +412,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
   .app { grid-template-columns: 1fr; }
   .sidebar { display: none; }
   .content { grid-column: 1; padding: 16px 16px 96px; height: auto; }
+  .scr-head { flex-wrap: wrap; }
+  .scr-head > .btn { flex: none; }
   .topbar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 40; }
   .tb-title { font-weight: 600; font-size: 15px; flex: 1; }
   .tb-icon { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; color: var(--ink-2); position: relative; }
@@ -554,7 +570,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     orders: [], tender: [], notifications: [], users: [], activity: [],
     screen: 'panel', selId: null, filtre: 'hepsi', q: '',
     form: null, userForm: null, tenderForm: null, yonetimTab: 'kullanicilar',
-    notify: { telegramChatId: '', telegramEnabled: true, telegramTokenVar: false, mektup: null },
+    notify: { mektup: null },
     login: { kullaniciAdi: '', sifre: '' },
     mektup: null,
     report: { bas: '', bit: '', tedarik: 'hepsi', durum: 'hepsi', q: '' },
@@ -563,9 +579,24 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
   const root = document.getElementById('root');
 
   async function loadData() {
-    const [o, t, n] = await Promise.all([api('/orders'), api('/tender'), api('/notifications')]);
-    state.orders = o || []; state.tender = t || []; state.notifications = n || [];
+    // Tek istekte tüm veri (3 HTTP turu yerine 1 — sunucu D1 sorgularını paralel çalıştırır)
+    const d = await api('/overview');
+    state.orders = (d && d.orders) || []; state.tender = (d && d.tender) || []; state.notifications = (d && d.notifications) || [];
     state._sig = sig();
+  }
+  // Arka plan yenileme: veri değiştiyse ekranı tazeler (çoklu kullanıcı senkronu).
+  // Form/modal açıkken dokunmaz; sekme öne gelince anında yenilenir.
+  let _refreshBusy = false;
+  async function refresh() {
+    if (!state.user || _refreshBusy) return;
+    if (state.screen === 'yeni' || state.mektup || state.userForm || state.tenderForm) return;
+    _refreshBusy = true;
+    try {
+      const prev = JSON.stringify([state.orders, state.tender, state.notifications]);
+      await loadData();
+      if (JSON.stringify([state.orders, state.tender, state.notifications]) !== prev) repaint();
+    } catch (e) { /* ağ hatasında sessiz geç — sonraki turda dener */ }
+    finally { _refreshBusy = false; }
   }
   function sig() {
     const now = state.now;
@@ -639,8 +670,13 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + '<p class="ocard-kalem">' + kalem + '</p>'
       + '<div class="ocard-meta"><span class="omchip">' + icon(ihale ? 'truck' : 'box', 14) + (ihale ? 'İhale Firması' : 'İç Üretim Ambarı') + '</span>'
       + '<span class="omchip-sep"></span>' + statusBadge(o.durum) + '</div></div>'
-      + '<div class="ocard-time"><span class="ocard-time-lbl">Hazır olmaya</span>' + countdown(o.eventTs, o.durum, 'md')
-      + '<span class="ocard-clock">' + icon('clock', 13) + fmtTime(t.ready) + ' · etkinlik ' + fmtTime(o.eventTs) + '</span></div>'
+      // Sayaç yalnız hazır olmamış siparişte; Hazır+ durumlarda yeşil onay gösterilir
+      + (t.tamam
+        ? '<div class="ocard-time"><span class="ocard-time-lbl">' + esc(o.durum) + '</span>'
+          + '<span style="color:var(--green-ink)">' + icon('checkCircle', 26, 2) + '</span>'
+          + '<span class="ocard-clock">' + icon('clock', 13) + 'etkinlik ' + fmtTime(o.eventTs) + '</span></div>'
+        : '<div class="ocard-time"><span class="ocard-time-lbl">Hazır olmaya</span>' + countdown(o.eventTs, o.durum, 'md')
+          + '<span class="ocard-clock">' + icon('clock', 13) + fmtTime(t.ready) + ' · etkinlik ' + fmtTime(o.eventTs) + '</span></div>')
       + progressRing(o.eventTs, o.durum)
       + '</div>' + (footer ? '<div class="ocard-foot">' + footer + '</div>' : '') + '</article>';
   }
@@ -669,14 +705,21 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
   // ---- Ekran: Dashboard (Yönetici) ------------------------------------
   function dashboardList() {
     const now = state.now;
+    const teslim = o => o.durum === DURUM.TESLIM;
     let liste = state.orders.map(o => ({ o, t: timing(o.eventTs, o.durum, now) })).filter(({ o, t }) => {
-      if (state.filtre === 'kritik' && !(t.alarm || t.level === 'kirmizi')) return false;
-      if (state.filtre === 'ambar' && isIhale(o)) return false;
-      if (state.filtre === 'ihale' && !isIhale(o)) return false;
+      // Tamamlananlar (teslim edilen) ana listeden ayrı sekmede
+      if (state.filtre === 'tamam') { if (!teslim(o)) return false; }
+      else {
+        if (teslim(o)) return false;
+        if (state.filtre === 'kritik' && !(t.alarm || t.level === 'kirmizi')) return false;
+        if (state.filtre === 'ambar' && isIhale(o)) return false;
+        if (state.filtre === 'ihale' && !isIhale(o)) return false;
+      }
       if (state.q && (o.birim + o.kod).toLowerCase().indexOf(state.q.toLowerCase()) === -1) return false;
       return true;
     });
-    liste.sort((a, b) => { if (a.t.tamam !== b.t.tamam) return a.t.tamam ? 1 : -1; return a.t.msToReady - b.t.msToReady; });
+    if (state.filtre === 'tamam') liste.sort((a, b) => b.o.eventTs - a.o.eventTs);
+    else liste.sort((a, b) => { if (a.t.tamam !== b.t.tamam) return a.t.tamam ? 1 : -1; return a.t.msToReady - b.t.msToReady; });
     return liste.length ? liste.map(({ o }) => orderCard(o)).join('') : empty('search', 'Sonuç yok', 'Filtre veya aramayı değiştirin.');
   }
   function dashboardView() {
@@ -685,11 +728,13 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     const kritik = en.filter(t => t.alarm || t.level === 'kirmizi').length;
     const aktif = en.filter(t => !t.tamam).length;
     const ihaleSay = state.orders.filter(o => isIhale(o) && TAMAMLANMIS.indexOf(o.durum) === -1).length;
+    const teslimSay = state.orders.filter(o => o.durum === DURUM.TESLIM).length;
     const filtreler = [
-      { id: 'hepsi', ad: 'Tümü', n: state.orders.length },
+      { id: 'hepsi', ad: 'Tümü', n: state.orders.length - teslimSay },
       { id: 'kritik', ad: 'Kritik', n: kritik },
-      { id: 'ambar', ad: 'İç Üretim', n: state.orders.filter(o => !isIhale(o)).length },
-      { id: 'ihale', ad: 'İhale', n: state.orders.filter(o => isIhale(o)).length },
+      { id: 'ambar', ad: 'İç Üretim', n: state.orders.filter(o => !isIhale(o) && o.durum !== DURUM.TESLIM).length },
+      { id: 'ihale', ad: 'İhale', n: state.orders.filter(o => isIhale(o) && o.durum !== DURUM.TESLIM).length },
+      { id: 'tamam', ad: 'Tamamlananlar', n: teslimSay },
     ];
     return '<div class="screen"><header class="scr-head"><div><p class="scr-kicker">Yönetici Paneli</p><h1 class="scr-title">Sipariş Takibi</h1></div>'
       + '<button class="btn btn-primary btn-md" data-act="new-order">' + icon('plus', 17, 2) + 'Yeni Sipariş</button></header>'
@@ -697,7 +742,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + stat('Aktif sipariş', aktif, 'list', 'blue')
       + stat('Kritik / alarm', kritik, 'alert', 'red', kritik ? 'müdahale gerekli' : 'temiz')
       + stat('İhale tedariki', ihaleSay, 'truck', 'teal')
-      + stat('Toplam kayıt', state.orders.length, 'doc', 'slate')
+      + stat('Teslim edilen', teslimSay, 'check', 'slate')
       + '</div><div class="toolbar"><div class="chips">'
       + filtreler.map(f => '<button class="chip' + (state.filtre === f.id ? ' is-on' : '') + '" data-act="filter" data-filtre="' + f.id + '">' + f.ad + '<span class="chip-n">' + f.n + '</span></button>').join('')
       + '</div><label class="search">' + icon('search', 16) + '<input id="js-search" data-act="search" value="' + esc(state.q) + '" placeholder="Birim veya kod ara…"></label></div>'
@@ -826,11 +871,14 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + (t.alarm ? badge('red', 'ALARM', { solid: true, icon: 'alert' }) : '') + statusBadge(o.durum) + '</div>'
       + '<h1 class="dh-birim">' + esc(o.birim) + '</h1>'
       + '<p class="dh-meta">' + icon(ihale ? 'truck' : 'box', 15) + ' ' + esc(o.tedarik) + '<span class="dot-sep"></span>' + icon('user', 15) + ' ' + esc(o.atanan) + '</p></div>'
-      + '<div class="dh-count"><span class="dh-count-lbl">Hazır olmaya kalan</span>' + countdown(o.eventTs, o.durum, 'xl')
-      + '<span class="dh-count-sub js-cd-sub" data-ev="' + o.eventTs + '" data-durum="' + esc(o.durum) + '">' + sub + '</span></div></div>'
+      + (t.tamam
+        ? '<div class="dh-count"><span class="dh-count-lbl">Durum</span><span style="color:var(--green-ink)">' + icon('checkCircle', 44, 2) + '</span>'
+          + '<span class="dh-count-sub">' + esc(o.durum) + ' · etkinlik ' + fmtTime(o.eventTs) + '</span></div>'
+        : '<div class="dh-count"><span class="dh-count-lbl">Hazır olmaya kalan</span>' + countdown(o.eventTs, o.durum, 'xl')
+          + '<span class="dh-count-sub js-cd-sub" data-ev="' + o.eventTs + '" data-durum="' + esc(o.durum) + '">' + sub + '</span></div>') + '</div>'
       + timeline(o.durum)
       + '<div class="detail-grid"><div class="card detail-card"><h2 class="form-sec">Ürün Kalemleri</h2>'
-      + '<table class="kalem-tbl"><thead>' + kalemHead + '</thead><tbody>' + kalemRows + '</tbody></table>'
+      + '<div class="tbl-wrap"><table class="kalem-tbl"><thead>' + kalemHead + '</thead><tbody>' + kalemRows + '</tbody></table></div>'
       + (o.note ? '<p class="detail-note">' + icon('doc', 14) + ' ' + esc(o.note) + '</p>' : '') + '</div>'
       + '<div class="card detail-card"><h2 class="form-sec">Zaman &amp; Tedarik</h2>'
       + inforow('calendar', 'Etkinlik', fmtDateTime(o.eventTs), true)
@@ -853,7 +901,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     const aktif = mine.filter(o => TAMAMLANMIS.indexOf(o.durum) === -1 || o.durum === DURUM.HAZIR).length;
     const alarm = enriched.filter(e => e.t.alarm).length;
     const ad = (state.user.ad || '').split(' ')[0];
-    const cards = enriched.map(({ o }) => {
+    const cardOf = ({ o }) => {
       const widx = DURUM_SIRA.indexOf(o.durum);
       let foot = '<div class="wh-actions">';
       if (o.durum === DURUM.BEKLEMEDE) foot += '<button class="btn btn-soft btn-sm" data-act="set-durum" data-id="' + o.id + '" data-durum="' + DURUM.HAZIRLANIYOR + '">' + icon('flame', 15, 2) + 'Hazırlamaya başla</button>';
@@ -864,11 +912,20 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       if (widx > 0) foot += '<button class="btn btn-ghost btn-sm" data-act="set-durum" data-id="' + o.id + '" data-durum="' + DURUM_SIRA[widx - 1] + '" title="Yanlış tıklamayı geri al">' + icon('arrowLeft', 15) + 'Geri al</button>';
       foot += '</div>';
       return orderCard(o, foot);
-    }).join('');
+    };
+    // Teslim edilenler ana listeden ayrılır — alt "Tamamlananlar" bölümünde
+    const aktifList = enriched.filter(e => e.o.durum !== DURUM.TESLIM);
+    const tamamList = enriched.filter(e => e.o.durum === DURUM.TESLIM).sort((a, b) => b.o.eventTs - a.o.eventTs);
+    const cards = aktifList.map(cardOf).join('');
+    const tamamSec = tamamList.length
+      ? '<h2 class="list-h" style="margin-top:26px">Tamamlananlar <span class="list-h-n">' + tamamList.length + '</span></h2>'
+        + '<div class="ocard-list">' + tamamList.map(cardOf).join('') + '</div>'
+      : '';
     return '<div class="screen"><header class="scr-head"><div><p class="scr-kicker">İç Üretim Ambarı</p><h1 class="scr-title">Görevlerim</h1>'
       + '<p class="scr-sub">Merhaba ' + esc(ad) + ' — sana atanan ' + aktif + ' aktif sipariş var.</p></div>'
       + (alarm > 0 ? badge('red', alarm + ' kritik', { solid: true, icon: 'alert' }) : '') + '</header>'
-      + '<div class="ocard-list">' + (cards || empty('box', 'Sipariş yok', 'Ambara atanmış sipariş bulunmuyor.')) + '</div></div>';
+      + '<div class="ocard-list">' + (cards || empty('box', 'Aktif sipariş yok', 'Ambara atanmış bekleyen sipariş bulunmuyor.')) + '</div>'
+      + tamamSec + '</div>';
   }
 
   // ---- Ekran: İhale Havuzu --------------------------------------------
@@ -900,10 +957,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     let bot = '';
     if (aktifAlarm.length) {
       const lines = aktifAlarm.slice(0, 3).map(e => '• ' + esc(e.o.kod) + ' ' + esc(e.o.birim) + ' → etkinlik ' + fmtTime(e.o.eventTs)).join('<br>');
-      bot = '<div class="card bot-card"><div class="bot-head"><span class="bot-ico">' + icon('send', 16, 2) + '</span>'
-        + '<div><p class="bot-t">Bot bildirimi hazır</p><p class="bot-s">Telegram / WhatsApp entegrasyonu için tetiklenecek mesaj önizlemesi</p></div>'
-        + badge('green', 'Simülasyon', { solid: true }) + '</div>'
-        + '<div class="bot-msg mono">🔴 KRİTİK: ' + aktifAlarm.length + ' sipariş hazır olma vaktine 1 saatten az kaldı, hâlâ "Hazır" değil.<br>' + lines + '</div></div>';
+      bot = '<div class="card bot-card"><div class="bot-head"><span class="bot-ico">' + icon('alert', 16, 2) + '</span>'
+        + '<div><p class="bot-t">Kritik sipariş özeti</p><p class="bot-s">Hazır olma vaktine 1 saatten az kalan, hâlâ "Hazır" olmayan siparişler</p></div>'
+        + badge('red', aktifAlarm.length + ' kritik', { solid: true }) + '</div>'
+        + '<div class="bot-msg mono">' + lines + '</div></div>';
     }
     const logs = state.notifications.length ? state.notifications.map(l => {
       const m = meta[l.tip] || meta.durum;
@@ -974,17 +1031,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     }).join('') : empty('list', 'Kayıt yok', 'Yapılan işlemler burada listelenir.');
     return '<div class="log">' + rows + '</div>';
   }
-  function notifyCard() {
-    const n = state.notify || {};
-    const tokenInfo = n.telegramTokenVar ? badge('green', 'Bot token tanımlı') : badge('amber', 'Bot token yok (secret)');
-    return '<div class="card form-card" style="margin-bottom:16px">'
-      + '<div class="form-sec-row"><h2 class="form-sec">' + icon('send', 16, 2) + ' Telegram Bildirimi</h2>' + tokenInfo + '</div>'
-      + '<p class="field-hint" style="margin-bottom:10px">İhale siparişi oluşturulunca bu sohbete/gruba otomatik mesaj gider. Bot token, Cloudflare secret (TELEGRAM_BOT_TOKEN) olarak ayrı saklanır.</p>'
-      + '<div class="field-row"><label class="field"><span class="field-label">Chat / Grup ID</span>'
-      + '<input data-act="ntf-chat" value="' + esc(n.telegramChatId || '') + '" placeholder="örn. -1001234567890"></label>'
-      + '<label class="field" style="flex-direction:row;align-items:center;gap:8px;margin-top:24px"><input type="checkbox" data-act="ntf-enabled"' + (n.telegramEnabled !== false ? ' checked' : '') + ' style="width:auto"><span class="field-label" style="margin:0">Bildirim açık</span></label></div>'
-      + '<button class="btn btn-soft btn-md" data-act="notify-save">' + icon('check', 16, 2) + 'Ayarı kaydet</button></div>';
-  }
   function tenderFormCard() {
     const t = state.tenderForm; const edit = t.editId != null;
     return '<div class="card form-card" style="margin-bottom:16px">'
@@ -996,6 +1042,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + '<label class="field"><span class="field-label">Birim fiyat (₺)</span><input data-act="tf-fiyat" type="number" min="0" step="0.01" value="' + esc(t.birimFiyat) + '" placeholder="örn. 4.50"></label></div>'
       + '<div class="field-row"><label class="field"><span class="field-label">Sözleşme miktarı<i class="req">*</i></span><input data-act="tf-sozlesme" type="number" min="0" value="' + esc(t.sozlesme) + '"></label>'
       + '<label class="field"><span class="field-label">Kalan stok</span><input data-act="tf-kalan" type="number" min="0" value="' + esc(t.kalan) + '" placeholder="boşsa = sözleşme"></label></div>'
+      + '<div class="field-row"><label class="field"><span class="field-label">Dosya No</span><input data-act="tf-dosya" value="' + esc(t.dosyaNo) + '" placeholder="örn. 26DT652217"></label>'
+      + '<label class="field"><span class="field-label">Sözleşme Tarihi</span><input data-act="tf-starih" value="' + esc(t.sozlesmeTarihi) + '" placeholder="örn. 17.04.2026"></label></div>'
+      + '<p class="field-hint" style="margin-bottom:10px">Dosya No ve Sözleşme Tarihi, bu kalemden verilen siparişlerin Sipariş Mektubu\'na otomatik yazılır.</p>'
       + '<button class="btn btn-primary btn-md btn-full" data-act="tender-save">' + icon('check', 17, 2) + (edit ? 'Kaydet' : 'Kalem ekle') + '</button></div>';
   }
   function ihaleBody() {
@@ -1009,11 +1058,12 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
         + '<div class="tender-nums"><span class="mono" style="color:' + tone + ';font-weight:600">' + t.kalan.toLocaleString('tr-TR') + '</span>'
         + '<span class="tender-tot">/ ' + t.sozlesme.toLocaleString('tr-TR') + ' ' + esc(t.birim) + '</span>' + low + '</div>'
         + '<div class="tender-nums" style="margin-top:4px"><span class="tender-tot">Birim fiyat: <b class="mono" style="color:var(--ink)">' + fmtTL(t.birimFiyat) + '</b> / ' + esc(t.birim) + '</span></div>'
+        + ((t.dosyaNo || t.sozlesmeTarihi) ? '<div class="tender-nums" style="margin-top:2px"><span class="tender-tot">Dosya: ' + esc(t.dosyaNo || '—') + ' · Sözleşme: ' + esc(t.sozlesmeTarihi || '—') + '</span></div>' : '')
         + '<div class="wh-actions" style="margin-top:10px"><button class="btn btn-ghost btn-sm" data-act="tender-edit" data-id="' + t.id + '">Düzenle</button>'
         + '<button class="btn btn-ghost btn-sm" data-act="tender-del" data-id="' + t.id + '" data-ad="' + esc(t.kalem) + '">' + icon('trash', 15) + '</button></div></div>';
     }).join('');
     const grid = state.tender.length ? '<div class="tender-grid">' + rows + '</div>' : empty('truck', 'İhale kalemi yok', 'Yeni kalem ekleyin.');
-    return notifyCard() + mektupTmplCard() + form + grid;
+    return mektupTmplCard() + form + grid;
   }
   function mektupTmplCard() {
     const m = (state.notify && state.notify.mektup) || {};
@@ -1086,16 +1136,16 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + stat('İhale harcaması', fmtTL(toplamHarcama), 'doc', 'slate', 'seçili aralık')
       + stat('İç üretim', ambarSay, 'box', 'slate')
       + '</div>'
-      + '<div class="card form-card" style="margin-bottom:16px"><div class="field-row" style="grid-template-columns:repeat(2,1fr)">'
+      + '<div class="card form-card" style="margin-bottom:16px"><div class="field-row rp-grid" style="grid-template-columns:repeat(2,1fr)">'
       + '<label class="field"><span class="field-label">Başlangıç (etkinlik)</span><input type="date" data-act="rp-bas" value="' + esc(r.bas) + '"></label>'
       + '<label class="field"><span class="field-label">Bitiş (etkinlik)</span><input type="date" data-act="rp-bit" value="' + esc(r.bit) + '"></label></div>'
-      + '<div class="field-row" style="grid-template-columns:1fr 1fr 1fr;margin-top:4px">'
+      + '<div class="field-row rp-grid" style="grid-template-columns:1fr 1fr 1fr;margin-top:4px">'
       + '<label class="field"><span class="field-label">Tedarik</span><select data-act="rp-tedarik">' + tedarikOpt + '</select></label>'
       + '<label class="field"><span class="field-label">Durum</span><select data-act="rp-durum">' + durumOpt + '</select></label>'
       + '<label class="field"><span class="field-label">Ara</span><input id="js-rep-q" data-act="rp-q" value="' + esc(r.q) + '" placeholder="birim, kod, firma…"></label></div>'
       + ((r.bas || r.bit || r.tedarik !== 'hepsi' || r.durum !== 'hepsi' || r.q) ? '<button class="btn btn-ghost btn-sm" data-act="rp-reset">Filtreleri temizle</button>' : '') + '</div>'
       + firmaCard
-      + '<div class="card detail-card"><table class="kalem-tbl"><thead><tr><th>Kod</th><th>Etkinlik</th><th>Talep Eden</th><th>Tedarik</th><th>Durum</th><th style="text-align:right">Tutar</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+      + '<div class="card detail-card"><div class="tbl-wrap"><table class="kalem-tbl"><thead><tr><th>Kod</th><th>Etkinlik</th><th>Talep Eden</th><th>Tedarik</th><th>Durum</th><th style="text-align:right">Tutar</th></tr></thead><tbody>' + rows + '</tbody></table></div></div></div>';
   }
   function exportReportCsv() {
     const list = reportFiltered();
@@ -1121,11 +1171,22 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     const o = state.orders.find(x => String(x.id) === String(id)); if (!o) return;
     if (!state.notify || !state.notify.mektup) { await loadNotify(); }
     const tmpl = (state.notify && state.notify.mektup) || {};
+    // Dosya no + sözleşme tarihi: siparişin bağlı olduğu ihale kaleminden otomatik
+    let ti = null;
+    for (const k of o.kalemler) {
+      if (k.tenderId == null) continue;
+      const t = state.tender.find(x => String(x.id) === String(k.tenderId));
+      if (t && (t.dosyaNo || t.sozlesmeTarihi)) { ti = t; break; }
+      if (t && !ti) ti = t;
+    }
     state.mektup = {
-      orderId: o.id, dosyaNo: '', firmaTel: tmpl.telFaks || '',
+      orderId: o.id,
+      dosyaNo: (ti && ti.dosyaNo) || '',
+      sozlesmeTarihi: (ti && ti.sozlesmeTarihi) || '',
+      firmaTel: tmpl.telFaks || '',
       tebligTarihi: fmtDateNum(Date.now()),
       teslimTarihi: fmtDateNum(o.eventTs) + ' - ' + fmtTime(o.eventTs),
-      sozlesmeTarihi: '', gerekce: '-',
+      gerekce: o.birim, // sipariş başlığı (talep eden birim) otomatik
       teslimSekli: tmpl.teslimSekli || '', teslimYeri: tmpl.teslimYeri || '', maddeler: tmpl.maddeler || '',
     };
     repaint();
@@ -1177,10 +1238,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     return '<div class="mk-overlay" data-act="mk-backdrop"><div class="mk-modal" data-act="mk-stop">'
       + '<div class="mk-bar">' + icon('doc', 18) + '<h2>Sipariş Mektubu · ' + esc(o.kod) + '</h2>'
       + '<button class="btn btn-soft btn-sm" data-act="mk-copy">' + icon('doc', 15) + 'Metni kopyala</button>'
+      + '<button class="btn btn-soft btn-sm" data-act="mk-png">' + icon('pkg', 15) + 'Görsel indir</button>'
       + '<button class="btn btn-primary btn-sm" data-act="mk-print">' + icon('send', 15) + 'Yazdır / PDF</button>'
       + '<button class="btn btn-ghost btn-sm" data-act="mk-close">Kapat</button></div>'
-      + '<div class="mk-hint">Sarı alanlar düzenlenebilir. <b>Metni kopyala</b> → WhatsApp’a yapıştırın; <b>Yazdır / PDF</b> → “PDF olarak kaydet”i seçin.</div>'
-      + '<div class="mk-doc" id="mk-doc">'
+      + '<div class="mk-hint">Sarı alanlar düzenlenebilir. <b>Görsel indir</b> → fotoğraf olarak WhatsApp’tan gönderin; <b>Metni kopyala</b> → yapıştırın; <b>Yazdır / PDF</b> → “PDF olarak kaydet”.</div>'
+      + '<div class="mk-doc-wrap"><div class="mk-doc" id="mk-doc">'
       + '<div class="mk-head"><img src="/img/ibb-mavi.png" alt="İBB" onerror="this.style.visibility=\'hidden\'">'
       + '<div class="mk-title"><div class="l1">T.C.</div><div class="l1">İSTANBUL BÜYÜKŞEHİR BELEDİYESİ</div>'
       + '<div class="l2">İstanbul Su ve Kanalizasyon İdaresi Genel Müdürlüğü</div><div class="l3">SİPARİŞ MEKTUBU</div></div>'
@@ -1196,7 +1258,89 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + '<tr><td class="lbl" style="width:16%">GEREKÇE</td><td colspan="2">' + ef('gerekce', m.gerekce) + '</td></tr></tbody></table>'
       + '<table class="mk-tbl mk-items" style="border-top:none"><thead><tr><th style="width:12%">Sıra No</th><th>Talep Edilen Mal/Malzeme/Teçhizat/Hizmet</th><th style="width:26%">Miktar/Birim</th></tr></thead><tbody>' + items + '</tbody></table>'
       + '<div class="mk-clauses">' + maddeler + '</div>'
-      + '</div></div></div>';
+      + '</div></div></div></div>';
+  }
+
+  // ---- Mektup → PNG (kütüphanesiz: SVG foreignObject → canvas) --------
+  async function imgDataUrl(src) {
+    try {
+      const r = await fetch(src); if (!r.ok) return null;
+      const b = await r.blob();
+      return await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = () => res(null); fr.readAsDataURL(b); });
+    } catch (e) { return null; }
+  }
+  var MK_PNG_CSS = 'div{box-sizing:border-box}'
+    + '.mk-doc{font-family:Arial,Helvetica,sans-serif;background:#fff;color:#1a1a1a;font-size:12.5px;line-height:1.45;padding:26px 30px 30px;width:794px}'
+    + '.mk-doc *{color:#1a1a1a}'
+    + '.mk-head{display:grid;grid-template-columns:56px 1fr 56px;align-items:center;gap:10px;text-align:center;padding-bottom:10px}'
+    + '.mk-head img{width:54px;height:54px;object-fit:contain}'
+    + '.mk-title{font-weight:700}.l1{font-size:13px}.l2{font-size:12px;font-weight:600}.l3{font-size:13px;letter-spacing:.5px;margin-top:2px}'
+    + 'table{width:100%;border-collapse:collapse;margin-top:6px}'
+    + 'td,th{border:1px solid #b9c0cc;padding:6px 9px;vertical-align:top;text-align:left;font-size:12.5px}'
+    + '.lbl{background:#f6e8da;font-weight:700;width:16%;white-space:nowrap}'
+    + '.mk-band{background:#efefef;font-weight:700;text-align:center;letter-spacing:.3px}'
+    + '.mk-items th{background:#f6f7f9;font-weight:700;font-size:11.5px}'
+    + '.mk-items td.c,.mk-items th.c{text-align:center}'
+    + '.mk-clauses{margin-top:12px;font-size:11px;line-height:1.5}'
+    + '.mk-clauses p{margin:0 0 3px;color:#c0392b}'
+    + '.mk-clauses p, .mk-clauses *{color:#c0392b}';
+  async function downloadMektupPng() {
+    const src = document.getElementById('mk-doc'); if (!src) return;
+    const m = state.mektup; const o = m && state.orders.find(x => String(x.id) === String(m.orderId));
+    toast('Görsel hazırlanıyor…');
+    try {
+      const clone = src.cloneNode(true);
+      clone.removeAttribute('id');
+      // Form alanlarını düz metne çevir (input değerleri serialize edilmez)
+      clone.querySelectorAll('input, textarea').forEach(el => {
+        const isTa = el.tagName === 'TEXTAREA';
+        const sp = document.createElement(isTa ? 'div' : 'span');
+        sp.textContent = (el.value || '').trim() || '-';
+        if (isTa) sp.style.whiteSpace = 'pre-wrap';
+        el.parentNode.replaceChild(sp, el);
+      });
+      // XML'i bozabilecek / dış kaynak gerektiren öznitelikleri temizle
+      clone.querySelectorAll('[onerror]').forEach(el => el.removeAttribute('onerror'));
+      clone.querySelectorAll('[data-act]').forEach(el => el.removeAttribute('data-act'));
+      // Logoları data URL'e göm (SVG içinden dış istek yapılamaz)
+      const imgs = Array.prototype.slice.call(clone.querySelectorAll('img'));
+      for (let i = 0; i < imgs.length; i++) {
+        const du = await imgDataUrl(imgs[i].getAttribute('src'));
+        if (du) imgs[i].setAttribute('src', du); else imgs[i].parentNode.removeChild(imgs[i]);
+      }
+      // Yüksekliği ölçmek için görünmez alanda 794px (A4) genişlikte yerleştir
+      const W = 794;
+      const holder = document.createElement('div');
+      holder.style.cssText = 'position:fixed;left:-12000px;top:0;width:' + W + 'px;background:#fff;z-index:-1';
+      clone.style.cssText = 'margin:0;border:none;width:' + W + 'px';
+      holder.appendChild(clone); document.body.appendChild(holder);
+      const H = Math.ceil(clone.getBoundingClientRect().height) + 4;
+      const xhtml = new XMLSerializer().serializeToString(clone);
+      holder.remove();
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '">'
+        + '<foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml"><style>' + MK_PNG_CSS + '</style>' + xhtml + '</div></foreignObject></svg>';
+      const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+      const img = new Image();
+      await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+      const scale = 2; // net görüntü için 2x
+      const canvas = document.createElement('canvas');
+      canvas.width = W * scale; canvas.height = H * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.scale(scale, scale); ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(blob => {
+        if (!blob) { toast('Görsel oluşturulamadı — Yazdır/PDF deneyin', 'err'); return; }
+        const a = document.createElement('a');
+        const u2 = URL.createObjectURL(blob);
+        a.href = u2; a.download = 'siparis-mektubu-' + ((o && o.kod) || 'belge') + '.png';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(u2), 2000);
+        toast('Görsel indirildi — WhatsApp\'tan fotoğraf olarak gönderebilirsiniz');
+      }, 'image/png');
+    } catch (e) {
+      toast('Görsel oluşturulamadı — Yazdır/PDF deneyin', 'err');
+    }
   }
 
   // ---- App kabuğu ------------------------------------------------------
@@ -1319,13 +1463,13 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
   async function loadNotify() { try { state.notify = await api('/settings') || state.notify; } catch (e) {} }
   async function loadTender() { try { state.tender = await api('/tender') || []; } catch (e) {} }
   function openTenderForm(id) {
-    if (id != null) { const t = state.tender.find(x => String(x.id) === String(id)); state.tenderForm = t ? { editId: t.id, kalem: t.kalem, firma: t.firma, birim: t.birim, sozlesme: t.sozlesme, kalan: t.kalan, birimFiyat: t.birimFiyat } : null; }
-    else state.tenderForm = { editId: null, kalem: '', firma: '', birim: 'adet', sozlesme: '', kalan: '', birimFiyat: '' };
+    if (id != null) { const t = state.tender.find(x => String(x.id) === String(id)); state.tenderForm = t ? { editId: t.id, kalem: t.kalem, firma: t.firma, birim: t.birim, sozlesme: t.sozlesme, kalan: t.kalan, birimFiyat: t.birimFiyat, dosyaNo: t.dosyaNo || '', sozlesmeTarihi: t.sozlesmeTarihi || '' } : null; }
+    else state.tenderForm = { editId: null, kalem: '', firma: '', birim: 'adet', sozlesme: '', kalan: '', birimFiyat: '', dosyaNo: '', sozlesmeTarihi: '' };
     repaint();
   }
   async function saveTender() {
     const t = state.tenderForm; if (!t) return;
-    const body = { kalem: t.kalem, firma: t.firma, birim: t.birim, sozlesme: t.sozlesme, kalan: t.kalan, birimFiyat: t.birimFiyat };
+    const body = { kalem: t.kalem, firma: t.firma, birim: t.birim, sozlesme: t.sozlesme, kalan: t.kalan, birimFiyat: t.birimFiyat, dosyaNo: t.dosyaNo, sozlesmeTarihi: t.sozlesmeTarihi };
     try {
       if (t.editId != null) await api('/tender/' + t.editId, { method: 'PATCH', body });
       else await api('/tender', { method: 'POST', body });
@@ -1335,11 +1479,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
   async function delTender(id, ad) {
     if (!confirm((ad || 'Kalem') + ' silinsin mi?')) return;
     try { await api('/tender/' + id, { method: 'DELETE' }); await loadTender(); repaint(); toast('Kalem silindi'); }
-    catch (e) { toast(e.message, 'err'); }
-  }
-  async function saveNotify() {
-    const n = state.notify || {};
-    try { state.notify = await api('/settings', { method: 'PATCH', body: { telegramChatId: n.telegramChatId || '', telegramEnabled: n.telegramEnabled !== false } }); repaint(); toast('Bildirim ayarı kaydedildi'); }
     catch (e) { toast(e.message, 'err'); }
   }
   async function saveMektupTmpl() {
@@ -1405,8 +1544,12 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
   }
   function openOrder(id) { state.selId = id; state.screen = 'detay'; repaint(); }
   async function doSetDurum(id, durum) {
+    // Optimistic: önce ekranda uygula (anlık his), sonra sunucuyla eşitle; hata olursa geri al
+    const o = state.orders.find(x => String(x.id) === String(id));
+    const prev = o && o.durum;
+    if (o) { o.durum = durum; repaint(); }
     try { await api('/orders/' + id + '/durum', { method: 'PATCH', body: { durum } }); await loadData(); repaint(); }
-    catch (e) { toast(e.message, 'err'); }
+    catch (e) { if (o && prev) { o.durum = prev; repaint(); } toast(e.message, 'err'); }
   }
   function advance(id) {
     const o = state.orders.find(x => String(x.id) === String(id)); if (!o) return;
@@ -1451,13 +1594,13 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     else if (a === 'tender-cancel') { state.tenderForm = null; repaint(); }
     else if (a === 'tender-save') { saveTender(); }
     else if (a === 'tender-del') { delTender(id, el.dataset.ad); }
-    else if (a === 'notify-save') { saveNotify(); }
     else if (a === 'mektup-save') { saveMektupTmpl(); }
     else if (a === 'mektup') { openMektup(id); }
     else if (a === 'mk-close' || a === 'mk-backdrop') { closeMektup(); }
     else if (a === 'mk-stop') { /* modal içi tık — kapatma */ }
     else if (a === 'mk-print') { window.print(); }
     else if (a === 'mk-copy') { copyMektup(); }
+    else if (a === 'mk-png') { downloadMektupPng(); }
     else if (a === 'rp-csv') { exportReportCsv(); }
     else if (a === 'rp-reset') { state.report = { bas: '', bit: '', tedarik: 'hepsi', durum: 'hepsi', q: '' }; repaint(); }
     else if (a === 'open-order') { openOrder(id); }
@@ -1487,7 +1630,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     else if (a === 'tf-sozlesme') { state.tenderForm.sozlesme = e.target.value; }
     else if (a === 'tf-kalan') { state.tenderForm.kalan = e.target.value; }
     else if (a === 'tf-fiyat') { state.tenderForm.birimFiyat = e.target.value; }
-    else if (a === 'ntf-chat') { state.notify.telegramChatId = e.target.value; }
+    else if (a === 'tf-dosya') { state.tenderForm.dosyaNo = e.target.value; }
+    else if (a === 'tf-starih') { state.tenderForm.sozlesmeTarihi = e.target.value; }
     else if (a === 'mk-f') { if (state.mektup) state.mektup[el.dataset.k] = e.target.value; }
     else if (a === 'mt-teslimYeri') { state.notify.mektup = state.notify.mektup || {}; state.notify.mektup.teslimYeri = e.target.value; }
     else if (a === 'mt-teslimSekli') { state.notify.mektup = state.notify.mektup || {}; state.notify.mektup.teslimSekli = e.target.value; }
@@ -1508,7 +1652,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     const a = el.dataset.act, f = state.form;
     if (a === 'uf-rol') { state.userForm.rol = e.target.value; }
     else if (a === 'uf-aktif') { state.userForm.aktif = e.target.checked; }
-    else if (a === 'ntf-enabled') { state.notify.telegramEnabled = e.target.checked; }
     else if (a === 'rp-tedarik') { state.report.tedarik = e.target.value; repaint(); }
     else if (a === 'rp-durum') { state.report.durum = e.target.value; repaint(); }
     else if (a === 'k-birim') { f.kalemler[+el.dataset.i].birim = e.target.value; }
@@ -1542,6 +1685,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     }
     repaint();
     setInterval(() => { state.now = Date.now(); tickDom(); }, 1000);
+    setInterval(refresh, 30000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
   })();
   </script>
 </body>

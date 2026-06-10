@@ -3,12 +3,12 @@ import { ensureSiparisInit } from '@/projects/siparis-takip/db-schema';
 import { getSession, unauthorized, forbidden } from '@/projects/siparis-takip/auth';
 import { getAllOrders, createOrder } from '@/projects/siparis-takip/data';
 
-// GET /siparis-takip/api/orders → tüm siparişler (her iki rol; arayüz ekrana göre filtreler)
+// GET /siparis-takip/api/orders → siparişler (ambar yalnız İç Üretim siparişlerini görür)
 export async function GET(req: NextRequest) {
   await ensureSiparisInit();
   const user = await getSession(req);
   if (!user) return unauthorized();
-  return NextResponse.json(await getAllOrders());
+  return NextResponse.json(await getAllOrders(user.rol === 'ambar'));
 }
 
 // POST /siparis-takip/api/orders → yeni sipariş (yalnız yönetici; ihale ise stok atomik düşülür)

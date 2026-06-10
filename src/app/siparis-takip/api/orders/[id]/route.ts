@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureSiparisInit } from '@/projects/siparis-takip/db-schema';
-import { getSession, guard, unauthorized } from '@/projects/siparis-takip/auth';
+import { getSession, guard, unauthorized, forbidden } from '@/projects/siparis-takip/auth';
 import { getOrderById, updateOrder, deleteOrder } from '@/projects/siparis-takip/data';
+import { TEDARIK_KOD } from '@/projects/siparis-takip/db-schema';
 
-// GET → tek sipariş (her iki rol)
+// GET → tek sipariş (ambar ihale siparişini göremez)
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await ensureSiparisInit();
   const u = await getSession(req);
@@ -11,6 +12,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const order = await getOrderById(Number(id));
   if (!order) return NextResponse.json({ error: 'Sipariş bulunamadı' }, { status: 404 });
+  if (u.rol === 'ambar' && order.tedarikKod === TEDARIK_KOD.IHALE) return forbidden('Bu sipariş ambar personeline açık değil');
   return NextResponse.json(order);
 }
 

@@ -33,8 +33,16 @@ export const TAMAMLANMIS = [DURUM.HAZIR, DURUM.YOLDA, DURUM.TESLIM];
 
 let initialized = false;
 
+// Şema sürümü — yapı her değiştiğinde artır. Eşleşiyorsa tüm CREATE/ALTER/seed
+// adımları atlanır: soğuk başlangıçta ~25 DB sorgusu yerine 1 sorgu (hız).
+const SCHEMA_VERSION = '4';
+
 export async function ensureSiparisInit(): Promise<void> {
   if (initialized) return;
+  try {
+    const v = await db.execute("SELECT value FROM siparis_takip_settings WHERE key = 'schema_version'");
+    if (String((v.rows[0] as any)?.value) === SCHEMA_VERSION) { initialized = true; return; }
+  } catch { /* tablo henüz yok → tam init */ }
   await applySchema([
     // Kullanıcılar (rol: yonetici | ambar). kullanici_adi + sifre_hash ile giriş.
     `CREATE TABLE IF NOT EXISTS siparis_takip_kullanicilar (
@@ -57,7 +65,9 @@ export async function ensureSiparisInit(): Promise<void> {
       firma           TEXT    NOT NULL,
       sozlesme_miktari REAL   NOT NULL DEFAULT 0,
       kalan_miktar    REAL    NOT NULL DEFAULT 0,
-      birim_fiyat     REAL    NOT NULL DEFAULT 0
+      birim_fiyat     REAL    NOT NULL DEFAULT 0,
+      dosya_no        TEXT,
+      sozlesme_tarihi TEXT
     )`,
 
     // Siparişler
@@ -138,6 +148,9 @@ export async function ensureSiparisInit(): Promise<void> {
     // Birim fiyat / harcama takibi — mevcut DB'ye idempotent ekle
     `ALTER TABLE siparis_takip_ihale_kalemleri ADD COLUMN birim_fiyat REAL NOT NULL DEFAULT 0`,
     `ALTER TABLE siparis_takip_siparis_kalemleri ADD COLUMN birim_fiyat REAL`,
+    // Sipariş Mektubu otomatik alanları (ihale sözleşmesinden çekilir)
+    `ALTER TABLE siparis_takip_ihale_kalemleri ADD COLUMN dosya_no TEXT`,
+    `ALTER TABLE siparis_takip_ihale_kalemleri ADD COLUMN sozlesme_tarihi TEXT`,
 
     `CREATE INDEX IF NOT EXISTS idx_st_kalem_siparis ON siparis_takip_siparis_kalemleri(siparis_id)`,
     `CREATE INDEX IF NOT EXISTS idx_st_siparis_durum ON siparis_takip_siparisler(durum)`,
@@ -150,6 +163,11 @@ export async function ensureSiparisInit(): Promise<void> {
 
   await seedIfEmpty();
   await backfillUsernames();
+  await db.execute({
+    sql: `INSERT INTO siparis_takip_settings (key, value) VALUES ('schema_version', ?)
+          ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    args: [SCHEMA_VERSION],
+  });
   initialized = true;
 }
 

@@ -38,12 +38,9 @@ export const MEKTUP_DEFAULT = {
   ].join('\n'),
 };
 
-// Panelin okuyacağı bildirim + mektup ayarları (token ASLA dönmez — yalnız "tanımlı mı").
+// Panelin okuyacağı ayarlar (Telegram kaldırıldı — yalnız mektup şablonu).
 export async function getNotifySettings() {
   return {
-    telegramChatId: await getSetting('telegram_chat_id', ''),
-    telegramEnabled: (await getSetting('telegram_enabled', '1')) !== '0',
-    telegramTokenVar: !!process.env.TELEGRAM_BOT_TOKEN,
     mektup: {
       teslimYeri: await getSetting('mektup_teslim_yeri', MEKTUP_DEFAULT.teslimYeri),
       teslimSekli: await getSetting('mektup_teslim_sekli', MEKTUP_DEFAULT.teslimSekli),

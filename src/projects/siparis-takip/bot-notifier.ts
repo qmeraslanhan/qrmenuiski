@@ -44,21 +44,4 @@ export function botMessage(order: BotOrder): string {
 export async function botNotifier(order: BotOrder): Promise<void> {
   await sendTelegram(botMessage(order));
 }
-
-// ── Yeni ihale siparişi (oluşturulunca otomatik) ──
-export type IhaleBildirim = {
-  kod: string; birim: string; firma: string; etkinlik_ts: number;
-  olusturan: string; kalemler: { ad: string; miktar: number; birim: string }[];
-};
-export function ihaleMessage(o: IhaleBildirim): string {
-  const lines = o.kalemler.map((k) => ` • ${esc(k.ad)} × <b>${k.miktar}</b> ${esc(k.birim)}`).join('\n');
-  return `🧾 <b>Yeni İhale Siparişi</b> · ${esc(o.kod)}\n`
-    + `Firma: <b>${esc(o.firma)}</b>\n`
-    + `Talep eden: ${esc(o.birim)}\n`
-    + `Etkinlik: ${fmtTime(o.etkinlik_ts)} (hazır olma: ${fmtTime(o.etkinlik_ts - 3600000)})\n`
-    + `Kalemler:\n${lines}\n`
-    + `Oluşturan: ${esc(o.olusturan)}`;
-}
-export async function notifyIhaleOrder(o: IhaleBildirim): Promise<void> {
-  await sendTelegram(ihaleMessage(o));
-}
+// Not: ihale siparişi Telegram bildirimi 2026-06-10'da kaldırıldı (yerine Sipariş Mektubu).

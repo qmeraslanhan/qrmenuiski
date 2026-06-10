@@ -9,7 +9,6 @@ import {
 } from './db-schema';
 import type { AuthCtx } from './auth';
 import { logActivity } from './activity';
-import { notifyIhaleOrder } from './bot-notifier';
 
 export type ApiKalem = { id: number; ad: string; miktar: number; birim: string; tenderId: number | null; birimFiyat: number; tutar: number };
 export type ApiOrder = {
@@ -45,8 +44,11 @@ function serializeOrder(o: any, kalemler: any[]): ApiOrder {
   };
 }
 
-export async function getAllOrders(): Promise<ApiOrder[]> {
-  const o = await db.execute('SELECT * FROM siparis_takip_siparisler ORDER BY etkinlik_ts');
+// ambarOnly: ambar personeli ihale siparişlerini hiç görmesin (sunucu tarafı filtre)
+export async function getAllOrders(ambarOnly = false): Promise<ApiOrder[]> {
+  const o = ambarOnly
+    ? await db.execute({ sql: 'SELECT * FROM siparis_takip_siparisler WHERE tedarik_turu = ? ORDER BY etkinlik_ts', args: [TEDARIK_KOD.AMBAR] })
+    : await db.execute('SELECT * FROM siparis_takip_siparisler ORDER BY etkinlik_ts');
   const k = await db.execute('SELECT * FROM siparis_takip_siparis_kalemleri ORDER BY id');
   const byOrder = new Map<number, any[]>();
   for (const row of k.rows as any[]) {
@@ -71,11 +73,21 @@ export async function getTender() {
     id: Number(t.id), kalem: t.kalem, birim: t.birim, firma: t.firma,
     sozlesme: Number(t.sozlesme_miktari), kalan: Number(t.kalan_miktar),
     birimFiyat: Number(t.birim_fiyat || 0),
+    dosyaNo: t.dosya_no || '', sozlesmeTarihi: t.sozlesme_tarihi || '',
   }));
 }
 
-export async function getNotifications() {
-  const r = await db.execute('SELECT * FROM siparis_takip_bildirimler ORDER BY ts DESC LIMIT 40');
+// ambarOnly: ihale siparişlerine bağlı bildirimler ambara sızmasın
+export async function getNotifications(ambarOnly = false) {
+  const r = ambarOnly
+    ? await db.execute({
+        sql: `SELECT b.* FROM siparis_takip_bildirimler b
+              LEFT JOIN siparis_takip_siparisler s ON s.id = b.siparis_id
+              WHERE b.siparis_id IS NULL OR s.tedarik_turu = ?
+              ORDER BY b.ts DESC LIMIT 40`,
+        args: [TEDARIK_KOD.AMBAR],
+      })
+    : await db.execute('SELECT * FROM siparis_takip_bildirimler ORDER BY ts DESC LIMIT 40');
   return (r.rows as any[]).map((b) => ({
     id: Number(b.id), tip: b.tip, baslik: b.baslik, alt: b.alt || '',
     siparisId: b.siparis_id != null ? Number(b.siparis_id) : null, ts: Number(b.ts),
@@ -202,16 +214,6 @@ export async function createOrder(input: CreateInput, user: AuthCtx): Promise<Cr
 
   await pushBildirim('yeni', `Yeni sipariş: ${kod}`, `${birim} · ${TEDARIK_ETIKET[tedarik]}`, sid, now);
   await logActivity(user, 'siparis.olustur', 'siparis', sid, `${kod} oluşturuldu — ${birim} · ${TEDARIK_ETIKET[tedarik]}`);
-
-  // İhale siparişinde otomatik Telegram bildirimi (yapılandırılmışsa)
-  if (ihale) {
-    try {
-      await notifyIhaleOrder({
-        kod, birim, firma: atanan, etkinlik_ts: eventTs, olusturan: user.ad,
-        kalemler: kalemler.map((k) => ({ ad: k.ad, miktar: k.miktar, birim: k.birim })),
-      });
-    } catch { /* bildirim siparişi bozmaz */ }
-  }
 
   const order = await getOrderById(sid);
   return { order: order! };
@@ -364,7 +366,10 @@ export async function deleteOrder(id: number, user: AuthCtx): Promise<{ ok: true
 }
 
 // ── İhale kalemleri (sözleşme stoğu) yönetimi — yalnız yönetici ──
-export type TenderInput = { kalem?: string; firma?: string; birim?: string; sozlesme?: number | string; kalan?: number | string; birimFiyat?: number | string };
+export type TenderInput = {
+  kalem?: string; firma?: string; birim?: string; sozlesme?: number | string; kalan?: number | string;
+  birimFiyat?: number | string; dosyaNo?: string; sozlesmeTarihi?: string;
+};
 
 export async function createTenderItem(input: TenderInput, user: AuthCtx) {
   const kalem = String(input.kalem || '').trim();
@@ -379,8 +384,8 @@ export async function createTenderItem(input: TenderInput, user: AuthCtx) {
   if (!Number.isFinite(kalan) || kalan < 0) return { error: 'Geçerli kalan miktar girin', status: 400 };
   if (!Number.isFinite(fiyat) || fiyat < 0) return { error: 'Geçerli birim fiyat girin', status: 400 };
   const ins = await db.execute({
-    sql: 'INSERT INTO siparis_takip_ihale_kalemleri (kalem, birim, firma, sozlesme_miktari, kalan_miktar, birim_fiyat) VALUES (?, ?, ?, ?, ?, ?)',
-    args: [kalem, birim, firma, sozlesme, kalan, fiyat],
+    sql: 'INSERT INTO siparis_takip_ihale_kalemleri (kalem, birim, firma, sozlesme_miktari, kalan_miktar, birim_fiyat, dosya_no, sozlesme_tarihi) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    args: [kalem, birim, firma, sozlesme, kalan, fiyat, String(input.dosyaNo || '').trim(), String(input.sozlesmeTarihi || '').trim()],
   });
   const idn = Number(ins.lastInsertRowid);
   await logActivity(user, 'ihale.olustur', 'ihale', idn, `${kalem} (${firma}) eklendi — stok ${kalan}/${sozlesme} ${birim} · ₺${fiyat}/${birim}`);
@@ -398,6 +403,8 @@ export async function updateTenderItem(id: number, input: TenderInput, user: Aut
   if (input.sozlesme !== undefined) { const v = Number(input.sozlesme); if (!Number.isFinite(v) || v < 0) return { error: 'Geçersiz sözleşme miktarı', status: 400 }; sets.push('sozlesme_miktari = ?'); args.push(v); }
   if (input.kalan !== undefined) { const v = Number(input.kalan); if (!Number.isFinite(v) || v < 0) return { error: 'Geçersiz kalan miktar', status: 400 }; sets.push('kalan_miktar = ?'); args.push(v); }
   if (input.birimFiyat !== undefined) { const v = Number(input.birimFiyat); if (!Number.isFinite(v) || v < 0) return { error: 'Geçersiz birim fiyat', status: 400 }; sets.push('birim_fiyat = ?'); args.push(v); }
+  if (input.dosyaNo !== undefined) { sets.push('dosya_no = ?'); args.push(String(input.dosyaNo).trim()); }
+  if (input.sozlesmeTarihi !== undefined) { sets.push('sozlesme_tarihi = ?'); args.push(String(input.sozlesmeTarihi).trim()); }
   if (!sets.length) return { error: 'Güncellenecek alan yok', status: 400 };
   args.push(id);
   await db.execute({ sql: `UPDATE siparis_takip_ihale_kalemleri SET ${sets.join(', ')} WHERE id = ?`, args });
