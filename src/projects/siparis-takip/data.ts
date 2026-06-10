@@ -5,10 +5,11 @@
 import { db, getDB } from '@/lib/d1';
 import { MS } from './timing';
 import {
-  DURUM, DURUM_SIRA, TEDARIK_KOD, TEDARIK_ETIKET,
+  DURUM, DURUM_SIRA, TAMAMLANMIS, TEDARIK_KOD, TEDARIK_ETIKET,
 } from './db-schema';
 import type { AuthCtx } from './auth';
 import { logActivity } from './activity';
+import { notifyIhaleOrder } from './bot-notifier';
 
 export type ApiKalem = { id: number; ad: string; miktar: number; birim: string; tenderId: number | null };
 export type ApiOrder = {
@@ -194,6 +195,16 @@ export async function createOrder(input: CreateInput, user: AuthCtx): Promise<Cr
   await pushBildirim('yeni', `Yeni sipariş: ${kod}`, `${birim} · ${TEDARIK_ETIKET[tedarik]}`, sid, now);
   await logActivity(user, 'siparis.olustur', 'siparis', sid, `${kod} oluşturuldu — ${birim} · ${TEDARIK_ETIKET[tedarik]}`);
 
+  // İhale siparişinde otomatik Telegram bildirimi (yapılandırılmışsa)
+  if (ihale) {
+    try {
+      await notifyIhaleOrder({
+        kod, birim, firma: atanan, etkinlik_ts: eventTs, olusturan: user.ad,
+        kalemler: kalemler.map((k) => ({ ad: k.ad, miktar: k.miktar, birim: k.birim })),
+      });
+    } catch { /* bildirim siparişi bozmaz */ }
+  }
+
   const order = await getOrderById(sid);
   return { order: order! };
 }
@@ -213,18 +224,18 @@ export async function setOrderDurum(id: number, durumIn: string, user: AuthCtx):
   if (user.rol === 'ambar' && o.tedarik_turu !== TEDARIK_KOD.AMBAR)
     return { error: 'Bu sipariş ambar personeline atanmamış', status: 403 };
 
-  const curIdx = DURUM_SIRA.indexOf(o.durum);
-  const newIdx = DURUM_SIRA.indexOf(durum as any);
-  if (newIdx < curIdx) return { error: 'Durum geriye alınamaz (tek yönlü akış)', status: 400 };
-
-  // Hazır olunca alarm işaretini temizle (yeniden tetikleme önlemi)
-  const clearAlarm = durum === DURUM.HAZIR ? 0 : Number(o.alarm_fired);
+  // Geri alma serbest (yanlış tıklama düzeltmesi). Tamamlanmamışa dönerse alarm
+  // yeniden değerlendirilsin diye işareti sıfırla; Hazır'da da temizle.
+  const onceki = o.durum;
+  const completed = TAMAMLANMIS.includes(durum as any);
+  const clearAlarm = (durum === DURUM.HAZIR || !completed) ? 0 : Number(o.alarm_fired);
   await db.execute({
     sql: 'UPDATE siparis_takip_siparisler SET durum = ?, alarm_fired = ? WHERE id = ?',
     args: [durum, clearAlarm, id],
   });
-  await pushBildirim('durum', `${o.kod} → ${durum}`, `${o.talep_eden_birim} · ${user.ad} güncelledi`, id);
-  await logActivity(user, 'siparis.durum', 'siparis', id, `${o.kod} → ${durum}`);
+  const geri = DURUM_SIRA.indexOf(durum as any) < DURUM_SIRA.indexOf(onceki);
+  await pushBildirim('durum', `${o.kod} → ${durum}`, `${o.talep_eden_birim} · ${user.ad} ${geri ? 'geri aldı' : 'güncelledi'}`, id);
+  await logActivity(user, 'siparis.durum', 'siparis', id, `${o.kod}: ${onceki} → ${durum}${geri ? ' (geri alındı)' : ''}`);
 
   const order = await getOrderById(id);
   return { order: order! };
@@ -341,4 +352,54 @@ export async function deleteOrder(id: number, user: AuthCtx): Promise<{ ok: true
 
   await logActivity(user, 'siparis.sil', 'siparis', id, `${o.kod} silindi — ${o.talep_eden_birim}`);
   return { ok: true, kod: o.kod };
+}
+
+// ── İhale kalemleri (sözleşme stoğu) yönetimi — yalnız yönetici ──
+export type TenderInput = { kalem?: string; firma?: string; birim?: string; sozlesme?: number | string; kalan?: number | string };
+
+export async function createTenderItem(input: TenderInput, user: AuthCtx) {
+  const kalem = String(input.kalem || '').trim();
+  const firma = String(input.firma || '').trim();
+  const birim = String(input.birim || '').trim() || 'adet';
+  const sozlesme = Number(input.sozlesme);
+  const kalan = (input.kalan === undefined || input.kalan === '') ? sozlesme : Number(input.kalan);
+  if (!kalem) return { error: 'Kalem adı gerekli', status: 400 };
+  if (!firma) return { error: 'Firma gerekli', status: 400 };
+  if (!Number.isFinite(sozlesme) || sozlesme < 0) return { error: 'Geçerli sözleşme miktarı girin', status: 400 };
+  if (!Number.isFinite(kalan) || kalan < 0) return { error: 'Geçerli kalan miktar girin', status: 400 };
+  const ins = await db.execute({
+    sql: 'INSERT INTO siparis_takip_ihale_kalemleri (kalem, birim, firma, sozlesme_miktari, kalan_miktar) VALUES (?, ?, ?, ?, ?)',
+    args: [kalem, birim, firma, sozlesme, kalan],
+  });
+  const idn = Number(ins.lastInsertRowid);
+  await logActivity(user, 'ihale.olustur', 'ihale', idn, `${kalem} (${firma}) eklendi — stok ${kalan}/${sozlesme} ${birim}`);
+  return { id: idn };
+}
+
+export async function updateTenderItem(id: number, input: TenderInput, user: AuthCtx) {
+  const r = await db.execute({ sql: 'SELECT * FROM siparis_takip_ihale_kalemleri WHERE id = ?', args: [id] });
+  const t: any = r.rows[0];
+  if (!t) return { error: 'Kalem bulunamadı', status: 404 };
+  const sets: string[] = []; const args: any[] = [];
+  if (input.kalem !== undefined) { const v = String(input.kalem).trim(); if (!v) return { error: 'Kalem adı boş olamaz', status: 400 }; sets.push('kalem = ?'); args.push(v); }
+  if (input.firma !== undefined) { const v = String(input.firma).trim(); if (!v) return { error: 'Firma boş olamaz', status: 400 }; sets.push('firma = ?'); args.push(v); }
+  if (input.birim !== undefined) { sets.push('birim = ?'); args.push(String(input.birim).trim() || 'adet'); }
+  if (input.sozlesme !== undefined) { const v = Number(input.sozlesme); if (!Number.isFinite(v) || v < 0) return { error: 'Geçersiz sözleşme miktarı', status: 400 }; sets.push('sozlesme_miktari = ?'); args.push(v); }
+  if (input.kalan !== undefined) { const v = Number(input.kalan); if (!Number.isFinite(v) || v < 0) return { error: 'Geçersiz kalan miktar', status: 400 }; sets.push('kalan_miktar = ?'); args.push(v); }
+  if (!sets.length) return { error: 'Güncellenecek alan yok', status: 400 };
+  args.push(id);
+  await db.execute({ sql: `UPDATE siparis_takip_ihale_kalemleri SET ${sets.join(', ')} WHERE id = ?`, args });
+  await logActivity(user, 'ihale.guncelle', 'ihale', id, `${t.kalem} güncellendi`);
+  return { ok: true };
+}
+
+export async function deleteTenderItem(id: number, user: AuthCtx) {
+  const r = await db.execute({ sql: 'SELECT * FROM siparis_takip_ihale_kalemleri WHERE id = ?', args: [id] });
+  const t: any = r.rows[0];
+  if (!t) return { error: 'Kalem bulunamadı', status: 404 };
+  const ref = await db.execute({ sql: 'SELECT COUNT(*) AS n FROM siparis_takip_siparis_kalemleri WHERE ihale_kalem_id = ?', args: [id] });
+  if (Number((ref.rows[0] as any).n) > 0) return { error: 'Bu kaleme bağlı sipariş(ler) var; önce onları düzenleyin/silin', status: 409 };
+  await db.execute({ sql: 'DELETE FROM siparis_takip_ihale_kalemleri WHERE id = ?', args: [id] });
+  await logActivity(user, 'ihale.sil', 'ihale', id, `${t.kalem} (${t.firma}) silindi`);
+  return { ok: true };
 }

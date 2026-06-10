@@ -124,6 +124,12 @@ export async function ensureSiparisInit(): Promise<void> {
       attempted_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
 
+    // Panelden düzenlenebilen ayarlar (telegram_chat_id, telegram_enabled, ...)
+    `CREATE TABLE IF NOT EXISTS siparis_takip_settings (
+      key   TEXT PRIMARY KEY,
+      value TEXT
+    )`,
+
     // Mevcut (eski) kullanicilar tablosuna kolonları idempotent ekle (yeni DB'de hata → applySchema yutar)
     `ALTER TABLE siparis_takip_kullanicilar ADD COLUMN kullanici_adi TEXT`,
     `ALTER TABLE siparis_takip_kullanicilar ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1`,

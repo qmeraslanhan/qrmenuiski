@@ -508,7 +508,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     user: null, theme: document.documentElement.getAttribute('data-theme') || 'light',
     orders: [], tender: [], notifications: [], users: [], activity: [],
     screen: 'panel', selId: null, filtre: 'hepsi', q: '',
-    form: null, userForm: null, yonetimTab: 'kullanicilar',
+    form: null, userForm: null, tenderForm: null, yonetimTab: 'kullanicilar',
+    notify: { telegramChatId: '', telegramEnabled: true, telegramTokenVar: false },
     login: { kullaniciAdi: '', sifre: '' },
     now: Date.now(), _sig: '',
   };
@@ -750,6 +751,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     if (!o) return dashboardView();
     const now = state.now, t = timing(o.eventTs, o.durum, now), col = levelColor(t.level), ihale = isIhale(o);
     const idx = DURUM_SIRA.indexOf(o.durum), sonraki = idx < DURUM_SIRA.length - 1 ? DURUM_SIRA[idx + 1] : null;
+    const onceki = idx > 0 ? DURUM_SIRA[idx - 1] : null;
     const sub = t.msToReady < 0 ? fmtKalan(t.msToReady) : 'hedef ' + fmtTime(t.ready);
     const kalemRows = o.kalemler.map(k => '<tr><td>' + esc(k.ad) + '</td><td class="mono">' + k.miktar + ' ' + esc(k.birim) + '</td><td>' + (k.tenderId ? badge('teal', 'İhale') : badge('slate', 'Ambar')) + '</td></tr>').join('');
     const ihaleBox = ihale ? '<div class="ihale-box"><p class="ihale-box-t">' + icon('truck', 14) + ' Sözleşmeden düşülen kalemler</p>'
@@ -781,7 +783,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + inforow(ihale ? 'truck' : 'box', 'Tedarik', esc(o.tedarik), false)
       + ihaleBox + '</div></div>'
       + '<div class="card action-bar"><div class="action-info"><span class="action-lbl">Durum güncelle</span>'
-      + '<span class="action-cur">Şu an: <b>' + esc(o.durum) + '</b></span></div><div class="action-btns">' + manage + actBtns + '</div></div></div>';
+      + '<span class="action-cur">Şu an: <b>' + esc(o.durum) + '</b></span></div><div class="action-btns">' + manage
+      + (onceki ? '<button class="btn btn-ghost btn-sm" data-act="set-durum" data-id="' + o.id + '" data-durum="' + onceki + '" title="Yanlış tıklamayı geri al">' + icon('arrowLeft', 15) + 'Geri al (' + esc(onceki) + ')</button>' : '')
+      + actBtns + '</div></div></div>';
   }
 
   // ---- Ekran: Ambar (Görevlerim) --------------------------------------
@@ -794,12 +798,14 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     const alarm = enriched.filter(e => e.t.alarm).length;
     const ad = (state.user.ad || '').split(' ')[0];
     const cards = enriched.map(({ o }) => {
+      const widx = DURUM_SIRA.indexOf(o.durum);
       let foot = '<div class="wh-actions">';
       if (o.durum === DURUM.BEKLEMEDE) foot += '<button class="btn btn-soft btn-sm" data-act="set-durum" data-id="' + o.id + '" data-durum="' + DURUM.HAZIRLANIYOR + '">' + icon('flame', 15, 2) + 'Hazırlamaya başla</button>';
       if (o.durum === DURUM.BEKLEMEDE || o.durum === DURUM.HAZIRLANIYOR) foot += '<button class="btn btn-primary btn-sm" data-act="set-durum" data-id="' + o.id + '" data-durum="' + DURUM.HAZIR + '">' + icon('checkCircle', 15, 2) + 'Hazırlandı</button>';
       if (o.durum === DURUM.HAZIR) foot += '<button class="btn btn-primary btn-sm" data-act="set-durum" data-id="' + o.id + '" data-durum="' + DURUM.YOLDA + '">' + icon('truck', 15, 2) + 'Yola Çıktı</button>';
       if (o.durum === DURUM.YOLDA) foot += '<button class="btn btn-soft btn-sm" data-act="set-durum" data-id="' + o.id + '" data-durum="' + DURUM.TESLIM + '">' + icon('check', 15, 2) + 'Teslim edildi</button>';
       if (o.durum === DURUM.TESLIM) foot += badge('done', 'Tamamlandı', { icon: 'check' });
+      if (widx > 0) foot += '<button class="btn btn-ghost btn-sm" data-act="set-durum" data-id="' + o.id + '" data-durum="' + DURUM_SIRA[widx - 1] + '" title="Yanlış tıklamayı geri al">' + icon('arrowLeft', 15) + 'Geri al</button>';
       foot += '</div>';
       return orderCard(o, foot);
     }).join('');
@@ -912,19 +918,60 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     }).join('') : empty('list', 'Kayıt yok', 'Yapılan işlemler burada listelenir.');
     return '<div class="log">' + rows + '</div>';
   }
+  function notifyCard() {
+    const n = state.notify || {};
+    const tokenInfo = n.telegramTokenVar ? badge('green', 'Bot token tanımlı') : badge('amber', 'Bot token yok (secret)');
+    return '<div class="card form-card" style="margin-bottom:16px">'
+      + '<div class="form-sec-row"><h2 class="form-sec">' + icon('send', 16, 2) + ' Telegram Bildirimi</h2>' + tokenInfo + '</div>'
+      + '<p class="field-hint" style="margin-bottom:10px">İhale siparişi oluşturulunca bu sohbete/gruba otomatik mesaj gider. Bot token, Cloudflare secret (TELEGRAM_BOT_TOKEN) olarak ayrı saklanır.</p>'
+      + '<div class="field-row"><label class="field"><span class="field-label">Chat / Grup ID</span>'
+      + '<input data-act="ntf-chat" value="' + esc(n.telegramChatId || '') + '" placeholder="örn. -1001234567890"></label>'
+      + '<label class="field" style="flex-direction:row;align-items:center;gap:8px;margin-top:24px"><input type="checkbox" data-act="ntf-enabled"' + (n.telegramEnabled !== false ? ' checked' : '') + ' style="width:auto"><span class="field-label" style="margin:0">Bildirim açık</span></label></div>'
+      + '<button class="btn btn-soft btn-md" data-act="notify-save">' + icon('check', 16, 2) + 'Ayarı kaydet</button></div>';
+  }
+  function tenderFormCard() {
+    const t = state.tenderForm; const edit = t.editId != null;
+    return '<div class="card form-card" style="margin-bottom:16px">'
+      + '<div class="form-sec-row"><h2 class="form-sec">' + (edit ? 'Kalem Düzenle' : 'Yeni İhale Kalemi') + '</h2>'
+      + '<button class="btn btn-ghost btn-sm" data-act="tender-cancel">Kapat</button></div>'
+      + '<div class="field-row"><label class="field"><span class="field-label">Kalem<i class="req">*</i></span><input data-act="tf-kalem" value="' + esc(t.kalem) + '" placeholder="örn. Şişe Su 0.5L"></label>'
+      + '<label class="field"><span class="field-label">Firma<i class="req">*</i></span><input data-act="tf-firma" value="' + esc(t.firma) + '" placeholder="Tedarikçi firma"></label></div>'
+      + '<div class="field-row"><label class="field"><span class="field-label">Birim</span><input data-act="tf-birim" value="' + esc(t.birim) + '" placeholder="adet, kg, paket…"></label>'
+      + '<label class="field"><span class="field-label">Sözleşme miktarı<i class="req">*</i></span><input data-act="tf-sozlesme" type="number" min="0" value="' + esc(t.sozlesme) + '"></label>'
+      + '<label class="field"><span class="field-label">Kalan stok</span><input data-act="tf-kalan" type="number" min="0" value="' + esc(t.kalan) + '" placeholder="boşsa = sözleşme"></label></div>'
+      + '<button class="btn btn-primary btn-md btn-full" data-act="tender-save">' + icon('check', 17, 2) + (edit ? 'Kaydet' : 'Kalem ekle') + '</button></div>';
+  }
+  function ihaleBody() {
+    const form = state.tenderForm ? tenderFormCard() : '';
+    const rows = state.tender.map(t => {
+      const pct = t.sozlesme ? t.kalan / t.sozlesme : 0;
+      const tone = pct < 0.2 ? '#DC2626' : pct < 0.4 ? '#D97706' : '#16A34A';
+      const low = pct < 0.2 ? ' ' + badge('red', 'Düşük stok', { icon: 'alert' }) : '';
+      return '<div class="tender-item"><div class="tender-item-head"><span class="tender-name">' + esc(t.kalem) + '</span><span class="tender-firma">' + esc(t.firma) + '</span></div>'
+        + '<div class="tender-bar"><span class="tender-bar-fill" style="width:' + (pct * 100) + '%;background:' + tone + '"></span></div>'
+        + '<div class="tender-nums"><span class="mono" style="color:' + tone + ';font-weight:600">' + t.kalan.toLocaleString('tr-TR') + '</span>'
+        + '<span class="tender-tot">/ ' + t.sozlesme.toLocaleString('tr-TR') + ' ' + esc(t.birim) + '</span>' + low + '</div>'
+        + '<div class="wh-actions" style="margin-top:10px"><button class="btn btn-ghost btn-sm" data-act="tender-edit" data-id="' + t.id + '">Düzenle</button>'
+        + '<button class="btn btn-ghost btn-sm" data-act="tender-del" data-id="' + t.id + '" data-ad="' + esc(t.kalem) + '">' + icon('trash', 15) + '</button></div></div>';
+    }).join('');
+    const grid = state.tender.length ? '<div class="tender-grid">' + rows + '</div>' : empty('truck', 'İhale kalemi yok', 'Yeni kalem ekleyin.');
+    return notifyCard() + form + grid;
+  }
   function yonetimView() {
     const tab = state.yonetimTab;
-    return '<div class="screen"><header class="scr-head"><div><p class="scr-kicker">Yönetim</p><h1 class="scr-title">Kullanıcılar &amp; İşlem Kayıtları</h1></div></header>'
+    const tb = (id, ad, n) => '<button class="chip' + (tab === id ? ' is-on' : '') + '" data-act="yonetim-tab" data-tab="' + id + '">' + ad + '<span class="chip-n">' + n + '</span></button>';
+    const action = tab === 'kullanicilar' ? '<button class="btn btn-primary btn-md" data-act="user-new">' + icon('plus', 17, 2) + 'Yeni Kullanıcı</button>'
+      : tab === 'ihale' ? '<button class="btn btn-primary btn-md" data-act="tender-new">' + icon('plus', 17, 2) + 'Yeni Kalem</button>' : '';
+    const body = tab === 'kullanicilar' ? usersBody() : tab === 'ihale' ? ihaleBody() : activityBody();
+    return '<div class="screen"><header class="scr-head"><div><p class="scr-kicker">Yönetim</p><h1 class="scr-title">Kullanıcılar · İhale Stok · Loglar</h1></div></header>'
       + '<div class="toolbar"><div class="chips">'
-      + '<button class="chip' + (tab === 'kullanicilar' ? ' is-on' : '') + '" data-act="yonetim-tab" data-tab="kullanicilar">Kullanıcılar<span class="chip-n">' + state.users.length + '</span></button>'
-      + '<button class="chip' + (tab === 'loglar' ? ' is-on' : '') + '" data-act="yonetim-tab" data-tab="loglar">İşlem Kayıtları<span class="chip-n">' + state.activity.length + '</span></button>'
-      + '</div>' + (tab === 'kullanicilar' ? '<button class="btn btn-primary btn-md" data-act="user-new">' + icon('plus', 17, 2) + 'Yeni Kullanıcı</button>' : '') + '</div>'
-      + (tab === 'kullanicilar' ? usersBody() : activityBody()) + '</div>';
+      + tb('kullanicilar', 'Kullanıcılar', state.users.length) + tb('ihale', 'İhale Stok', state.tender.length) + tb('loglar', 'İşlem Kayıtları', state.activity.length)
+      + '</div>' + action + '</div>' + body + '</div>';
   }
 
   // ---- App kabuğu ------------------------------------------------------
   const NAV = {
-    yonetici: [{ id: 'panel', ad: 'Panel', icon: 'panel' }, { id: 'ihale', ad: 'İhale Havuzu', icon: 'truck' }, { id: 'yonetim', ad: 'Yönetim', icon: 'shield' }, { id: 'bildirim', ad: 'Bildirimler', icon: 'bell' }],
+    yonetici: [{ id: 'panel', ad: 'Panel', icon: 'panel' }, { id: 'yonetim', ad: 'Yönetim', icon: 'shield' }, { id: 'bildirim', ad: 'Bildirimler', icon: 'bell' }],
     ambar: [{ id: 'gorevlerim', ad: 'Görevlerim', icon: 'box' }, { id: 'bildirim', ad: 'Bildirimler', icon: 'bell' }],
   };
   function screenView() {
@@ -1032,10 +1079,36 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
   async function loadUsers() { try { state.users = await api('/users') || []; } catch (e) { state.users = []; } }
   async function loadActivity() { try { state.activity = await api('/activity') || []; } catch (e) { state.activity = []; } }
   async function goYonetim() {
-    state.selId = null; state.userForm = null; state.screen = 'yonetim';
+    state.selId = null; state.userForm = null; state.tenderForm = null; state.screen = 'yonetim';
     repaint();
-    await Promise.all([loadUsers(), loadActivity()]);
+    await Promise.all([loadUsers(), loadActivity(), loadNotify(), loadTender()]);
     repaint();
+  }
+  async function loadNotify() { try { state.notify = await api('/settings') || state.notify; } catch (e) {} }
+  async function loadTender() { try { state.tender = await api('/tender') || []; } catch (e) {} }
+  function openTenderForm(id) {
+    if (id != null) { const t = state.tender.find(x => String(x.id) === String(id)); state.tenderForm = t ? { editId: t.id, kalem: t.kalem, firma: t.firma, birim: t.birim, sozlesme: t.sozlesme, kalan: t.kalan } : null; }
+    else state.tenderForm = { editId: null, kalem: '', firma: '', birim: 'adet', sozlesme: '', kalan: '' };
+    repaint();
+  }
+  async function saveTender() {
+    const t = state.tenderForm; if (!t) return;
+    const body = { kalem: t.kalem, firma: t.firma, birim: t.birim, sozlesme: t.sozlesme, kalan: t.kalan };
+    try {
+      if (t.editId != null) await api('/tender/' + t.editId, { method: 'PATCH', body });
+      else await api('/tender', { method: 'POST', body });
+      state.tenderForm = null; await loadTender(); repaint(); toast('İhale kalemi kaydedildi');
+    } catch (e) { toast(e.message, 'err'); }
+  }
+  async function delTender(id, ad) {
+    if (!confirm((ad || 'Kalem') + ' silinsin mi?')) return;
+    try { await api('/tender/' + id, { method: 'DELETE' }); await loadTender(); repaint(); toast('Kalem silindi'); }
+    catch (e) { toast(e.message, 'err'); }
+  }
+  async function saveNotify() {
+    const n = state.notify || {};
+    try { state.notify = await api('/settings', { method: 'PATCH', body: { telegramChatId: n.telegramChatId || '', telegramEnabled: n.telegramEnabled !== false } }); repaint(); toast('Bildirim ayarı kaydedildi'); }
+    catch (e) { toast(e.message, 'err'); }
   }
   function openUserForm(id) {
     if (id != null) {
@@ -1134,6 +1207,12 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     else if (a === 'user-cancel') { state.userForm = null; repaint(); }
     else if (a === 'user-save') { saveUser(); }
     else if (a === 'user-del') { delUser(id, el.dataset.ad); }
+    else if (a === 'tender-new') { openTenderForm(null); }
+    else if (a === 'tender-edit') { openTenderForm(id); }
+    else if (a === 'tender-cancel') { state.tenderForm = null; repaint(); }
+    else if (a === 'tender-save') { saveTender(); }
+    else if (a === 'tender-del') { delTender(id, el.dataset.ad); }
+    else if (a === 'notify-save') { saveNotify(); }
     else if (a === 'open-order') { openOrder(id); }
     else if (a === 'back') { go(backScreen()); }
     else if (a === 'cancel-order') { go(backScreen()); }
@@ -1155,6 +1234,12 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     else if (a === 'uf-kadi') { state.userForm.kullaniciAdi = e.target.value; }
     else if (a === 'uf-unvan') { state.userForm.unvan = e.target.value; }
     else if (a === 'uf-sifre') { state.userForm.sifre = e.target.value; }
+    else if (a === 'tf-kalem') { state.tenderForm.kalem = e.target.value; }
+    else if (a === 'tf-firma') { state.tenderForm.firma = e.target.value; }
+    else if (a === 'tf-birim') { state.tenderForm.birim = e.target.value; }
+    else if (a === 'tf-sozlesme') { state.tenderForm.sozlesme = e.target.value; }
+    else if (a === 'tf-kalan') { state.tenderForm.kalan = e.target.value; }
+    else if (a === 'ntf-chat') { state.notify.telegramChatId = e.target.value; }
     else if (a === 'f-birim') { f.birim = e.target.value; syncForm(); }
     else if (a === 'f-tarih') { f.tarih = e.target.value; syncForm(); }
     else if (a === 'f-saat') { f.saat = e.target.value; syncForm(); }
@@ -1167,6 +1252,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     const a = el.dataset.act, f = state.form;
     if (a === 'uf-rol') { state.userForm.rol = e.target.value; }
     else if (a === 'uf-aktif') { state.userForm.aktif = e.target.checked; }
+    else if (a === 'ntf-enabled') { state.notify.telegramEnabled = e.target.checked; }
     else if (a === 'k-birim') { f.kalemler[+el.dataset.i].birim = e.target.value; }
     else if (a === 'k-tender') {
       const i = +el.dataset.i; f.kalemler[i].tenderId = e.target.value;
