@@ -19,6 +19,9 @@ export async function PATCH(req: NextRequest) {
   if ('res' in g) return g.res;
   const b = await req.json().catch(() => ({} as any));
   const m = b.mektup || {};
+  if (m.firma !== undefined) await setSetting('mektup_firma', String(m.firma).trim());
+  if (m.dosyaNo !== undefined) await setSetting('mektup_dosya_no', String(m.dosyaNo).trim());
+  if (m.sozlesmeTarihi !== undefined) await setSetting('mektup_sozlesme_tarihi', String(m.sozlesmeTarihi).trim());
   if (m.teslimYeri !== undefined) await setSetting('mektup_teslim_yeri', String(m.teslimYeri));
   if (m.teslimSekli !== undefined) await setSetting('mektup_teslim_sekli', String(m.teslimSekli));
   if (m.telFaks !== undefined) await setSetting('mektup_tel_faks', String(m.telFaks));

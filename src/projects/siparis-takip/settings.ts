@@ -24,6 +24,9 @@ export async function setSetting(key: string, value: string): Promise<void> {
 // Sipariş Mektubu şablonu — örnek resimdeki resmî metinler varsayılan.
 // Panelden düzenlenebilir; kuruma göre değiştirilebilir.
 export const MEKTUP_DEFAULT = {
+  firma: '',
+  dosyaNo: '',
+  sozlesmeTarihi: '',
   teslimYeri: 'Firmanız kuryesi tarafından İSKİ Genel Müdürlüğü A Blok Oda 101 bırakılmalıdır.',
   teslimSekli: 'Firmanız kuryesi tarafından teslim edilmelidir.',
   telFaks: '0212 411 1300',
@@ -42,6 +45,9 @@ export const MEKTUP_DEFAULT = {
 export async function getNotifySettings() {
   return {
     mektup: {
+      firma: await getSetting('mektup_firma', MEKTUP_DEFAULT.firma),
+      dosyaNo: await getSetting('mektup_dosya_no', MEKTUP_DEFAULT.dosyaNo),
+      sozlesmeTarihi: await getSetting('mektup_sozlesme_tarihi', MEKTUP_DEFAULT.sozlesmeTarihi),
       teslimYeri: await getSetting('mektup_teslim_yeri', MEKTUP_DEFAULT.teslimYeri),
       teslimSekli: await getSetting('mektup_teslim_sekli', MEKTUP_DEFAULT.teslimSekli),
       telFaks: await getSetting('mektup_tel_faks', MEKTUP_DEFAULT.telFaks),

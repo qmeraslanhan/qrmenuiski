@@ -403,7 +403,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
   .mk-overlay { position: static; padding: 0; background: none; backdrop-filter: none; display: block; overflow: visible; }
   .mk-modal { box-shadow: none; width: 100%; border-radius: 0; }
   .mk-bar, .mk-hint, .mk-edit { display: none !important; }
-  .mk-doc { margin: 0; border: none; padding: 0; }
+  .mk-doc { margin: 0; border: none; padding: 0; min-width: 0; zoom: 1 !important; }
   @page { size: A4; margin: 14mm; }
 }
 
@@ -411,7 +411,14 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
 @media (max-width: 860px) {
   .app { grid-template-columns: 1fr; }
   .sidebar { display: none; }
-  .content { grid-column: 1; padding: 16px 16px 96px; height: auto; }
+  /* Yatay taşma koruması: geniş içerik sayfayı değil kendi sarmalını kaydırır */
+  .content { grid-column: 1; padding: 16px 16px 96px; height: auto; overflow-x: hidden; }
+  .screen { min-width: 0; }
+  .detail-grid > .card, .ocard-main, .dh-body { min-width: 0; }
+  .dh-meta { flex-wrap: wrap; }
+  .dh-meta > span:not(.dot-sep) { overflow-wrap: anywhere; }
+  .inforow-val { white-space: normal; overflow-wrap: anywhere; }
+  .tbl-wrap .kalem-tbl { min-width: 460px; }
   .scr-head { flex-wrap: wrap; }
   .scr-head > .btn { flex: none; }
   .topbar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 40; }
@@ -1042,9 +1049,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + '<label class="field"><span class="field-label">Birim fiyat (₺)</span><input data-act="tf-fiyat" type="number" min="0" step="0.01" value="' + esc(t.birimFiyat) + '" placeholder="örn. 4.50"></label></div>'
       + '<div class="field-row"><label class="field"><span class="field-label">Sözleşme miktarı<i class="req">*</i></span><input data-act="tf-sozlesme" type="number" min="0" value="' + esc(t.sozlesme) + '"></label>'
       + '<label class="field"><span class="field-label">Kalan stok</span><input data-act="tf-kalan" type="number" min="0" value="' + esc(t.kalan) + '" placeholder="boşsa = sözleşme"></label></div>'
-      + '<div class="field-row"><label class="field"><span class="field-label">Dosya No</span><input data-act="tf-dosya" value="' + esc(t.dosyaNo) + '" placeholder="örn. 26DT652217"></label>'
-      + '<label class="field"><span class="field-label">Sözleşme Tarihi</span><input data-act="tf-starih" value="' + esc(t.sozlesmeTarihi) + '" placeholder="örn. 17.04.2026"></label></div>'
-      + '<p class="field-hint" style="margin-bottom:10px">Dosya No ve Sözleşme Tarihi, bu kalemden verilen siparişlerin Sipariş Mektubu\'na otomatik yazılır.</p>'
+      + '<p class="field-hint" style="margin-bottom:10px">Dosya No, Sözleşme Tarihi ve mektup metinleri yukarıdaki "Sipariş Mektubu Şablonu" kartından yönetilir.</p>'
       + '<button class="btn btn-primary btn-md btn-full" data-act="tender-save">' + icon('check', 17, 2) + (edit ? 'Kaydet' : 'Kalem ekle') + '</button></div>';
   }
   function ihaleBody() {
@@ -1069,9 +1074,12 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     const m = (state.notify && state.notify.mektup) || {};
     return '<div class="card form-card" style="margin-bottom:16px">'
       + '<div class="form-sec-row"><h2 class="form-sec">' + icon('doc', 16, 2) + ' Sipariş Mektubu Şablonu</h2></div>'
-      + '<p class="field-hint" style="margin-bottom:10px">İhale siparişlerinde açılan resmî mektubun varsayılan metinleri. Mektup ekranında her sipariş için ayrıca düzenlenebilir.</p>'
-      + '<div class="field-row"><label class="field"><span class="field-label">Tel &amp; Faks</span><input data-act="mt-telFaks" value="' + esc(m.telFaks || '') + '"></label>'
-      + '<label class="field"><span class="field-label">Teslim Şekli</span><input data-act="mt-teslimSekli" value="' + esc(m.teslimSekli || '') + '"></label></div>'
+      + '<p class="field-hint" style="margin-bottom:10px">Bu alanlar sabittir: her ihale siparişinin Sipariş Mektubu\'na otomatik yazılır. Mektup ekranında istenirse sipariş bazında değiştirilebilir.</p>'
+      + '<div class="field-row"><label class="field"><span class="field-label">Firma Adı</span><input data-act="mt-firma" value="' + esc(m.firma || '') + '" placeholder="örn. Baklavacı Güllüoğlu"></label>'
+      + '<label class="field"><span class="field-label">Tel &amp; Faks</span><input data-act="mt-telFaks" value="' + esc(m.telFaks || '') + '"></label></div>'
+      + '<div class="field-row"><label class="field"><span class="field-label">Dosya No</span><input data-act="mt-dosyaNo" value="' + esc(m.dosyaNo || '') + '" placeholder="örn. 26DT652217"></label>'
+      + '<label class="field"><span class="field-label">Sözleşme Tarihi</span><input data-act="mt-starih" value="' + esc(m.sozlesmeTarihi || '') + '" placeholder="örn. 17.04.2026"></label></div>'
+      + '<label class="field"><span class="field-label">Teslim Şekli</span><input data-act="mt-teslimSekli" value="' + esc(m.teslimSekli || '') + '"></label>'
       + '<label class="field"><span class="field-label">Teslim Yeri</span><textarea data-act="mt-teslimYeri" rows="2">' + esc(m.teslimYeri || '') + '</textarea></label>'
       + '<label class="field"><span class="field-label">Maddeler (her satır bir madde)</span><textarea data-act="mt-maddeler" rows="7">' + esc(m.maddeler || '') + '</textarea></label>'
       + '<button class="btn btn-soft btn-md" data-act="mektup-save">' + icon('check', 16, 2) + 'Şablonu kaydet</button></div>';
@@ -1181,8 +1189,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     }
     state.mektup = {
       orderId: o.id,
-      dosyaNo: (ti && ti.dosyaNo) || '',
-      sozlesmeTarihi: (ti && ti.sozlesmeTarihi) || '',
+      firmaAdi: o.atanan || tmpl.firma || '',
+      dosyaNo: (ti && ti.dosyaNo) || tmpl.dosyaNo || '',
+      sozlesmeTarihi: (ti && ti.sozlesmeTarihi) || tmpl.sozlesmeTarihi || '',
       firmaTel: tmpl.telFaks || '',
       tebligTarihi: fmtDateNum(Date.now()),
       teslimTarihi: fmtDateNum(o.eventTs) + ' - ' + fmtTime(o.eventTs),
@@ -1192,6 +1201,18 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     repaint();
   }
   function closeMektup() { state.mektup = null; repaint(); }
+  // Belgeyi ekrana sığdır: dar ekranda orantılı küçült (zoom layout'u etkiler,
+  // yazdırma/PNG bundan etkilenmez). Kaydırma gerekmez.
+  function fitMektup() {
+    const doc = document.getElementById('mk-doc'); if (!doc) return;
+    const wrap = doc.parentElement; if (!wrap) return;
+    doc.style.zoom = '';
+    const cs = getComputedStyle(doc);
+    const margins = (parseFloat(cs.marginLeft) || 0) + (parseFloat(cs.marginRight) || 0);
+    const avail = wrap.clientWidth - margins;
+    const w = doc.offsetWidth;
+    if (avail > 0 && w > avail) doc.style.zoom = String(Math.max(0.35, avail / w));
+  }
   function mektupText() {
     const m = state.mektup; if (!m) return '';
     const o = state.orders.find(x => String(x.id) === String(m.orderId)); if (!o) return '';
@@ -1201,7 +1222,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     L.push('SİPARİŞ MEKTUBU');
     L.push('');
     L.push('Sipariş No: ' + o.kod + '    Dosya No: ' + (m.dosyaNo || '-'));
-    L.push('Firma Adı: ' + o.atanan + '    Tel & Faks: ' + (m.firmaTel || '-'));
+    L.push('Firma Adı: ' + (m.firmaAdi || o.atanan) + '    Tel & Faks: ' + (m.firmaTel || '-'));
     L.push('Tebliğ Tarihi: ' + (m.tebligTarihi || '-') + '    Teslim Tarihi ve Saati: ' + (m.teslimTarihi || '-'));
     L.push('Harcama Birimi: ' + o.birim);
     L.push('Teslim Şekli: ' + (m.teslimSekli || '-'));
@@ -1249,7 +1270,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + '<img src="/img/iski-logo.png" alt="İSKİ" onerror="this.style.visibility=\'hidden\'"></div>'
       + '<table class="mk-tbl"><tbody>'
       + '<tr><td class="lbl">Sipariş No</td><td>' + esc(o.kod) + '</td><td class="lbl">Dosya No</td><td>' + ef('dosyaNo', m.dosyaNo) + '</td></tr>'
-      + '<tr><td class="lbl">Firma Adı</td><td>' + esc(o.atanan) + '</td><td class="lbl">Tel &amp; Faks</td><td>' + ef('firmaTel', m.firmaTel) + '</td></tr>'
+      + '<tr><td class="lbl">Firma Adı</td><td>' + ef('firmaAdi', m.firmaAdi) + '</td><td class="lbl">Tel &amp; Faks</td><td>' + ef('firmaTel', m.firmaTel) + '</td></tr>'
       + '<tr><td class="lbl">Tebliğ Tarihi</td><td>' + ef('tebligTarihi', m.tebligTarihi) + '</td><td class="lbl">Teslim Tarihi ve Saati</td><td>' + ef('teslimTarihi', m.teslimTarihi) + '</td></tr>'
       + '<tr><td class="lbl">Harcama Birimi</td><td>' + esc(o.birim) + '</td><td class="lbl">Teslim Şekli</td><td>' + ef('teslimSekli', m.teslimSekli, true) + '</td></tr>'
       + '<tr><td class="lbl">Sözleşme Tarihi</td><td>' + ef('sozlesmeTarihi', m.sozlesmeTarihi) + '</td><td class="lbl">Teslim Yeri</td><td>' + ef('teslimYeri', m.teslimYeri, true) + '</td></tr>'
@@ -1400,6 +1421,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     let sel = null; try { if (ae && ae.selectionStart != null) sel = ae.selectionStart; } catch (x) {}
     root.innerHTML = view();
     if (state.screen === 'yeni' && state.user) syncForm();
+    if (state.mektup) fitMektup();
     const c2 = document.querySelector('.content'); if (c2) c2.scrollTop = cs; window.scrollTo(0, ws);
     if (aid) { const e = document.getElementById(aid); if (e) { try { e.focus(); if (sel != null && e.setSelectionRange) e.setSelectionRange(sel, sel); } catch (x) {} } }
   }
@@ -1464,7 +1486,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
   async function loadTender() { try { state.tender = await api('/tender') || []; } catch (e) {} }
   function openTenderForm(id) {
     if (id != null) { const t = state.tender.find(x => String(x.id) === String(id)); state.tenderForm = t ? { editId: t.id, kalem: t.kalem, firma: t.firma, birim: t.birim, sozlesme: t.sozlesme, kalan: t.kalan, birimFiyat: t.birimFiyat, dosyaNo: t.dosyaNo || '', sozlesmeTarihi: t.sozlesmeTarihi || '' } : null; }
-    else state.tenderForm = { editId: null, kalem: '', firma: '', birim: 'adet', sozlesme: '', kalan: '', birimFiyat: '', dosyaNo: '', sozlesmeTarihi: '' };
+    else {
+      // Yeni kalemde firma şablondaki sabit firmadan otomatik dolar
+      const tmplFirma = (state.notify && state.notify.mektup && state.notify.mektup.firma) || '';
+      state.tenderForm = { editId: null, kalem: '', firma: tmplFirma, birim: 'adet', sozlesme: '', kalan: '', birimFiyat: '', dosyaNo: '', sozlesmeTarihi: '' };
+    }
     repaint();
   }
   async function saveTender() {
@@ -1484,7 +1510,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
   async function saveMektupTmpl() {
     const m = (state.notify && state.notify.mektup) || {};
     try {
-      state.notify = await api('/settings', { method: 'PATCH', body: { mektup: { teslimYeri: m.teslimYeri || '', teslimSekli: m.teslimSekli || '', telFaks: m.telFaks || '', maddeler: m.maddeler || '' } } });
+      state.notify = await api('/settings', { method: 'PATCH', body: { mektup: {
+        firma: m.firma || '', dosyaNo: m.dosyaNo || '', sozlesmeTarihi: m.sozlesmeTarihi || '',
+        teslimYeri: m.teslimYeri || '', teslimSekli: m.teslimSekli || '', telFaks: m.telFaks || '', maddeler: m.maddeler || '',
+      } } });
       repaint(); toast('Mektup şablonu kaydedildi');
     } catch (e) { toast(e.message, 'err'); }
   }
@@ -1630,9 +1659,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     else if (a === 'tf-sozlesme') { state.tenderForm.sozlesme = e.target.value; }
     else if (a === 'tf-kalan') { state.tenderForm.kalan = e.target.value; }
     else if (a === 'tf-fiyat') { state.tenderForm.birimFiyat = e.target.value; }
-    else if (a === 'tf-dosya') { state.tenderForm.dosyaNo = e.target.value; }
-    else if (a === 'tf-starih') { state.tenderForm.sozlesmeTarihi = e.target.value; }
     else if (a === 'mk-f') { if (state.mektup) state.mektup[el.dataset.k] = e.target.value; }
+    else if (a === 'mt-firma') { state.notify.mektup = state.notify.mektup || {}; state.notify.mektup.firma = e.target.value; }
+    else if (a === 'mt-dosyaNo') { state.notify.mektup = state.notify.mektup || {}; state.notify.mektup.dosyaNo = e.target.value; }
+    else if (a === 'mt-starih') { state.notify.mektup = state.notify.mektup || {}; state.notify.mektup.sozlesmeTarihi = e.target.value; }
     else if (a === 'mt-teslimYeri') { state.notify.mektup = state.notify.mektup || {}; state.notify.mektup.teslimYeri = e.target.value; }
     else if (a === 'mt-teslimSekli') { state.notify.mektup = state.notify.mektup || {}; state.notify.mektup.teslimSekli = e.target.value; }
     else if (a === 'mt-telFaks') { state.notify.mektup = state.notify.mektup || {}; state.notify.mektup.telFaks = e.target.value; }
@@ -1687,6 +1717,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     setInterval(() => { state.now = Date.now(); tickDom(); }, 1000);
     setInterval(refresh, 30000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+    window.addEventListener('resize', () => { if (state.mektup) fitMektup(); });
   })();
   </script>
 </body>
