@@ -7,7 +7,8 @@ import { MS } from './timing';
 import {
   DURUM, DURUM_SIRA, TEDARIK_KOD, TEDARIK_ETIKET,
 } from './db-schema';
-import type { SessionUser } from './auth';
+import type { AuthCtx } from './auth';
+import { logActivity } from './activity';
 
 export type ApiKalem = { id: number; ad: string; miktar: number; birim: string; tenderId: number | null };
 export type ApiOrder = {
@@ -105,7 +106,7 @@ export type CreateInput = {
 export type CreateResult = { order: ApiOrder } | { error: string; status: number };
 
 // İş kuralı 1-2: hazır olma = etkinlik − 1sa; ihale ise stok atomik düşülür, yetersizse 422.
-export async function createOrder(input: CreateInput, user: SessionUser): Promise<CreateResult> {
+export async function createOrder(input: CreateInput, user: AuthCtx): Promise<CreateResult> {
   const birim = String(input.birim || '').trim();
   const eventTs = Number(input.eventTs);
   const tedarik = String(input.tedarik || '');
@@ -191,6 +192,7 @@ export async function createOrder(input: CreateInput, user: SessionUser): Promis
   }
 
   await pushBildirim('yeni', `Yeni sipariş: ${kod}`, `${birim} · ${TEDARIK_ETIKET[tedarik]}`, sid, now);
+  await logActivity(user, 'siparis.olustur', 'siparis', sid, `${kod} oluşturuldu — ${birim} · ${TEDARIK_ETIKET[tedarik]}`);
 
   const order = await getOrderById(sid);
   return { order: order! };
@@ -199,7 +201,7 @@ export async function createOrder(input: CreateInput, user: SessionUser): Promis
 export type DurumResult = { order: ApiOrder } | { error: string; status: number };
 
 // İş kuralı 5: durum tek yönlü ilerler. Ambar yalnızca İç Üretim siparişlerini günceller.
-export async function setOrderDurum(id: number, durumIn: string, user: SessionUser): Promise<DurumResult> {
+export async function setOrderDurum(id: number, durumIn: string, user: AuthCtx): Promise<DurumResult> {
   const durum = String(durumIn || '');
   if (!DURUM_SIRA.includes(durum as any)) return { error: 'Geçersiz durum', status: 400 };
 
@@ -222,7 +224,121 @@ export async function setOrderDurum(id: number, durumIn: string, user: SessionUs
     args: [durum, clearAlarm, id],
   });
   await pushBildirim('durum', `${o.kod} → ${durum}`, `${o.talep_eden_birim} · ${user.ad} güncelledi`, id);
+  await logActivity(user, 'siparis.durum', 'siparis', id, `${o.kod} → ${durum}`);
 
   const order = await getOrderById(id);
   return { order: order! };
+}
+
+// Sipariş düzenleme (yalnız yönetici). İhale stok farkı otomatik düzeltilir:
+// her tender için delta = yeni_miktar − eski_miktar; delta>0 ise ek düşüm (yetersizse 422),
+// delta<0 ise iade. Tek transaction (D1 batch atomik).
+export async function updateOrder(id: number, input: CreateInput, user: AuthCtx): Promise<CreateResult> {
+  const exist = await db.execute({ sql: 'SELECT * FROM siparis_takip_siparisler WHERE id = ?', args: [id] });
+  const o: any = exist.rows[0];
+  if (!o) return { error: 'Sipariş bulunamadı', status: 404 };
+
+  const birim = String(input.birim || '').trim();
+  const eventTs = Number(input.eventTs);
+  const tedarik = String(input.tedarik || '');
+  const note = String(input.note || '').trim();
+  if (!birim) return { error: 'Talep eden birim gerekli', status: 400 };
+  if (!Number.isFinite(eventTs)) return { error: 'Geçerli bir etkinlik zamanı gerekli', status: 400 };
+  if (tedarik !== TEDARIK_KOD.AMBAR && tedarik !== TEDARIK_KOD.IHALE) return { error: 'Geçersiz tedarik türü', status: 400 };
+  const ihale = tedarik === TEDARIK_KOD.IHALE;
+
+  const tender = await getTender();
+  const tenderById = new Map(tender.map((t) => [t.id, t]));
+
+  const raw = Array.isArray(input.kalemler) ? input.kalemler : [];
+  const kalemler = raw.map((k) => ({
+    ad: String(k.ad || '').trim(),
+    miktar: Number(k.miktar),
+    birim: String(k.birim || '').trim() || 'adet',
+    tenderId: k.tenderId != null && k.tenderId !== '' ? Number(k.tenderId) : null,
+  })).filter((k) => (ihale ? k.tenderId != null : k.ad) && Number.isFinite(k.miktar) && k.miktar > 0);
+  if (!kalemler.length) return { error: 'En az bir geçerli ürün kalemi gerekli', status: 400 };
+  if (ihale) {
+    for (const k of kalemler) {
+      if (k.tenderId == null || !tenderById.has(k.tenderId)) return { error: 'Geçersiz ihale kalemi', status: 400 };
+      const ti = tenderById.get(k.tenderId)!; k.ad = ti.kalem; k.birim = ti.birim;
+    }
+  }
+
+  // Eski kalemlerin ihale dağılımı (iade için) vs yeni dağılım
+  const oldItems = await db.execute({ sql: 'SELECT ihale_kalem_id, miktar FROM siparis_takip_siparis_kalemleri WHERE siparis_id = ?', args: [id] });
+  const oldByTender = new Map<number, number>();
+  for (const it of oldItems.rows as any[]) {
+    if (it.ihale_kalem_id != null) oldByTender.set(Number(it.ihale_kalem_id), (oldByTender.get(Number(it.ihale_kalem_id)) || 0) + Number(it.miktar));
+  }
+  const newByTender = new Map<number, number>();
+  if (ihale) for (const k of kalemler) newByTender.set(k.tenderId!, (newByTender.get(k.tenderId!) || 0) + k.miktar);
+
+  const deltas = new Map<number, number>();
+  for (const tid of new Set<number>([...oldByTender.keys(), ...newByTender.keys()])) {
+    const delta = (newByTender.get(tid) || 0) - (oldByTender.get(tid) || 0);
+    if (delta === 0) continue;
+    deltas.set(tid, delta);
+    if (delta > 0) {
+      const ti = tenderById.get(tid);
+      if (!ti) return { error: 'Geçersiz ihale kalemi', status: 400 };
+      if (delta > ti.kalan) return { error: `Kalan stok yetersiz: ${ti.kalem} (kalan ${ti.kalan} ${ti.birim}, ek ihtiyaç ${delta})`, status: 422 };
+    }
+  }
+
+  const atanan = ihale ? (tenderById.get(kalemler[0].tenderId!)?.firma || 'İhale Firması') : await ambarPersonel();
+  const hazir = eventTs - MS.sa;
+  const alarmFired = Number(o.etkinlik_ts) !== eventTs ? 0 : Number(o.alarm_fired);
+
+  try {
+    const d1 = getDB();
+    const stmts = [
+      d1.prepare('DELETE FROM siparis_takip_siparis_kalemleri WHERE siparis_id = ?').bind(id),
+      ...kalemler.map((k) =>
+        d1.prepare('INSERT INTO siparis_takip_siparis_kalemleri (siparis_id, ad, miktar, birim, ihale_kalem_id) VALUES (?, ?, ?, ?, ?)')
+          .bind(id, k.ad, k.miktar, k.birim, k.tenderId)),
+      d1.prepare('UPDATE siparis_takip_siparisler SET talep_eden_birim=?, etkinlik_ts=?, hazir_olma_ts=?, tedarik_turu=?, atanan=?, note=?, alarm_fired=? WHERE id=?')
+        .bind(birim, eventTs, hazir, tedarik, atanan, note, alarmFired, id),
+    ];
+    for (const [tid, delta] of deltas) {
+      if (delta > 0) stmts.push(d1.prepare('UPDATE siparis_takip_ihale_kalemleri SET kalan_miktar = kalan_miktar - ? WHERE id = ? AND kalan_miktar >= ?').bind(delta, tid, delta));
+      else stmts.push(d1.prepare('UPDATE siparis_takip_ihale_kalemleri SET kalan_miktar = kalan_miktar - ? WHERE id = ?').bind(delta, tid));
+    }
+    await d1.batch(stmts);
+  } catch (e: any) {
+    return { error: 'Sipariş güncellenemedi: ' + (e?.message || 'bilinmeyen hata'), status: 500 };
+  }
+
+  await logActivity(user, 'siparis.duzenle', 'siparis', id, `${o.kod} düzenlendi — ${birim} · ${TEDARIK_ETIKET[tedarik]}`);
+  const order = await getOrderById(id);
+  return { order: order! };
+}
+
+// Sipariş silme (yalnız yönetici). İhale ise düşülen stok iade edilir. Atomik.
+export async function deleteOrder(id: number, user: AuthCtx): Promise<{ ok: true; kod: string } | { error: string; status: number }> {
+  const exist = await db.execute({ sql: 'SELECT * FROM siparis_takip_siparisler WHERE id = ?', args: [id] });
+  const o: any = exist.rows[0];
+  if (!o) return { error: 'Sipariş bulunamadı', status: 404 };
+
+  const items = await db.execute({ sql: 'SELECT ihale_kalem_id, miktar FROM siparis_takip_siparis_kalemleri WHERE siparis_id = ?', args: [id] });
+  const restore = new Map<number, number>();
+  for (const it of items.rows as any[]) {
+    if (it.ihale_kalem_id != null) restore.set(Number(it.ihale_kalem_id), (restore.get(Number(it.ihale_kalem_id)) || 0) + Number(it.miktar));
+  }
+
+  try {
+    const d1 = getDB();
+    const stmts: any[] = [];
+    for (const [tid, miktar] of restore) {
+      stmts.push(d1.prepare('UPDATE siparis_takip_ihale_kalemleri SET kalan_miktar = kalan_miktar + ? WHERE id = ?').bind(miktar, tid));
+    }
+    stmts.push(d1.prepare('DELETE FROM siparis_takip_siparis_kalemleri WHERE siparis_id = ?').bind(id));
+    stmts.push(d1.prepare('DELETE FROM siparis_takip_siparisler WHERE id = ?').bind(id));
+    await d1.batch(stmts);
+  } catch (e: any) {
+    return { error: 'Sipariş silinemedi: ' + (e?.message || 'bilinmeyen hata'), status: 500 };
+  }
+
+  await logActivity(user, 'siparis.sil', 'siparis', id, `${o.kod} silindi — ${o.talep_eden_birim}`);
+  return { ok: true, kod: o.kod };
 }

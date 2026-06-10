@@ -17,6 +17,7 @@ export type ProjectMeta = {
   status: ProjectStatus;
   tags: string[];
   icon: string; // SVG id (src/app/page.tsx ProjectIcon switch'inde işlenir)
+  adminHref?: string; // projenin kendi yönetim paneli (yoksa href kullanılır)
 };
 
 // Kayıtlı projeler — her birinin `src/projects/<slug>/meta.ts` dosyası var.

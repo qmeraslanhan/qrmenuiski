@@ -506,9 +506,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
   // ---- State -----------------------------------------------------------
   const state = {
     user: null, theme: document.documentElement.getAttribute('data-theme') || 'light',
-    orders: [], tender: [], notifications: [],
-    screen: 'panel', selId: null, loginRol: 'yonetici', filtre: 'hepsi', q: '',
-    form: null, now: Date.now(), _sig: '',
+    orders: [], tender: [], notifications: [], users: [], activity: [],
+    screen: 'panel', selId: null, filtre: 'hepsi', q: '',
+    form: null, userForm: null, yonetimTab: 'kullanicilar',
+    login: { kullaniciAdi: '', sifre: '' },
+    now: Date.now(), _sig: '',
   };
   const root = document.getElementById('root');
 
@@ -597,11 +599,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
 
   // ---- Ekran: Login ----------------------------------------------------
   function loginView() {
-    const now = state.now;
-    const roller = [
-      { id: 'yonetici', ic: 'shield', ad: 'Yönetici', alt: 'Selim Aktaş · İkram Koordinatörü', ozet: ['Sipariş girişi ve onayı', 'Tüm birimleri ve ihale havuzunu izleme', 'Alarm ve bildirim merkezi'] },
-      { id: 'ambar', ic: 'box', ad: 'Ambar Çalışanı', alt: 'Hakan Demir · Ambar Personeli', ozet: ['Yalnızca atanan siparişler', 'Durum güncelleme (Hazırlandı / Yola Çıktı)', 'Hazır olma vakti uyarıları'] },
-    ];
+    const now = state.now, lf = state.login;
     return '<div class="login"><div class="login-bg" aria-hidden="true"></div><div class="login-grid">'
       + '<aside class="login-brand"><div class="brand-mark"><span class="brand-logo">' + icon('coffee', 26, 2) + '</span>'
       + '<div><p class="brand-name">İkram & Sipariş Takip</p><p class="brand-sub">Kurumsal Operasyon Konsolu</p></div></div>'
@@ -610,14 +608,14 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + '<li>' + icon('alert', 17) + ' Kritik gecikme alarmı ve renk kodlu takip</li>'
       + '<li>' + icon('truck', 17) + ' İç üretim ambarı &amp; ihale firması ayrımı</li></ul>'
       + '<p class="login-foot">İSKİ Operasyon Konsolu · portal modülü</p></aside>'
-      + '<main class="login-form"><p class="login-kicker">Oturum Aç</p><h1 class="login-h1">Rolünüzü seçin</h1>'
-      + '<p class="login-lead">Sistem, rolünüze göre yalnızca yetkili olduğunuz ekranları gösterir.</p><div class="role-pick">'
-      + roller.map(r => '<button class="role-card' + (state.loginRol === r.id ? ' is-active' : '') + '" data-act="pick-role" data-rol="' + r.id + '" type="button">'
-        + '<span class="role-top"><span class="role-ico">' + icon(r.ic, 22, 1.9) + '</span><span class="role-radio" aria-hidden="true"></span></span>'
-        + '<span class="role-name">' + r.ad + '</span><span class="role-alt">' + esc(r.alt) + '</span>'
-        + '<ul class="role-list">' + r.ozet.map(o => '<li>' + icon('check', 13, 2.4) + esc(o) + '</li>').join('') + '</ul></button>').join('')
-      + '</div><button class="btn btn-primary btn-md btn-full" data-act="do-login">' + icon('logout', 17, 2) + ROLLER[state.loginRol].etiket + ' olarak gir</button>'
-      + '<p class="login-note">Demo girişi — şifre gerekmez. Üretimde rol tabanlı kimlik doğrulama bağlanabilir.</p></main></div></div>';
+      + '<main class="login-form"><p class="login-kicker">Oturum Aç</p><h1 class="login-h1">Giriş yapın</h1>'
+      + '<p class="login-lead">Kullanıcı adı ve şifrenizle giriş yapın; yetkileriniz rolünüze göre belirlenir.</p>'
+      + '<label class="field"><span class="field-label">Kullanıcı adı</span>'
+      + '<div class="input-ico">' + icon('user', 17) + '<input id="js-login-user" data-act="login-user" value="' + esc(lf.kullaniciAdi) + '" placeholder="kullanıcı adı" autocomplete="username"></div></label>'
+      + '<label class="field"><span class="field-label">Şifre</span>'
+      + '<div class="input-ico">' + icon('shield', 17) + '<input id="js-login-pass" data-act="login-pass" type="password" value="' + esc(lf.sifre) + '" placeholder="••••••••" autocomplete="current-password"></div></label>'
+      + '<button class="btn btn-primary btn-lg btn-full" data-act="do-login" style="margin-top:8px">' + icon('logout', 17, 2) + 'Giriş yap</button>'
+      + '<p class="login-note">İlk kurulumda sistem yöneticisi şifresiyle girip panelden kullanıcı tanımlayın.</p></main></div></div>';
   }
 
   // ---- Ekran: Dashboard (Yönetici) ------------------------------------
@@ -680,8 +678,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
   function newOrderView() {
     const f = state.form;
     const ihale = f.tedarik === KOD.IHALE;
-    return '<div class="screen screen-narrow"><button class="back" data-act="cancel-order">' + icon('arrowLeft', 18) + ' Panele dön</button>'
-      + '<header class="scr-head"><div><p class="scr-kicker">Sipariş Girişi</p><h1 class="scr-title">Yeni Sipariş</h1></div></header>'
+    return '<div class="screen screen-narrow"><button class="back" data-act="cancel-order">' + icon('arrowLeft', 18) + (f.editId != null ? ' Vazgeç' : ' Panele dön') + '</button>'
+      + '<header class="scr-head"><div><p class="scr-kicker">' + (f.editId != null ? 'Sipariş Düzenleme' : 'Sipariş Girişi') + '</p><h1 class="scr-title">' + (f.editId != null ? 'Sipariş Düzenle · ' + esc(f.kod || '') : 'Yeni Sipariş') + '</h1></div></header>'
       + '<div class="form-grid"><div class="form-col">'
       + '<div class="card form-card"><h2 class="form-sec">Talep Bilgisi</h2>'
       + '<label class="field"><span class="field-label">Talep Eden Birim<i class="req">*</i></span>'
@@ -703,7 +701,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + '<div class="card ready-card"><p class="ready-kicker">' + icon('clock', 15) + ' Dinamik Hazır Olma Vakti</p><div id="js-ready"></div></div>'
       + '<div class="card side-info" id="js-sideinfo"></div>'
       + '<p class="form-block-warn" id="js-blockwarn" style="display:none">' + icon('alert', 15) + ' Bir kalem ihale kalan stoğunu aşıyor. Miktarı düşürün.</p>'
-      + '<button class="btn btn-primary btn-lg btn-full" id="js-submit" data-act="submit-order">' + icon('check', 17, 2) + 'Siparişi Oluştur</button>'
+      + '<button class="btn btn-primary btn-lg btn-full" id="js-submit" data-act="submit-order">' + icon('check', 17, 2) + (f.editId != null ? 'Değişiklikleri Kaydet' : 'Siparişi Oluştur') + '</button>'
       + '<button class="btn btn-ghost btn-md btn-full" data-act="cancel-order">Vazgeç</button>'
       + '</aside></div></div>';
   }
@@ -757,6 +755,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     const ihaleBox = ihale ? '<div class="ihale-box"><p class="ihale-box-t">' + icon('truck', 14) + ' Sözleşmeden düşülen kalemler</p>'
       + o.kalemler.filter(k => k.tenderId).map(k => { const ti = state.tender.find(tt => String(tt.id) === String(k.tenderId)); return '<div class="ihale-line"><span>' + esc(k.ad) + '</span><span class="mono">−' + k.miktar + ' ' + esc(k.birim) + (ti ? ' · kalan ' + ti.kalan : '') + '</span></div>'; }).join('')
       + '</div>' : '';
+    const manage = state.user.rol === 'yonetici'
+      ? '<button class="btn btn-ghost btn-sm" data-act="edit-order" data-id="' + o.id + '">' + icon('doc', 15) + 'Düzenle</button>'
+        + '<button class="btn btn-ghost btn-sm" data-act="del-order" data-id="' + o.id + '" data-kod="' + esc(o.kod) + '">' + icon('trash', 15) + 'Sil</button>'
+      : '';
     const actBtns = (state.user.rol === 'yonetici' && o.durum !== DURUM.HAZIR && TAMAMLANMIS.indexOf(o.durum) === -1
         ? '<button class="btn btn-soft btn-md" data-act="set-durum" data-id="' + o.id + '" data-durum="' + DURUM.HAZIR + '">' + icon('checkCircle', 17, 2) + 'Hazır olarak işaretle</button>' : '')
       + (sonraki ? '<button class="btn btn-primary btn-md" data-act="advance" data-id="' + o.id + '">' + icon('chevron', 17, 2) + esc(sonraki) + ' →</button>' : badge('done', 'Süreç tamamlandı', { icon: 'check' }));
@@ -779,7 +781,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + inforow(ihale ? 'truck' : 'box', 'Tedarik', esc(o.tedarik), false)
       + ihaleBox + '</div></div>'
       + '<div class="card action-bar"><div class="action-info"><span class="action-lbl">Durum güncelle</span>'
-      + '<span class="action-cur">Şu an: <b>' + esc(o.durum) + '</b></span></div><div class="action-btns">' + actBtns + '</div></div></div>';
+      + '<span class="action-cur">Şu an: <b>' + esc(o.durum) + '</b></span></div><div class="action-btns">' + manage + actBtns + '</div></div></div>';
   }
 
   // ---- Ekran: Ambar (Görevlerim) --------------------------------------
@@ -851,9 +853,78 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + bot + '<div class="log">' + logs + '</div></div>';
   }
 
+  // ---- Ekran: Yönetim (Kullanıcılar + İşlem Kayıtları) ----------------
+  function fmtActTime(s) {
+    if (!s) return '';
+    const d = new Date(String(s).replace(' ', 'T') + 'Z');
+    return isNaN(d) ? String(s) : new Intl.DateTimeFormat('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(d);
+  }
+  function userFormCard() {
+    const u = state.userForm; const edit = u.editId != null;
+    return '<div class="card form-card" style="margin-bottom:16px">'
+      + '<div class="form-sec-row"><h2 class="form-sec">' + (edit ? 'Kullanıcı Düzenle' : 'Yeni Kullanıcı') + '</h2>'
+      + '<button class="btn btn-ghost btn-sm" data-act="user-cancel">Kapat</button></div>'
+      + '<div class="field-row"><label class="field"><span class="field-label">Ad Soyad<i class="req">*</i></span>'
+      + '<input data-act="uf-ad" value="' + esc(u.ad) + '" placeholder="Ad Soyad"></label>'
+      + '<label class="field"><span class="field-label">Kullanıcı adı<i class="req">*</i></span>'
+      + '<input data-act="uf-kadi" value="' + esc(u.kullaniciAdi) + '" placeholder="kullanici" autocomplete="off"></label></div>'
+      + '<div class="field-row"><label class="field"><span class="field-label">Rol</span>'
+      + '<select data-act="uf-rol"><option value="ambar"' + (u.rol === 'ambar' ? ' selected' : '') + '>Ambar Çalışanı</option>'
+      + '<option value="yonetici"' + (u.rol === 'yonetici' ? ' selected' : '') + '>Yönetici</option></select></label>'
+      + '<label class="field"><span class="field-label">Ünvan</span>'
+      + '<input data-act="uf-unvan" value="' + esc(u.unvan) + '" placeholder="örn. Ambar Personeli"></label></div>'
+      + '<label class="field"><span class="field-label">Şifre' + (edit ? ' (değiştirmek için doldurun)' : '<i class="req">*</i>') + '</span>'
+      + '<input data-act="uf-sifre" type="password" value="' + esc(u.sifre) + '" placeholder="en az 6 karakter" autocomplete="new-password"></label>'
+      + (edit ? '<label class="field" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" data-act="uf-aktif"' + (u.aktif ? ' checked' : '') + ' style="width:auto"><span class="field-label" style="margin:0">Hesap aktif</span></label>' : '')
+      + '<button class="btn btn-primary btn-md btn-full" data-act="user-save">' + icon('check', 17, 2) + (edit ? 'Kaydet' : 'Kullanıcı oluştur') + '</button></div>';
+  }
+  function usersBody() {
+    const form = state.userForm ? userFormCard() : '';
+    const rows = state.users.length ? state.users.map(u => {
+      const rb = u.rol === 'yonetici' ? badge('blue', 'Yönetici') : badge('slate', 'Ambar');
+      const ab = u.aktif ? badge('green', 'Aktif') : badge('red', 'Pasif');
+      const sb = u.sifreVar ? '' : ' ' + badge('amber', 'Şifre yok');
+      return '<div class="log-row"><span class="avatar" style="width:38px;height:38px;font-size:14px">' + esc(u.bas) + '</span>'
+        + '<div class="log-body"><p class="log-title">' + esc(u.ad) + ' <span style="color:var(--ink-3);font-weight:500">@' + esc(u.kullaniciAdi || '—') + '</span></p>'
+        + '<p class="log-sub">' + (u.unvan ? esc(u.unvan) + ' &nbsp; ' : '') + rb + ' ' + ab + sb + '</p></div>'
+        + '<div class="action-btns"><button class="btn btn-ghost btn-sm" data-act="user-edit" data-id="' + u.id + '">Düzenle</button>'
+        + '<button class="btn btn-ghost btn-sm" data-act="user-del" data-id="' + u.id + '" data-ad="' + esc(u.ad) + '">' + icon('trash', 15) + '</button></div></div>';
+    }).join('') : empty('user', 'Kullanıcı yok', 'Yeni kullanıcı ekleyin.');
+    return form + '<div class="log">' + rows + '</div>';
+  }
+  const ACT_META = {
+    'giris': { t: 'Giriş yapıldı', ic: 'logout', tone: 'blue' },
+    'siparis.olustur': { t: 'Sipariş oluşturuldu', ic: 'plus', tone: 'blue' },
+    'siparis.durum': { t: 'Durum güncellendi', ic: 'checkCircle', tone: 'green' },
+    'siparis.duzenle': { t: 'Sipariş düzenlendi', ic: 'doc', tone: 'amber' },
+    'siparis.sil': { t: 'Sipariş silindi', ic: 'trash', tone: 'red' },
+    'kullanici.olustur': { t: 'Kullanıcı eklendi', ic: 'user', tone: 'blue' },
+    'kullanici.guncelle': { t: 'Kullanıcı güncellendi', ic: 'user', tone: 'amber' },
+    'kullanici.sil': { t: 'Kullanıcı silindi', ic: 'trash', tone: 'red' },
+  };
+  function activityBody() {
+    const rows = state.activity.length ? state.activity.map(a => {
+      const m = ACT_META[a.action] || { t: a.action, ic: 'doc', tone: 'slate' };
+      return '<div class="log-row log-' + m.tone + '"><span class="log-ico">' + icon(m.ic, 16, 2) + '</span>'
+        + '<div class="log-body"><p class="log-title">' + esc(m.t) + ' <span style="color:var(--ink-3);font-weight:500">· ' + esc(a.actorName) + '</span></p>'
+        + '<p class="log-sub">' + esc(a.detail) + '</p></div>'
+        + '<span class="log-time mono">' + fmtActTime(a.createdAt) + '</span></div>';
+    }).join('') : empty('list', 'Kayıt yok', 'Yapılan işlemler burada listelenir.');
+    return '<div class="log">' + rows + '</div>';
+  }
+  function yonetimView() {
+    const tab = state.yonetimTab;
+    return '<div class="screen"><header class="scr-head"><div><p class="scr-kicker">Yönetim</p><h1 class="scr-title">Kullanıcılar &amp; İşlem Kayıtları</h1></div></header>'
+      + '<div class="toolbar"><div class="chips">'
+      + '<button class="chip' + (tab === 'kullanicilar' ? ' is-on' : '') + '" data-act="yonetim-tab" data-tab="kullanicilar">Kullanıcılar<span class="chip-n">' + state.users.length + '</span></button>'
+      + '<button class="chip' + (tab === 'loglar' ? ' is-on' : '') + '" data-act="yonetim-tab" data-tab="loglar">İşlem Kayıtları<span class="chip-n">' + state.activity.length + '</span></button>'
+      + '</div>' + (tab === 'kullanicilar' ? '<button class="btn btn-primary btn-md" data-act="user-new">' + icon('plus', 17, 2) + 'Yeni Kullanıcı</button>' : '') + '</div>'
+      + (tab === 'kullanicilar' ? usersBody() : activityBody()) + '</div>';
+  }
+
   // ---- App kabuğu ------------------------------------------------------
   const NAV = {
-    yonetici: [{ id: 'panel', ad: 'Panel', icon: 'panel' }, { id: 'yeni', ad: 'Yeni Sipariş', icon: 'plus' }, { id: 'ihale', ad: 'İhale Havuzu', icon: 'truck' }, { id: 'bildirim', ad: 'Bildirimler', icon: 'bell' }],
+    yonetici: [{ id: 'panel', ad: 'Panel', icon: 'panel' }, { id: 'ihale', ad: 'İhale Havuzu', icon: 'truck' }, { id: 'yonetim', ad: 'Yönetim', icon: 'shield' }, { id: 'bildirim', ad: 'Bildirimler', icon: 'bell' }],
     ambar: [{ id: 'gorevlerim', ad: 'Görevlerim', icon: 'box' }, { id: 'bildirim', ad: 'Bildirimler', icon: 'bell' }],
   };
   function screenView() {
@@ -861,6 +932,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       case 'detay': return detailView();
       case 'yeni': return newOrderView();
       case 'ihale': return tenderView();
+      case 'yonetim': return yonetimView();
       case 'bildirim': return notificationsView();
       case 'gorevlerim': return warehouseView();
       default: return dashboardView();
@@ -912,7 +984,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     const now = state.now;
     const lc = document.getElementById('js-clock'); if (lc) lc.textContent = fmtTime(now);
     const ld = document.getElementById('js-clock-day'); if (ld) ld.textContent = fmtDate(now);
-    if (state.screen === 'yeni') return;
+    if (state.screen === 'yeni' || state.screen === 'yonetim') return;
     document.querySelectorAll('.js-cd').forEach(el => {
       const t = timing(+el.dataset.ev, el.dataset.durum, now);
       el.textContent = fmtCountdown(t.msToReady);
@@ -936,7 +1008,64 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
   // ---- Aksiyonlar ------------------------------------------------------
   function go(screen) { if (screen !== 'detay') state.selId = null; if (screen === 'yeni') initForm(); state.screen = screen; repaint(); }
   function backScreen() { return state.user && state.user.rol === 'ambar' ? 'gorevlerim' : 'panel'; }
-  function initForm() { state.form = { birim: '', tarih: defaultDate(), saat: '14:00', tedarik: KOD.AMBAR, note: '', kalemler: [{ ad: '', miktar: '', birim: 'adet', tenderId: '' }] }; }
+  function initForm(order) {
+    if (order) {
+      const d = new Date(order.eventTs); const p = n => String(n).padStart(2, '0');
+      state.form = {
+        editId: order.id, kod: order.kod, birim: order.birim,
+        tarih: d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()),
+        saat: p(d.getHours()) + ':' + p(d.getMinutes()),
+        tedarik: order.tedarikKod, note: order.note || '',
+        kalemler: order.kalemler.map(k => ({ ad: k.ad, miktar: k.miktar, birim: k.birim, tenderId: k.tenderId != null ? k.tenderId : '' })),
+      };
+    } else {
+      state.form = { editId: null, kod: '', birim: '', tarih: defaultDate(), saat: '14:00', tedarik: KOD.AMBAR, note: '', kalemler: [{ ad: '', miktar: '', birim: 'adet', tenderId: '' }] };
+    }
+  }
+  function editOrder(id) { const o = state.orders.find(x => String(x.id) === String(id)); if (!o) return; initForm(o); state.screen = 'yeni'; repaint(); }
+  async function delOrder(id, kod) {
+    if (!confirm((kod || 'Sipariş') + ' silinsin mi? Bu işlem geri alınamaz.')) return;
+    try { await api('/orders/' + id, { method: 'DELETE' }); await loadData(); go(backScreen()); toast('Sipariş silindi'); }
+    catch (e) { toast(e.message, 'err'); }
+  }
+  // ── Yönetim: kullanıcılar + işlem kayıtları ──
+  async function loadUsers() { try { state.users = await api('/users') || []; } catch (e) { state.users = []; } }
+  async function loadActivity() { try { state.activity = await api('/activity') || []; } catch (e) { state.activity = []; } }
+  async function goYonetim() {
+    state.selId = null; state.userForm = null; state.screen = 'yonetim';
+    repaint();
+    await Promise.all([loadUsers(), loadActivity()]);
+    repaint();
+  }
+  function openUserForm(id) {
+    if (id != null) {
+      const u = state.users.find(x => String(x.id) === String(id));
+      state.userForm = u ? { editId: u.id, ad: u.ad, kullaniciAdi: u.kullaniciAdi || '', rol: u.rol, unvan: u.unvan || '', sifre: '', aktif: u.aktif } : null;
+    } else {
+      state.userForm = { editId: null, ad: '', kullaniciAdi: '', rol: 'ambar', unvan: '', sifre: '', aktif: true };
+    }
+    repaint();
+  }
+  async function saveUser() {
+    const u = state.userForm; if (!u) return;
+    try {
+      if (u.editId != null) {
+        const body = { ad: u.ad, kullaniciAdi: u.kullaniciAdi, rol: u.rol, unvan: u.unvan, is_active: u.aktif };
+        if (u.sifre) body.sifre = u.sifre;
+        await api('/users/' + u.editId, { method: 'PATCH', body });
+        toast('Kullanıcı güncellendi');
+      } else {
+        await api('/users', { method: 'POST', body: { ad: u.ad, kullaniciAdi: u.kullaniciAdi, rol: u.rol, unvan: u.unvan, sifre: u.sifre } });
+        toast('Kullanıcı oluşturuldu');
+      }
+      state.userForm = null; await loadUsers(); repaint();
+    } catch (e) { toast(e.message, 'err'); }
+  }
+  async function delUser(id, ad) {
+    if (!confirm((ad || 'Kullanıcı') + ' silinsin mi?')) return;
+    try { await api('/users/' + id, { method: 'DELETE' }); await loadUsers(); repaint(); toast('Kullanıcı silindi'); }
+    catch (e) { toast(e.message, 'err'); }
+  }
 
   function toggleTheme() {
     state.theme = state.theme === 'light' ? 'dark' : 'light';
@@ -944,18 +1073,21 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     try { localStorage.setItem('stk-theme', state.theme); } catch (e) {}
     repaint();
   }
-  async function login(rol) {
+  async function login() {
+    const kullaniciAdi = String(state.login.kullaniciAdi || '').trim();
+    const sifre = state.login.sifre || '';
+    if (!sifre) { toast('Şifre girin', 'err'); return; }
     try {
-      const r = await api('/auth/login', { method: 'POST', body: { rol } });
-      token = r.token; state.user = r.user;
-      try { localStorage.setItem('stk-token', token); localStorage.setItem('stk-user', JSON.stringify(r.user)); } catch (e) {}
-      state.screen = rol === 'ambar' ? 'gorevlerim' : 'panel';
+      const r = await api('/auth/login', { method: 'POST', body: { kullaniciAdi, sifre } });
+      token = r.token; state.user = r.user; state.login = { kullaniciAdi: '', sifre: '' };
+      try { localStorage.setItem('stk-token', token); } catch (e) {}
+      state.screen = r.user.rol === 'ambar' ? 'gorevlerim' : 'panel';
       await loadData(); repaint();
     } catch (e) { toast(e.message, 'err'); }
   }
   async function doLogout() {
     try { await api('/auth/logout', { method: 'POST' }); } catch (e) {}
-    token = null; state.user = null; state.orders = []; state.tender = []; state.notifications = [];
+    token = null; state.user = null; state.orders = []; state.tender = []; state.notifications = []; state.users = []; state.activity = [];
     try { localStorage.removeItem('stk-token'); localStorage.removeItem('stk-user'); } catch (e) {}
     repaint();
   }
@@ -972,9 +1104,15 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     const f = state.form; const ev = toTs(f.tarih, f.saat); const ihale = f.tedarik === KOD.IHALE;
     const kalemler = f.kalemler.filter(k => (ihale ? k.tenderId : String(k.ad || '').trim()) && Number(k.miktar) > 0)
       .map(k => ihale ? { miktar: Number(k.miktar), tenderId: Number(k.tenderId) } : { ad: String(k.ad).trim(), miktar: Number(k.miktar), birim: k.birim || 'adet' });
+    const body = { birim: f.birim.trim(), eventTs: ev, tedarik: f.tedarik, note: f.note.trim(), kalemler };
     try {
-      await api('/orders', { method: 'POST', body: { birim: f.birim.trim(), eventTs: ev, tedarik: f.tedarik, note: f.note.trim(), kalemler } });
-      await loadData(); go('panel'); toast('Sipariş oluşturuldu');
+      if (f.editId != null) {
+        await api('/orders/' + f.editId, { method: 'PUT', body });
+        await loadData(); openOrder(f.editId); toast('Sipariş güncellendi');
+      } else {
+        await api('/orders', { method: 'POST', body });
+        await loadData(); go('panel'); toast('Sipariş oluşturuldu');
+      }
     } catch (e) { toast(e.message, 'err'); }
   }
 
@@ -983,12 +1121,19 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
   root.addEventListener('click', e => {
     const el = actEl(e.target); if (!el) return;
     const a = el.dataset.act, id = el.dataset.id;
-    if (a === 'pick-role') { state.loginRol = el.dataset.rol; repaint(); }
-    else if (a === 'do-login') { login(state.loginRol); }
+    if (a === 'do-login') { login(); }
     else if (a === 'logout') { doLogout(); }
     else if (a === 'toggle-theme') { toggleTheme(); }
-    else if (a === 'go') { go(el.dataset.screen); }
+    else if (a === 'go') { el.dataset.screen === 'yonetim' ? goYonetim() : go(el.dataset.screen); }
     else if (a === 'new-order') { go('yeni'); }
+    else if (a === 'edit-order') { editOrder(id); }
+    else if (a === 'del-order') { delOrder(id, el.dataset.kod); }
+    else if (a === 'yonetim-tab') { state.yonetimTab = el.dataset.tab; repaint(); }
+    else if (a === 'user-new') { openUserForm(null); }
+    else if (a === 'user-edit') { openUserForm(id); }
+    else if (a === 'user-cancel') { state.userForm = null; repaint(); }
+    else if (a === 'user-save') { saveUser(); }
+    else if (a === 'user-del') { delUser(id, el.dataset.ad); }
     else if (a === 'open-order') { openOrder(id); }
     else if (a === 'back') { go(backScreen()); }
     else if (a === 'cancel-order') { go(backScreen()); }
@@ -1004,6 +1149,12 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     const el = actEl(e.target); if (!el) return;
     const a = el.dataset.act, f = state.form;
     if (a === 'search') { state.q = e.target.value; repaint(); }
+    else if (a === 'login-user') { state.login.kullaniciAdi = e.target.value; }
+    else if (a === 'login-pass') { state.login.sifre = e.target.value; }
+    else if (a === 'uf-ad') { state.userForm.ad = e.target.value; }
+    else if (a === 'uf-kadi') { state.userForm.kullaniciAdi = e.target.value; }
+    else if (a === 'uf-unvan') { state.userForm.unvan = e.target.value; }
+    else if (a === 'uf-sifre') { state.userForm.sifre = e.target.value; }
     else if (a === 'f-birim') { f.birim = e.target.value; syncForm(); }
     else if (a === 'f-tarih') { f.tarih = e.target.value; syncForm(); }
     else if (a === 'f-saat') { f.saat = e.target.value; syncForm(); }
@@ -1014,7 +1165,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
   root.addEventListener('change', e => {
     const el = actEl(e.target); if (!el) return;
     const a = el.dataset.act, f = state.form;
-    if (a === 'k-birim') { f.kalemler[+el.dataset.i].birim = e.target.value; }
+    if (a === 'uf-rol') { state.userForm.rol = e.target.value; }
+    else if (a === 'uf-aktif') { state.userForm.aktif = e.target.checked; }
+    else if (a === 'k-birim') { f.kalemler[+el.dataset.i].birim = e.target.value; }
     else if (a === 'k-tender') {
       const i = +el.dataset.i; f.kalemler[i].tenderId = e.target.value;
       const ti = state.tender.find(t => String(t.id) === String(e.target.value));
@@ -1024,16 +1177,25 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
   });
   root.addEventListener('keydown', e => {
     if (e.key !== 'Enter') return;
-    const el = actEl(e.target); if (el && el.dataset.act === 'open-order') { e.preventDefault(); openOrder(el.dataset.id); }
+    const el = actEl(e.target); if (!el) return;
+    if (el.dataset.act === 'open-order') { e.preventDefault(); openOrder(el.dataset.id); }
+    else if (el.dataset.act === 'login-user' || el.dataset.act === 'login-pass') { e.preventDefault(); login(); }
   });
 
   // ---- Başlat ----------------------------------------------------------
   (async function boot() {
-    try {
-      const t = localStorage.getItem('stk-token'); const u = localStorage.getItem('stk-user');
-      if (t && u) { token = t; state.user = JSON.parse(u); state.screen = state.user.rol === 'ambar' ? 'gorevlerim' : 'panel'; }
-    } catch (e) {}
-    if (state.user) { try { await loadData(); } catch (e) { token = null; state.user = null; try { localStorage.removeItem('stk-token'); localStorage.removeItem('stk-user'); } catch (x) {} } }
+    let t = null; try { t = localStorage.getItem('stk-token'); } catch (e) {}
+    if (t) {
+      token = t;
+      try {
+        const me = await api('/auth/me');
+        state.user = me; state.screen = me.rol === 'ambar' ? 'gorevlerim' : 'panel';
+        await loadData();
+      } catch (e) {
+        token = null; state.user = null;
+        try { localStorage.removeItem('stk-token'); localStorage.removeItem('stk-user'); } catch (x) {}
+      }
+    }
     repaint();
     setInterval(() => { state.now = Date.now(); tickDom(); }, 1000);
   })();

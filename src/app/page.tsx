@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { PROJECTS } from '@/lib/projects';
 import { getSystemStatuses } from '@/lib/dashboard-systems';
-import DashboardAdmin from '@/components/DashboardAdmin';
 
 // Durum D1'den anlık okunur → statik cache yerine her istekte taze render
 export const dynamic = 'force-dynamic';
@@ -168,17 +167,15 @@ export default async function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {projects.map((p, idx) => {
-              const passive = !p.active;
-              const status = passive
-                ? { text: 'Pasif', cls: 'bg-stone-100 text-stone-500 border-stone-300' }
-                : STATUS_LABEL[p.status];
-
-              const cardBase = `relative rounded-2xl bg-[var(--surface)] border border-[var(--line)] p-6 anim-fade-up d-${5 + idx}`;
-              const style = { animationDelay: `${400 + idx * 80}ms` };
-
-              const inner = (
-                <>
+            {projects.filter((p) => p.active).map((p, idx) => {
+              const status = STATUS_LABEL[p.status];
+              return (
+                <Link
+                  key={p.slug}
+                  href={p.href}
+                  className={`group lift relative rounded-2xl bg-[var(--surface)] border border-[var(--line)] p-6 anim-fade-up d-${5 + idx}`}
+                  style={{ animationDelay: `${400 + idx * 80}ms` }}
+                >
                   {/* Status badge */}
                   <span className={`absolute top-5 right-5 text-[10px] font-semibold tracking-wider px-2.5 py-1 rounded-full border ${status.cls}`}>
                     {status.text}
@@ -210,35 +207,18 @@ export default async function Dashboard() {
                   </div>
 
                   {/* CTA */}
-                  <div className={`flex items-center gap-2 mt-5 pt-5 border-t border-[var(--line)] text-sm font-medium ${passive ? 'text-[var(--ink-mute)]' : 'text-[var(--accent)]'}`}>
-                    <span>{passive ? 'Şu an pasif' : 'Sisteme Git'}</span>
-                    {!passive && (
-                      <svg
-                        className="magnet-arrow w-4 h-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                      </svg>
-                    )}
+                  <div className="flex items-center gap-2 mt-5 pt-5 border-t border-[var(--line)] text-sm font-medium text-[var(--accent)]">
+                    <span>Sisteme Git</span>
+                    <svg
+                      className="magnet-arrow w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
                   </div>
-                </>
-              );
-
-              return passive ? (
-                <div
-                  key={p.slug}
-                  className={`${cardBase} opacity-60 grayscale cursor-not-allowed select-none`}
-                  style={style}
-                  aria-disabled
-                >
-                  {inner}
-                </div>
-              ) : (
-                <Link key={p.slug} href={p.href} className={`group lift ${cardBase}`} style={style}>
-                  {inner}
                 </Link>
               );
             })}
@@ -267,10 +247,17 @@ export default async function Dashboard() {
         </footer>
       </div>
 
-      {/* Gizli yönetici paneli — sistemleri aktif/pasif yapar */}
-      <DashboardAdmin
-        systems={projects.map((p) => ({ slug: p.slug, title: p.title, active: p.active }))}
-      />
+      {/* Yönetim paneline kısayol */}
+      <Link
+        href="/yonetim"
+        aria-label="Yönetim paneli"
+        className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--surface)] px-3.5 py-2 text-xs text-[var(--ink-mute)] shadow-sm transition hover:text-[var(--accent)] hover:border-[var(--accent)]"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 0h10.5a2.25 2.25 0 012.25 2.25v6A2.25 2.25 0 0116.5 21h-9A2.25 2.25 0 015.25 18.75v-6a2.25 2.25 0 012.25-2.25z" />
+        </svg>
+        Yönetim
+      </Link>
     </main>
   );
 }

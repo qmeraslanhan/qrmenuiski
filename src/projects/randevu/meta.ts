@@ -10,6 +10,7 @@ const meta: ProjectMeta = {
   status: 'beta',
   tags: ['Next.js', 'Cloudflare D1', 'Randevu'],
   icon: 'calendar',
+  adminHref: '/randevu/admin',
 };
 
 export default meta;

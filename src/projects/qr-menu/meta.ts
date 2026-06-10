@@ -10,6 +10,7 @@ const meta: ProjectMeta = {
   status: 'live',
   tags: ['Next.js', 'Cloudflare D1', 'R2'],
   icon: 'qr',
+  adminHref: '/qr-menu/admin',
 };
 
 export default meta;

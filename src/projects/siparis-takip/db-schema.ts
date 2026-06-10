@@ -36,15 +36,17 @@ let initialized = false;
 export async function ensureSiparisInit(): Promise<void> {
   if (initialized) return;
   await applySchema([
-    // Kullanıcılar (rol: yonetici | ambar) — demo'da şifresiz, üretimde sifre_hash
+    // Kullanıcılar (rol: yonetici | ambar). kullanici_adi + sifre_hash ile giriş.
     `CREATE TABLE IF NOT EXISTS siparis_takip_kullanicilar (
-      id         INTEGER PRIMARY KEY AUTOINCREMENT,
-      ad         TEXT    NOT NULL,
-      rol        TEXT    NOT NULL,
-      unvan      TEXT,
-      bas        TEXT,
-      sifre_hash TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      ad            TEXT    NOT NULL,
+      kullanici_adi TEXT,
+      rol           TEXT    NOT NULL,
+      unvan         TEXT,
+      bas           TEXT,
+      sifre_hash    TEXT,
+      is_active     INTEGER NOT NULL DEFAULT 1,
+      created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
 
     // İhale sözleşme kalemleri — kalan_miktar otomatik düşülür
@@ -93,7 +95,7 @@ export async function ensureSiparisInit(): Promise<void> {
       ts         INTEGER NOT NULL
     )`,
 
-    // Rol-tabanlı oturum (proje-özel)
+    // Rol-tabanlı oturum (proje-özel). user_id NULL → süper yönetici (ADMIN_PASSWORD).
     `CREATE TABLE IF NOT EXISTS siparis_takip_sessions (
       token      TEXT    PRIMARY KEY,
       rol        TEXT    NOT NULL,
@@ -103,14 +105,56 @@ export async function ensureSiparisInit(): Promise<void> {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
 
+    // İşlem kaydı (audit log) — kim, ne, hangi kayıt, ne zaman
+    `CREATE TABLE IF NOT EXISTS siparis_takip_activity_log (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      actor_type TEXT    NOT NULL,
+      actor_id   INTEGER,
+      actor_name TEXT,
+      action     TEXT    NOT NULL,
+      entity     TEXT,
+      entity_id  INTEGER,
+      detail     TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    // Giriş rate-limit (lib/auth ile paylaşılan; tek başına da çalışsın diye idempotent)
+    `CREATE TABLE IF NOT EXISTS login_attempts (
+      ip           TEXT    NOT NULL,
+      attempted_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    // Mevcut (eski) kullanicilar tablosuna kolonları idempotent ekle (yeni DB'de hata → applySchema yutar)
+    `ALTER TABLE siparis_takip_kullanicilar ADD COLUMN kullanici_adi TEXT`,
+    `ALTER TABLE siparis_takip_kullanicilar ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1`,
+
     `CREATE INDEX IF NOT EXISTS idx_st_kalem_siparis ON siparis_takip_siparis_kalemleri(siparis_id)`,
     `CREATE INDEX IF NOT EXISTS idx_st_siparis_durum ON siparis_takip_siparisler(durum)`,
     `CREATE INDEX IF NOT EXISTS idx_st_bildirim_ts ON siparis_takip_bildirimler(ts)`,
     `CREATE INDEX IF NOT EXISTS idx_st_sessions_exp ON siparis_takip_sessions(expires_at)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_st_kadi ON siparis_takip_kullanicilar(kullanici_adi)`,
+    `CREATE INDEX IF NOT EXISTS idx_st_activity ON siparis_takip_activity_log(created_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip, attempted_at)`,
   ]);
 
   await seedIfEmpty();
+  await backfillUsernames();
   initialized = true;
+}
+
+// Eski seed kullanıcılarına (Selim/Hakan) kullanıcı adı ata — prod'da kolon sonradan
+// eklendiği için NULL kalmış olabilir. Idempotent (yalnız boşken yazar).
+async function backfillUsernames(): Promise<void> {
+  const pairs: [string, string][] = [['Selim Aktaş', 'selim'], ['Hakan Demir', 'hakan']];
+  for (const [ad, kadi] of pairs) {
+    try {
+      await db.execute({
+        sql: `UPDATE siparis_takip_kullanicilar SET kullanici_adi = ?
+              WHERE ad = ? AND (kullanici_adi IS NULL OR kullanici_adi = '')`,
+        args: [kadi, ad],
+      });
+    } catch { /* benzersizlik çakışması olursa atla */ }
+  }
 }
 
 async function count(table: string): Promise<number> {
@@ -122,16 +166,16 @@ async function count(table: string): Promise<number> {
 // göre offset'lenir ki panel ilk açılışta yeşil/sarı/kırmızı durumları bir arada
 // göstersin. (Seed yalnızca tablolar boşken bir kez çalışır.)
 async function seedIfEmpty(): Promise<void> {
-  // 1) Kullanıcılar
+  // 1) Kullanıcılar — kullanıcı adıyla, ŞİFRESİZ başlar (süper yönetici panelden şifre atar)
   if ((await count('siparis_takip_kullanicilar')) === 0) {
     const users = [
-      ['Selim Aktaş', 'yonetici', 'İkram Koordinatörü', 'SA'],
-      ['Hakan Demir', 'ambar', 'Ambar Personeli', 'HD'],
+      ['Selim Aktaş', 'selim', 'yonetici', 'İkram Koordinatörü', 'SA'],
+      ['Hakan Demir', 'hakan', 'ambar', 'Ambar Personeli', 'HD'],
     ];
-    for (const [ad, rol, unvan, bas] of users) {
+    for (const [ad, kadi, rol, unvan, bas] of users) {
       await db.execute({
-        sql: 'INSERT INTO siparis_takip_kullanicilar (ad, rol, unvan, bas) VALUES (?, ?, ?, ?)',
-        args: [ad, rol, unvan, bas],
+        sql: 'INSERT INTO siparis_takip_kullanicilar (ad, kullanici_adi, rol, unvan, bas) VALUES (?, ?, ?, ?, ?)',
+        args: [ad, kadi, rol, unvan, bas],
       });
     }
   }
