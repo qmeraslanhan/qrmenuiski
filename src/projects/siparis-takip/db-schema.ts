@@ -56,7 +56,8 @@ export async function ensureSiparisInit(): Promise<void> {
       birim           TEXT    NOT NULL,
       firma           TEXT    NOT NULL,
       sozlesme_miktari REAL   NOT NULL DEFAULT 0,
-      kalan_miktar    REAL    NOT NULL DEFAULT 0
+      kalan_miktar    REAL    NOT NULL DEFAULT 0,
+      birim_fiyat     REAL    NOT NULL DEFAULT 0
     )`,
 
     // Siparişler
@@ -82,7 +83,8 @@ export async function ensureSiparisInit(): Promise<void> {
       ad             TEXT    NOT NULL,
       miktar         REAL    NOT NULL DEFAULT 0,
       birim          TEXT    NOT NULL,
-      ihale_kalem_id INTEGER REFERENCES siparis_takip_ihale_kalemleri(id)
+      ihale_kalem_id INTEGER REFERENCES siparis_takip_ihale_kalemleri(id),
+      birim_fiyat    REAL
     )`,
 
     // Bildirim / alarm log
@@ -133,6 +135,9 @@ export async function ensureSiparisInit(): Promise<void> {
     // Mevcut (eski) kullanicilar tablosuna kolonları idempotent ekle (yeni DB'de hata → applySchema yutar)
     `ALTER TABLE siparis_takip_kullanicilar ADD COLUMN kullanici_adi TEXT`,
     `ALTER TABLE siparis_takip_kullanicilar ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1`,
+    // Birim fiyat / harcama takibi — mevcut DB'ye idempotent ekle
+    `ALTER TABLE siparis_takip_ihale_kalemleri ADD COLUMN birim_fiyat REAL NOT NULL DEFAULT 0`,
+    `ALTER TABLE siparis_takip_siparis_kalemleri ADD COLUMN birim_fiyat REAL`,
 
     `CREATE INDEX IF NOT EXISTS idx_st_kalem_siparis ON siparis_takip_siparis_kalemleri(siparis_id)`,
     `CREATE INDEX IF NOT EXISTS idx_st_siparis_durum ON siparis_takip_siparisler(durum)`,
@@ -188,27 +193,30 @@ async function seedIfEmpty(): Promise<void> {
 
   // 2) İhale kalemleri — sırayı koru (sipariş kalemleri index ile bağlanır)
   let tenderIds: number[] = [];
+  const tenderPrices: number[] = [];
   if ((await count('siparis_takip_ihale_kalemleri')) === 0) {
-    const tender: [string, string, string, number, number][] = [
-      ['Şişe Su 0.5L', 'adet', 'Yıldız Catering A.Ş.', 5000, 3180],
-      ['Kuru Pasta', 'kg', 'Yıldız Catering A.Ş.', 800, 512],
-      ['Poşet Çay', 'paket', 'Bereket Gıda Ltd.', 1200, 690],
-      ['Meşrubat (Kutu)', 'kutu', 'Bereket Gıda Ltd.', 3000, 1740],
-      ['Tabak/Servis Seti', 'set', 'Yıldız Catering A.Ş.', 600, 95],
+    const tender: [string, string, string, number, number, number][] = [
+      ['Şişe Su 0.5L', 'adet', 'Yıldız Catering A.Ş.', 5000, 3180, 4.5],
+      ['Kuru Pasta', 'kg', 'Yıldız Catering A.Ş.', 800, 512, 180],
+      ['Poşet Çay', 'paket', 'Bereket Gıda Ltd.', 1200, 690, 22],
+      ['Meşrubat (Kutu)', 'kutu', 'Bereket Gıda Ltd.', 3000, 1740, 15],
+      ['Tabak/Servis Seti', 'set', 'Yıldız Catering A.Ş.', 600, 95, 35],
     ];
-    for (const [kalem, birim, firma, soz, kalan] of tender) {
+    for (const [kalem, birim, firma, soz, kalan, fiyat] of tender) {
       const ins = await db.execute({
-        sql: 'INSERT INTO siparis_takip_ihale_kalemleri (kalem, birim, firma, sozlesme_miktari, kalan_miktar) VALUES (?, ?, ?, ?, ?)',
-        args: [kalem, birim, firma, soz, kalan],
+        sql: 'INSERT INTO siparis_takip_ihale_kalemleri (kalem, birim, firma, sozlesme_miktari, kalan_miktar, birim_fiyat) VALUES (?, ?, ?, ?, ?, ?)',
+        args: [kalem, birim, firma, soz, kalan, fiyat],
       });
       tenderIds.push(Number(ins.lastInsertRowid));
+      tenderPrices.push(fiyat);
     }
   } else {
-    const r = await db.execute('SELECT id FROM siparis_takip_ihale_kalemleri ORDER BY id');
-    tenderIds = (r.rows as any[]).map((x) => Number(x.id));
+    const r = await db.execute('SELECT id, birim_fiyat FROM siparis_takip_ihale_kalemleri ORDER BY id');
+    for (const x of r.rows as any[]) { tenderIds.push(Number(x.id)); tenderPrices.push(Number(x.birim_fiyat || 0)); }
   }
-  // tenderId etiketi ("t1".."t5") → gerçek DB id
+  // tenderId etiketi ("t1".."t5") → gerçek DB id / birim fiyat
   const tIdx = (t: string) => tenderIds[Number(t.slice(1)) - 1];
+  const tFiyat = (t: string) => tenderPrices[Number(t.slice(1)) - 1] || 0;
 
   // 3) Siparişler + kalemleri
   if ((await count('siparis_takip_siparisler')) === 0) {
@@ -263,8 +271,8 @@ async function seedIfEmpty(): Promise<void> {
       const sid = Number(ins.lastInsertRowid);
       for (const k of o.kalemler) {
         await db.execute({
-          sql: 'INSERT INTO siparis_takip_siparis_kalemleri (siparis_id, ad, miktar, birim, ihale_kalem_id) VALUES (?, ?, ?, ?, ?)',
-          args: [sid, k.ad, k.miktar, k.birim, k.t ? tIdx(k.t) : null],
+          sql: 'INSERT INTO siparis_takip_siparis_kalemleri (siparis_id, ad, miktar, birim, ihale_kalem_id, birim_fiyat) VALUES (?, ?, ?, ?, ?, ?)',
+          args: [sid, k.ad, k.miktar, k.birim, k.t ? tIdx(k.t) : null, k.t ? tFiyat(k.t) : null],
         });
       }
     }

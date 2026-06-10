@@ -353,6 +353,46 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
 .toast.err { background: var(--red); color: #fff; }
 @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } }
 
+/* SİPARİŞ MEKTUBU (modal + yazdırılabilir resmî belge) */
+.mk-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(8,18,33,.55); backdrop-filter: blur(3px); display: flex; align-items: flex-start; justify-content: center; padding: 28px 16px; overflow-y: auto; }
+.mk-modal { width: min(820px, 100%); background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-lg); overflow: hidden; }
+.mk-bar { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--surface); z-index: 2; flex-wrap: wrap; }
+.mk-bar h2 { font-size: 16px; font-weight: 600; flex: 1; }
+.mk-hint { padding: 10px 20px; font-size: 12.5px; color: var(--ink-2); background: var(--surface-2); border-bottom: 1px solid var(--line); }
+.mk-edit { padding: 14px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-bottom: 1px solid var(--line); }
+.mk-edit .field { margin: 0; }
+.mk-scroll { max-height: none; }
+/* Belgenin kendisi — A4 beyaz kâğıt, daima açık tema renkleri (yazdırma için) */
+.mk-doc { background: #fff; color: #1a1a1a; padding: 26px 30px 30px; margin: 18px; border: 1px solid #d8dde5; font-size: 12.5px; line-height: 1.45; }
+.mk-doc * { color: #1a1a1a; }
+.mk-head { display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; gap: 10px; text-align: center; padding-bottom: 10px; }
+.mk-head img { width: 54px; height: 54px; object-fit: contain; }
+.mk-head .mk-title { font-weight: 700; }
+.mk-head .mk-title .l1 { font-size: 13px; }
+.mk-head .mk-title .l2 { font-size: 12px; font-weight: 600; }
+.mk-head .mk-title .l3 { font-size: 13px; letter-spacing: .5px; margin-top: 2px; }
+.mk-tbl { width: 100%; border-collapse: collapse; margin-top: 6px; }
+.mk-tbl td, .mk-tbl th { border: 1px solid #b9c0cc; padding: 6px 9px; vertical-align: top; }
+.mk-tbl .lbl { background: #f6e8da; font-weight: 700; width: 16%; white-space: nowrap; }
+.mk-band { background: #efefef; font-weight: 700; text-align: center; letter-spacing: .3px; }
+.mk-items th { background: #f6f7f9; font-weight: 700; font-size: 11.5px; }
+.mk-items td.c { text-align: center; }
+.mk-clauses { margin-top: 12px; font-size: 11px; line-height: 1.5; }
+.mk-clauses p { margin-bottom: 3px; color: #c0392b; }
+.mk-doc input, .mk-doc textarea { width: 100%; border: none; background: transparent; padding: 0; font: inherit; color: #1a1a1a; outline: none; resize: none; box-shadow: none; }
+.mk-doc input:focus, .mk-doc textarea:focus { background: #fffce8; box-shadow: none; }
+.mk-doc .mk-edit-hl { background: #fffce8; border-radius: 3px; }
+@media (max-width: 860px) { .mk-edit { grid-template-columns: 1fr; } }
+@media print {
+  html, body { height: auto !important; background: #fff !important; }
+  #root > .app, #toast-wrap { display: none !important; }
+  .mk-overlay { position: static; padding: 0; background: none; backdrop-filter: none; display: block; overflow: visible; }
+  .mk-modal { box-shadow: none; width: 100%; border-radius: 0; }
+  .mk-bar, .mk-hint, .mk-edit { display: none !important; }
+  .mk-doc { margin: 0; border: none; padding: 0; }
+  @page { size: A4; margin: 14mm; }
+}
+
 /* RESPONSIVE */
 @media (max-width: 860px) {
   .app { grid-template-columns: 1fr; }
@@ -474,6 +514,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
   }
   function toTs(dateStr, timeStr) { if (!dateStr || !timeStr) return null; const d = new Date(dateStr + 'T' + timeStr); return isNaN(d) ? null : d.getTime(); }
   function defaultDate() { return new Date(Date.now() + 5 * MS.sa).toISOString().slice(0, 10); }
+  const _trTL = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 2 });
+  function fmtTL(n) { const v = Number(n) || 0; return _trTL.format(v); }
+  function orderTutar(o) { return (o.kalemler || []).reduce((s, k) => s + (Number(k.tutar) || 0), 0); }
+  function dateOnly(ts) { const d = new Date(ts); const p = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
+  function fmtDateNum(ts) { const d = new Date(ts); const p = n => String(n).padStart(2, '0'); return p(d.getDate()) + '.' + p(d.getMonth() + 1) + '.' + d.getFullYear(); }
 
   // ---- Zamanlama (data.jsx → orderTiming birebir) ---------------------
   function timing(eventTs, durum, now) {
@@ -509,8 +554,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     orders: [], tender: [], notifications: [], users: [], activity: [],
     screen: 'panel', selId: null, filtre: 'hepsi', q: '',
     form: null, userForm: null, tenderForm: null, yonetimTab: 'kullanicilar',
-    notify: { telegramChatId: '', telegramEnabled: true, telegramTokenVar: false },
+    notify: { telegramChatId: '', telegramEnabled: true, telegramTokenVar: false, mektup: null },
     login: { kullaniciAdi: '', sifre: '' },
+    mektup: null,
+    report: { bas: '', bit: '', tedarik: 'hepsi', durum: 'hepsi', q: '' },
     now: Date.now(), _sig: '',
   };
   const root = document.getElementById('root');
@@ -753,12 +800,21 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     const idx = DURUM_SIRA.indexOf(o.durum), sonraki = idx < DURUM_SIRA.length - 1 ? DURUM_SIRA[idx + 1] : null;
     const onceki = idx > 0 ? DURUM_SIRA[idx - 1] : null;
     const sub = t.msToReady < 0 ? fmtKalan(t.msToReady) : 'hedef ' + fmtTime(t.ready);
-    const kalemRows = o.kalemler.map(k => '<tr><td>' + esc(k.ad) + '</td><td class="mono">' + k.miktar + ' ' + esc(k.birim) + '</td><td>' + (k.tenderId ? badge('teal', 'İhale') : badge('slate', 'Ambar')) + '</td></tr>').join('');
+    const tutar = orderTutar(o);
+    const kalemHead = ihale
+      ? '<tr><th>Ürün</th><th>Miktar</th><th>Birim Fiyat</th><th>Tutar</th></tr>'
+      : '<tr><th>Ürün</th><th>Miktar</th><th>Kaynak</th></tr>';
+    const kalemRows = ihale
+      ? o.kalemler.map(k => '<tr><td>' + esc(k.ad) + '</td><td class="mono">' + k.miktar + ' ' + esc(k.birim) + '</td><td class="mono">' + fmtTL(k.birimFiyat) + '</td><td class="mono">' + fmtTL(k.tutar) + '</td></tr>').join('')
+        + '<tr><td colspan="3" style="text-align:right;font-weight:600">Toplam tutar</td><td class="mono" style="font-weight:700;color:var(--brand-2)">' + fmtTL(tutar) + '</td></tr>'
+      : o.kalemler.map(k => '<tr><td>' + esc(k.ad) + '</td><td class="mono">' + k.miktar + ' ' + esc(k.birim) + '</td><td>' + (k.tenderId ? badge('teal', 'İhale') : badge('slate', 'Ambar')) + '</td></tr>').join('');
     const ihaleBox = ihale ? '<div class="ihale-box"><p class="ihale-box-t">' + icon('truck', 14) + ' Sözleşmeden düşülen kalemler</p>'
-      + o.kalemler.filter(k => k.tenderId).map(k => { const ti = state.tender.find(tt => String(tt.id) === String(k.tenderId)); return '<div class="ihale-line"><span>' + esc(k.ad) + '</span><span class="mono">−' + k.miktar + ' ' + esc(k.birim) + (ti ? ' · kalan ' + ti.kalan : '') + '</span></div>'; }).join('')
+      + o.kalemler.filter(k => k.tenderId).map(k => { const ti = state.tender.find(tt => String(tt.id) === String(k.tenderId)); return '<div class="ihale-line"><span>' + esc(k.ad) + ' × ' + k.miktar + '</span><span class="mono">' + fmtTL(k.tutar) + (ti ? ' · kalan ' + ti.kalan : '') + '</span></div>'; }).join('')
+      + '<div class="ihale-line" style="border-top:1px solid color-mix(in srgb,var(--teal) 25%,transparent);margin-top:6px;padding-top:8px"><span style="font-weight:600">Toplam harcama</span><span class="mono" style="font-weight:700">' + fmtTL(tutar) + '</span></div>'
       + '</div>' : '';
     const manage = state.user.rol === 'yonetici'
-      ? '<button class="btn btn-ghost btn-sm" data-act="edit-order" data-id="' + o.id + '">' + icon('doc', 15) + 'Düzenle</button>'
+      ? (ihale ? '<button class="btn btn-soft btn-sm" data-act="mektup" data-id="' + o.id + '">' + icon('doc', 15) + 'Sipariş Mektubu</button>' : '')
+        + '<button class="btn btn-ghost btn-sm" data-act="edit-order" data-id="' + o.id + '">' + icon('doc', 15) + 'Düzenle</button>'
         + '<button class="btn btn-ghost btn-sm" data-act="del-order" data-id="' + o.id + '" data-kod="' + esc(o.kod) + '">' + icon('trash', 15) + 'Sil</button>'
       : '';
     const actBtns = (state.user.rol === 'yonetici' && o.durum !== DURUM.HAZIR && TAMAMLANMIS.indexOf(o.durum) === -1
@@ -774,7 +830,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + '<span class="dh-count-sub js-cd-sub" data-ev="' + o.eventTs + '" data-durum="' + esc(o.durum) + '">' + sub + '</span></div></div>'
       + timeline(o.durum)
       + '<div class="detail-grid"><div class="card detail-card"><h2 class="form-sec">Ürün Kalemleri</h2>'
-      + '<table class="kalem-tbl"><thead><tr><th>Ürün</th><th>Miktar</th><th>Kaynak</th></tr></thead><tbody>' + kalemRows + '</tbody></table>'
+      + '<table class="kalem-tbl"><thead>' + kalemHead + '</thead><tbody>' + kalemRows + '</tbody></table>'
       + (o.note ? '<p class="detail-note">' + icon('doc', 14) + ' ' + esc(o.note) + '</p>' : '') + '</div>'
       + '<div class="card detail-card"><h2 class="form-sec">Zaman &amp; Tedarik</h2>'
       + inforow('calendar', 'Etkinlik', fmtDateTime(o.eventTs), true)
@@ -937,7 +993,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + '<div class="field-row"><label class="field"><span class="field-label">Kalem<i class="req">*</i></span><input data-act="tf-kalem" value="' + esc(t.kalem) + '" placeholder="örn. Şişe Su 0.5L"></label>'
       + '<label class="field"><span class="field-label">Firma<i class="req">*</i></span><input data-act="tf-firma" value="' + esc(t.firma) + '" placeholder="Tedarikçi firma"></label></div>'
       + '<div class="field-row"><label class="field"><span class="field-label">Birim</span><input data-act="tf-birim" value="' + esc(t.birim) + '" placeholder="adet, kg, paket…"></label>'
-      + '<label class="field"><span class="field-label">Sözleşme miktarı<i class="req">*</i></span><input data-act="tf-sozlesme" type="number" min="0" value="' + esc(t.sozlesme) + '"></label>'
+      + '<label class="field"><span class="field-label">Birim fiyat (₺)</span><input data-act="tf-fiyat" type="number" min="0" step="0.01" value="' + esc(t.birimFiyat) + '" placeholder="örn. 4.50"></label></div>'
+      + '<div class="field-row"><label class="field"><span class="field-label">Sözleşme miktarı<i class="req">*</i></span><input data-act="tf-sozlesme" type="number" min="0" value="' + esc(t.sozlesme) + '"></label>'
       + '<label class="field"><span class="field-label">Kalan stok</span><input data-act="tf-kalan" type="number" min="0" value="' + esc(t.kalan) + '" placeholder="boşsa = sözleşme"></label></div>'
       + '<button class="btn btn-primary btn-md btn-full" data-act="tender-save">' + icon('check', 17, 2) + (edit ? 'Kaydet' : 'Kalem ekle') + '</button></div>';
   }
@@ -951,11 +1008,23 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
         + '<div class="tender-bar"><span class="tender-bar-fill" style="width:' + (pct * 100) + '%;background:' + tone + '"></span></div>'
         + '<div class="tender-nums"><span class="mono" style="color:' + tone + ';font-weight:600">' + t.kalan.toLocaleString('tr-TR') + '</span>'
         + '<span class="tender-tot">/ ' + t.sozlesme.toLocaleString('tr-TR') + ' ' + esc(t.birim) + '</span>' + low + '</div>'
+        + '<div class="tender-nums" style="margin-top:4px"><span class="tender-tot">Birim fiyat: <b class="mono" style="color:var(--ink)">' + fmtTL(t.birimFiyat) + '</b> / ' + esc(t.birim) + '</span></div>'
         + '<div class="wh-actions" style="margin-top:10px"><button class="btn btn-ghost btn-sm" data-act="tender-edit" data-id="' + t.id + '">Düzenle</button>'
         + '<button class="btn btn-ghost btn-sm" data-act="tender-del" data-id="' + t.id + '" data-ad="' + esc(t.kalem) + '">' + icon('trash', 15) + '</button></div></div>';
     }).join('');
     const grid = state.tender.length ? '<div class="tender-grid">' + rows + '</div>' : empty('truck', 'İhale kalemi yok', 'Yeni kalem ekleyin.');
-    return notifyCard() + form + grid;
+    return notifyCard() + mektupTmplCard() + form + grid;
+  }
+  function mektupTmplCard() {
+    const m = (state.notify && state.notify.mektup) || {};
+    return '<div class="card form-card" style="margin-bottom:16px">'
+      + '<div class="form-sec-row"><h2 class="form-sec">' + icon('doc', 16, 2) + ' Sipariş Mektubu Şablonu</h2></div>'
+      + '<p class="field-hint" style="margin-bottom:10px">İhale siparişlerinde açılan resmî mektubun varsayılan metinleri. Mektup ekranında her sipariş için ayrıca düzenlenebilir.</p>'
+      + '<div class="field-row"><label class="field"><span class="field-label">Tel &amp; Faks</span><input data-act="mt-telFaks" value="' + esc(m.telFaks || '') + '"></label>'
+      + '<label class="field"><span class="field-label">Teslim Şekli</span><input data-act="mt-teslimSekli" value="' + esc(m.teslimSekli || '') + '"></label></div>'
+      + '<label class="field"><span class="field-label">Teslim Yeri</span><textarea data-act="mt-teslimYeri" rows="2">' + esc(m.teslimYeri || '') + '</textarea></label>'
+      + '<label class="field"><span class="field-label">Maddeler (her satır bir madde)</span><textarea data-act="mt-maddeler" rows="7">' + esc(m.maddeler || '') + '</textarea></label>'
+      + '<button class="btn btn-soft btn-md" data-act="mektup-save">' + icon('check', 16, 2) + 'Şablonu kaydet</button></div>';
   }
   function yonetimView() {
     const tab = state.yonetimTab;
@@ -969,9 +1038,170 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + '</div>' + action + '</div>' + body + '</div>';
   }
 
+  // ---- Ekran: Raporlar (geçmiş + harcama) -----------------------------
+  function reportFiltered() {
+    const r = state.report;
+    return state.orders.filter(o => {
+      const d = dateOnly(o.eventTs);
+      if (r.bas && d < r.bas) return false;
+      if (r.bit && d > r.bit) return false;
+      if (r.tedarik === 'ambar' && isIhale(o)) return false;
+      if (r.tedarik === 'ihale' && !isIhale(o)) return false;
+      if (r.durum !== 'hepsi' && o.durum !== r.durum) return false;
+      if (r.q && (o.birim + ' ' + o.kod + ' ' + o.atanan).toLowerCase().indexOf(r.q.toLowerCase()) === -1) return false;
+      return true;
+    }).sort((a, b) => b.eventTs - a.eventTs);
+  }
+  function reportView() {
+    const r = state.report;
+    const list = reportFiltered();
+    const ihaleList = list.filter(isIhale);
+    const toplamHarcama = ihaleList.reduce((s, o) => s + orderTutar(o), 0);
+    const ambarSay = list.filter(o => !isIhale(o)).length;
+    const byFirma = {};
+    ihaleList.forEach(o => { byFirma[o.atanan] = (byFirma[o.atanan] || 0) + orderTutar(o); });
+    const firmaKeys = Object.keys(byFirma).sort((a, b) => byFirma[b] - byFirma[a]);
+    const firmaCard = firmaKeys.length
+      ? '<div class="card detail-card" style="margin-bottom:16px"><h2 class="form-sec">' + icon('truck', 16) + ' Firma Bazında Harcama</h2>'
+        + firmaKeys.map(f => '<div class="inforow"><span class="inforow-ico">' + icon('building', 16) + '</span><span class="inforow-lbl">' + esc(f) + '</span><span class="inforow-val mono">' + fmtTL(byFirma[f]) + '</span></div>').join('')
+        + '</div>' : '';
+    const durumOpt = ['hepsi'].concat(DURUM_SIRA).map(d => '<option value="' + d + '"' + (r.durum === d ? ' selected' : '') + '>' + (d === 'hepsi' ? 'Tüm durumlar' : d) + '</option>').join('');
+    const tedarikOpt = [['hepsi', 'Tüm tedarik'], ['ambar', 'İç Üretim'], ['ihale', 'İhale']].map(([v, l]) => '<option value="' + v + '"' + (r.tedarik === v ? ' selected' : '') + '>' + l + '</option>').join('');
+    const rows = list.length ? list.map(o => {
+      const tutar = orderTutar(o);
+      return '<tr data-act="open-order" data-id="' + o.id + '" role="button" style="cursor:pointer">'
+        + '<td class="mono">' + esc(o.kod) + '</td>'
+        + '<td>' + fmtDateNum(o.eventTs) + '<span style="color:var(--ink-3)"> · ' + fmtTime(o.eventTs) + '</span></td>'
+        + '<td>' + esc(o.birim) + '</td>'
+        + '<td>' + (isIhale(o) ? badge('teal', 'İhale') + ' <span style="color:var(--ink-3);font-size:12px">' + esc(o.atanan) + '</span>' : badge('slate', 'Ambar')) + '</td>'
+        + '<td>' + statusBadge(o.durum) + '</td>'
+        + '<td class="mono" style="text-align:right">' + (isIhale(o) ? fmtTL(tutar) : '—') + '</td></tr>';
+    }).join('') : '<tr><td colspan="6">' + empty('search', 'Kayıt yok', 'Filtreleri değiştirin.') + '</td></tr>';
+    return '<div class="screen"><header class="scr-head"><div><p class="scr-kicker">Raporlar</p><h1 class="scr-title">Sipariş Geçmişi & Harcama</h1>'
+      + '<p class="scr-sub">' + list.length + ' sipariş listeleniyor.</p></div>'
+      + '<button class="btn btn-ghost btn-md" data-act="rp-csv">' + icon('doc', 17) + 'Excel (CSV) indir</button></header>'
+      + '<div class="stat-row">'
+      + stat('Toplam sipariş', list.length, 'list', 'blue')
+      + stat('İhale sipariş', ihaleList.length, 'truck', 'teal')
+      + stat('İhale harcaması', fmtTL(toplamHarcama), 'doc', 'slate', 'seçili aralık')
+      + stat('İç üretim', ambarSay, 'box', 'slate')
+      + '</div>'
+      + '<div class="card form-card" style="margin-bottom:16px"><div class="field-row" style="grid-template-columns:repeat(2,1fr)">'
+      + '<label class="field"><span class="field-label">Başlangıç (etkinlik)</span><input type="date" data-act="rp-bas" value="' + esc(r.bas) + '"></label>'
+      + '<label class="field"><span class="field-label">Bitiş (etkinlik)</span><input type="date" data-act="rp-bit" value="' + esc(r.bit) + '"></label></div>'
+      + '<div class="field-row" style="grid-template-columns:1fr 1fr 1fr;margin-top:4px">'
+      + '<label class="field"><span class="field-label">Tedarik</span><select data-act="rp-tedarik">' + tedarikOpt + '</select></label>'
+      + '<label class="field"><span class="field-label">Durum</span><select data-act="rp-durum">' + durumOpt + '</select></label>'
+      + '<label class="field"><span class="field-label">Ara</span><input id="js-rep-q" data-act="rp-q" value="' + esc(r.q) + '" placeholder="birim, kod, firma…"></label></div>'
+      + ((r.bas || r.bit || r.tedarik !== 'hepsi' || r.durum !== 'hepsi' || r.q) ? '<button class="btn btn-ghost btn-sm" data-act="rp-reset">Filtreleri temizle</button>' : '') + '</div>'
+      + firmaCard
+      + '<div class="card detail-card"><table class="kalem-tbl"><thead><tr><th>Kod</th><th>Etkinlik</th><th>Talep Eden</th><th>Tedarik</th><th>Durum</th><th style="text-align:right">Tutar</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+  }
+  function exportReportCsv() {
+    const list = reportFiltered();
+    const head = ['Kod', 'Etkinlik Tarihi', 'Etkinlik Saati', 'Talep Eden Birim', 'Tedarik', 'Firma/Atanan', 'Durum', 'Ürün', 'Miktar', 'Birim', 'Birim Fiyat', 'Tutar'];
+    const lines = [head];
+    list.forEach(o => {
+      const ih = isIhale(o);
+      o.kalemler.forEach(k => {
+        lines.push([o.kod, fmtDateNum(o.eventTs), fmtTime(o.eventTs), o.birim, ih ? 'İhale' : 'İç Üretim', o.atanan, o.durum, k.ad, k.miktar, k.birim,
+          ih ? String(k.birimFiyat).replace('.', ',') : '', ih ? String(k.tutar).replace('.', ',') : '']);
+      });
+    });
+    const csv = lines.map(row => row.map(c => '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"').join(';')).join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'siparis-raporu-' + dateOnly(Date.now()) + '.csv'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    toast('Rapor indirildi');
+  }
+
+  // ---- Sipariş Mektubu (kopyalanabilir / yazdırılabilir resmî belge) ---
+  async function openMektup(id) {
+    const o = state.orders.find(x => String(x.id) === String(id)); if (!o) return;
+    if (!state.notify || !state.notify.mektup) { await loadNotify(); }
+    const tmpl = (state.notify && state.notify.mektup) || {};
+    state.mektup = {
+      orderId: o.id, dosyaNo: '', firmaTel: tmpl.telFaks || '',
+      tebligTarihi: fmtDateNum(Date.now()),
+      teslimTarihi: fmtDateNum(o.eventTs) + ' - ' + fmtTime(o.eventTs),
+      sozlesmeTarihi: '', gerekce: '-',
+      teslimSekli: tmpl.teslimSekli || '', teslimYeri: tmpl.teslimYeri || '', maddeler: tmpl.maddeler || '',
+    };
+    repaint();
+  }
+  function closeMektup() { state.mektup = null; repaint(); }
+  function mektupText() {
+    const m = state.mektup; if (!m) return '';
+    const o = state.orders.find(x => String(x.id) === String(m.orderId)); if (!o) return '';
+    const L = [];
+    L.push('T.C. İSTANBUL BÜYÜKŞEHİR BELEDİYESİ');
+    L.push('İstanbul Su ve Kanalizasyon İdaresi Genel Müdürlüğü');
+    L.push('SİPARİŞ MEKTUBU');
+    L.push('');
+    L.push('Sipariş No: ' + o.kod + '    Dosya No: ' + (m.dosyaNo || '-'));
+    L.push('Firma Adı: ' + o.atanan + '    Tel & Faks: ' + (m.firmaTel || '-'));
+    L.push('Tebliğ Tarihi: ' + (m.tebligTarihi || '-') + '    Teslim Tarihi ve Saati: ' + (m.teslimTarihi || '-'));
+    L.push('Harcama Birimi: ' + o.birim);
+    L.push('Teslim Şekli: ' + (m.teslimSekli || '-'));
+    L.push('Sözleşme Tarihi: ' + (m.sozlesmeTarihi || '-'));
+    L.push('Teslim Yeri: ' + (m.teslimYeri || '-'));
+    L.push('');
+    L.push('SATIN ALINACAK MAL / HİZMET');
+    L.push('Gerekçe: ' + (m.gerekce || '-'));
+    o.kalemler.forEach((k, i) => L.push((i + 1) + ') ' + k.ad + ' — ' + k.miktar + ' ' + k.birim));
+    L.push('');
+    String(m.maddeler || '').split('\n').filter(x => x.trim()).forEach((x, i) => L.push((i + 1) + ') ' + x.trim()));
+    return L.join('\n');
+  }
+  async function copyMektup() {
+    const txt = mektupText();
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(txt); toast('Mektup metni kopyalandı'); return; }
+      throw new Error('no clipboard');
+    } catch (e) {
+      const ta = document.createElement('textarea'); ta.value = txt;
+      ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.focus(); ta.select();
+      try { document.execCommand('copy'); toast('Mektup metni kopyalandı'); } catch (x) { toast('Kopyalanamadı — metni elle seçin', 'err'); }
+      ta.remove();
+    }
+  }
+  function mektupView() {
+    const m = state.mektup; if (!m) return '';
+    const o = state.orders.find(x => String(x.id) === String(m.orderId)); if (!o) return '';
+    const items = o.kalemler.map((k, i) => '<tr><td class="c">' + (i + 1) + '</td><td>' + esc(k.ad) + '</td><td class="c">' + k.miktar + ' ' + esc(k.birim) + '</td></tr>').join('');
+    const maddeler = String(m.maddeler || '').split('\n').filter(x => x.trim()).map((x, i) => '<p>' + (i + 1) + ') ' + esc(x.trim()) + '</p>').join('');
+    const ef = (k, v, ta) => ta
+      ? '<textarea class="mk-edit-hl" id="mk-i-' + k + '" data-act="mk-f" data-k="' + k + '" rows="2">' + esc(v) + '</textarea>'
+      : '<input class="mk-edit-hl" id="mk-i-' + k + '" data-act="mk-f" data-k="' + k + '" value="' + esc(v) + '">';
+    return '<div class="mk-overlay" data-act="mk-backdrop"><div class="mk-modal" data-act="mk-stop">'
+      + '<div class="mk-bar">' + icon('doc', 18) + '<h2>Sipariş Mektubu · ' + esc(o.kod) + '</h2>'
+      + '<button class="btn btn-soft btn-sm" data-act="mk-copy">' + icon('doc', 15) + 'Metni kopyala</button>'
+      + '<button class="btn btn-primary btn-sm" data-act="mk-print">' + icon('send', 15) + 'Yazdır / PDF</button>'
+      + '<button class="btn btn-ghost btn-sm" data-act="mk-close">Kapat</button></div>'
+      + '<div class="mk-hint">Sarı alanlar düzenlenebilir. <b>Metni kopyala</b> → WhatsApp’a yapıştırın; <b>Yazdır / PDF</b> → “PDF olarak kaydet”i seçin.</div>'
+      + '<div class="mk-doc" id="mk-doc">'
+      + '<div class="mk-head"><img src="/img/ibb-mavi.png" alt="İBB" onerror="this.style.visibility=\'hidden\'">'
+      + '<div class="mk-title"><div class="l1">T.C.</div><div class="l1">İSTANBUL BÜYÜKŞEHİR BELEDİYESİ</div>'
+      + '<div class="l2">İstanbul Su ve Kanalizasyon İdaresi Genel Müdürlüğü</div><div class="l3">SİPARİŞ MEKTUBU</div></div>'
+      + '<img src="/img/iski-logo.png" alt="İSKİ" onerror="this.style.visibility=\'hidden\'"></div>'
+      + '<table class="mk-tbl"><tbody>'
+      + '<tr><td class="lbl">Sipariş No</td><td>' + esc(o.kod) + '</td><td class="lbl">Dosya No</td><td>' + ef('dosyaNo', m.dosyaNo) + '</td></tr>'
+      + '<tr><td class="lbl">Firma Adı</td><td>' + esc(o.atanan) + '</td><td class="lbl">Tel &amp; Faks</td><td>' + ef('firmaTel', m.firmaTel) + '</td></tr>'
+      + '<tr><td class="lbl">Tebliğ Tarihi</td><td>' + ef('tebligTarihi', m.tebligTarihi) + '</td><td class="lbl">Teslim Tarihi ve Saati</td><td>' + ef('teslimTarihi', m.teslimTarihi) + '</td></tr>'
+      + '<tr><td class="lbl">Harcama Birimi</td><td>' + esc(o.birim) + '</td><td class="lbl">Teslim Şekli</td><td>' + ef('teslimSekli', m.teslimSekli, true) + '</td></tr>'
+      + '<tr><td class="lbl">Sözleşme Tarihi</td><td>' + ef('sozlesmeTarihi', m.sozlesmeTarihi) + '</td><td class="lbl">Teslim Yeri</td><td>' + ef('teslimYeri', m.teslimYeri, true) + '</td></tr>'
+      + '</tbody></table>'
+      + '<table class="mk-tbl" style="border-top:none"><tbody><tr><td class="mk-band" colspan="3">SATIN ALINACAK MAL / HİZMET</td></tr>'
+      + '<tr><td class="lbl" style="width:16%">GEREKÇE</td><td colspan="2">' + ef('gerekce', m.gerekce) + '</td></tr></tbody></table>'
+      + '<table class="mk-tbl mk-items" style="border-top:none"><thead><tr><th style="width:12%">Sıra No</th><th>Talep Edilen Mal/Malzeme/Teçhizat/Hizmet</th><th style="width:26%">Miktar/Birim</th></tr></thead><tbody>' + items + '</tbody></table>'
+      + '<div class="mk-clauses">' + maddeler + '</div>'
+      + '</div></div></div>';
+  }
+
   // ---- App kabuğu ------------------------------------------------------
   const NAV = {
-    yonetici: [{ id: 'panel', ad: 'Panel', icon: 'panel' }, { id: 'yonetim', ad: 'Yönetim', icon: 'shield' }, { id: 'bildirim', ad: 'Bildirimler', icon: 'bell' }],
+    yonetici: [{ id: 'panel', ad: 'Panel', icon: 'panel' }, { id: 'rapor', ad: 'Raporlar', icon: 'list' }, { id: 'yonetim', ad: 'Yönetim', icon: 'shield' }, { id: 'bildirim', ad: 'Bildirimler', icon: 'bell' }],
     ambar: [{ id: 'gorevlerim', ad: 'Görevlerim', icon: 'box' }, { id: 'bildirim', ad: 'Bildirimler', icon: 'bell' }],
   };
   function screenView() {
@@ -979,6 +1209,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       case 'detay': return detailView();
       case 'yeni': return newOrderView();
       case 'ihale': return tenderView();
+      case 'rapor': return reportView();
       case 'yonetim': return yonetimView();
       case 'bildirim': return notificationsView();
       case 'gorevlerim': return warehouseView();
@@ -1014,7 +1245,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
       + '<button class="tb-icon" data-act="toggle-theme">' + icon(state.theme === 'light' ? 'moon' : 'sun', 18) + '</button>'
       + '<button class="tb-icon" data-act="logout">' + icon('logout', 18) + '</button></header>'
       + '<main class="content">' + banner + screenView() + '</main>'
-      + '<nav class="tabbar">' + tabBtns + fab + '</nav></div>';
+      + '<nav class="tabbar">' + tabBtns + fab + '</nav></div>'
+      + (state.mektup ? mektupView() : '');
   }
 
   // ---- Render + scroll/focus koruma -----------------------------------
@@ -1031,7 +1263,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     const now = state.now;
     const lc = document.getElementById('js-clock'); if (lc) lc.textContent = fmtTime(now);
     const ld = document.getElementById('js-clock-day'); if (ld) ld.textContent = fmtDate(now);
-    if (state.screen === 'yeni' || state.screen === 'yonetim') return;
+    if (state.mektup || state.screen === 'yeni' || state.screen === 'yonetim' || state.screen === 'rapor') return;
     document.querySelectorAll('.js-cd').forEach(el => {
       const t = timing(+el.dataset.ev, el.dataset.durum, now);
       el.textContent = fmtCountdown(t.msToReady);
@@ -1087,13 +1319,13 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
   async function loadNotify() { try { state.notify = await api('/settings') || state.notify; } catch (e) {} }
   async function loadTender() { try { state.tender = await api('/tender') || []; } catch (e) {} }
   function openTenderForm(id) {
-    if (id != null) { const t = state.tender.find(x => String(x.id) === String(id)); state.tenderForm = t ? { editId: t.id, kalem: t.kalem, firma: t.firma, birim: t.birim, sozlesme: t.sozlesme, kalan: t.kalan } : null; }
-    else state.tenderForm = { editId: null, kalem: '', firma: '', birim: 'adet', sozlesme: '', kalan: '' };
+    if (id != null) { const t = state.tender.find(x => String(x.id) === String(id)); state.tenderForm = t ? { editId: t.id, kalem: t.kalem, firma: t.firma, birim: t.birim, sozlesme: t.sozlesme, kalan: t.kalan, birimFiyat: t.birimFiyat } : null; }
+    else state.tenderForm = { editId: null, kalem: '', firma: '', birim: 'adet', sozlesme: '', kalan: '', birimFiyat: '' };
     repaint();
   }
   async function saveTender() {
     const t = state.tenderForm; if (!t) return;
-    const body = { kalem: t.kalem, firma: t.firma, birim: t.birim, sozlesme: t.sozlesme, kalan: t.kalan };
+    const body = { kalem: t.kalem, firma: t.firma, birim: t.birim, sozlesme: t.sozlesme, kalan: t.kalan, birimFiyat: t.birimFiyat };
     try {
       if (t.editId != null) await api('/tender/' + t.editId, { method: 'PATCH', body });
       else await api('/tender', { method: 'POST', body });
@@ -1109,6 +1341,13 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     const n = state.notify || {};
     try { state.notify = await api('/settings', { method: 'PATCH', body: { telegramChatId: n.telegramChatId || '', telegramEnabled: n.telegramEnabled !== false } }); repaint(); toast('Bildirim ayarı kaydedildi'); }
     catch (e) { toast(e.message, 'err'); }
+  }
+  async function saveMektupTmpl() {
+    const m = (state.notify && state.notify.mektup) || {};
+    try {
+      state.notify = await api('/settings', { method: 'PATCH', body: { mektup: { teslimYeri: m.teslimYeri || '', teslimSekli: m.teslimSekli || '', telFaks: m.telFaks || '', maddeler: m.maddeler || '' } } });
+      repaint(); toast('Mektup şablonu kaydedildi');
+    } catch (e) { toast(e.message, 'err'); }
   }
   function openUserForm(id) {
     if (id != null) {
@@ -1213,6 +1452,14 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     else if (a === 'tender-save') { saveTender(); }
     else if (a === 'tender-del') { delTender(id, el.dataset.ad); }
     else if (a === 'notify-save') { saveNotify(); }
+    else if (a === 'mektup-save') { saveMektupTmpl(); }
+    else if (a === 'mektup') { openMektup(id); }
+    else if (a === 'mk-close' || a === 'mk-backdrop') { closeMektup(); }
+    else if (a === 'mk-stop') { /* modal içi tık — kapatma */ }
+    else if (a === 'mk-print') { window.print(); }
+    else if (a === 'mk-copy') { copyMektup(); }
+    else if (a === 'rp-csv') { exportReportCsv(); }
+    else if (a === 'rp-reset') { state.report = { bas: '', bit: '', tedarik: 'hepsi', durum: 'hepsi', q: '' }; repaint(); }
     else if (a === 'open-order') { openOrder(id); }
     else if (a === 'back') { go(backScreen()); }
     else if (a === 'cancel-order') { go(backScreen()); }
@@ -1239,7 +1486,16 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     else if (a === 'tf-birim') { state.tenderForm.birim = e.target.value; }
     else if (a === 'tf-sozlesme') { state.tenderForm.sozlesme = e.target.value; }
     else if (a === 'tf-kalan') { state.tenderForm.kalan = e.target.value; }
+    else if (a === 'tf-fiyat') { state.tenderForm.birimFiyat = e.target.value; }
     else if (a === 'ntf-chat') { state.notify.telegramChatId = e.target.value; }
+    else if (a === 'mk-f') { if (state.mektup) state.mektup[el.dataset.k] = e.target.value; }
+    else if (a === 'mt-teslimYeri') { state.notify.mektup = state.notify.mektup || {}; state.notify.mektup.teslimYeri = e.target.value; }
+    else if (a === 'mt-teslimSekli') { state.notify.mektup = state.notify.mektup || {}; state.notify.mektup.teslimSekli = e.target.value; }
+    else if (a === 'mt-telFaks') { state.notify.mektup = state.notify.mektup || {}; state.notify.mektup.telFaks = e.target.value; }
+    else if (a === 'mt-maddeler') { state.notify.mektup = state.notify.mektup || {}; state.notify.mektup.maddeler = e.target.value; }
+    else if (a === 'rp-bas') { state.report.bas = e.target.value; repaint(); }
+    else if (a === 'rp-bit') { state.report.bit = e.target.value; repaint(); }
+    else if (a === 'rp-q') { state.report.q = e.target.value; repaint(); }
     else if (a === 'f-birim') { f.birim = e.target.value; syncForm(); }
     else if (a === 'f-tarih') { f.tarih = e.target.value; syncForm(); }
     else if (a === 'f-saat') { f.saat = e.target.value; syncForm(); }
@@ -1253,6 +1509,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand-2); backgr
     if (a === 'uf-rol') { state.userForm.rol = e.target.value; }
     else if (a === 'uf-aktif') { state.userForm.aktif = e.target.checked; }
     else if (a === 'ntf-enabled') { state.notify.telegramEnabled = e.target.checked; }
+    else if (a === 'rp-tedarik') { state.report.tedarik = e.target.value; repaint(); }
+    else if (a === 'rp-durum') { state.report.durum = e.target.value; repaint(); }
     else if (a === 'k-birim') { f.kalemler[+el.dataset.i].birim = e.target.value; }
     else if (a === 'k-tender') {
       const i = +el.dataset.i; f.kalemler[i].tenderId = e.target.value;

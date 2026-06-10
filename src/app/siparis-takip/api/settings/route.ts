@@ -20,6 +20,11 @@ export async function PATCH(req: NextRequest) {
   const b = await req.json().catch(() => ({} as any));
   if (b.telegramChatId !== undefined) await setSetting('telegram_chat_id', String(b.telegramChatId).trim());
   if (b.telegramEnabled !== undefined) await setSetting('telegram_enabled', b.telegramEnabled ? '1' : '0');
-  await logActivity(g.ctx, 'ayar.guncelle', 'ayar', null, 'Bildirim ayarları güncellendi');
+  const m = b.mektup || {};
+  if (m.teslimYeri !== undefined) await setSetting('mektup_teslim_yeri', String(m.teslimYeri));
+  if (m.teslimSekli !== undefined) await setSetting('mektup_teslim_sekli', String(m.teslimSekli));
+  if (m.telFaks !== undefined) await setSetting('mektup_tel_faks', String(m.telFaks));
+  if (m.maddeler !== undefined) await setSetting('mektup_maddeler', String(m.maddeler));
+  await logActivity(g.ctx, 'ayar.guncelle', 'ayar', null, 'Bildirim / mektup ayarları güncellendi');
   return NextResponse.json(await getNotifySettings());
 }
