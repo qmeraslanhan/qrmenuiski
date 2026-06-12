@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   if (!auth) return unauthorized();
   if (!isAdmin(auth)) return forbidden();
 
-  const usersResult = await db.execute('SELECT id, username, created_at FROM users ORDER BY id');
+  const usersResult = await db.execute('SELECT id, username, can_create_fac, created_at FROM users ORDER BY id');
   const users = usersResult.rows as any[];
   for (const u of users) {
     const fr = await db.execute({
@@ -36,11 +36,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const hashed = bcrypt.hashSync(password, 10);
+    const canCreate = b.canCreateFac ? 1 : 0;
     const info = await db.execute({
-      sql: 'INSERT INTO users (username, password) VALUES (?, ?)',
-      args: [username, hashed],
+      sql: 'INSERT INTO users (username, password, can_create_fac) VALUES (?, ?, ?)',
+      args: [username, hashed, canCreate],
     });
-    return NextResponse.json({ id: Number(info.lastInsertRowid), username, facilities: [] }, { status: 201 });
+    return NextResponse.json({ id: Number(info.lastInsertRowid), username, can_create_fac: canCreate, facilities: [] }, { status: 201 });
   } catch (e: any) {
     if (isUniqueError(e)) return NextResponse.json({ error: 'Bu kullanıcı adı zaten kullanımda' }, { status: 409 });
     throw e;

@@ -71,6 +71,7 @@
         if (!res.ok) { err.classList.remove('hidden'); return; }
         localStorage.setItem('admin_token', data.token);
         localStorage.setItem('admin_role', data.role);
+        localStorage.setItem('admin_can_create_fac', data.canCreateFac ? '1' : '0');
         location.href = '/qr-menu/admin';
       } catch {
         err.classList.remove('hidden');

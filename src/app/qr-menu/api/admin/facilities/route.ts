@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import QRCode from 'qrcode';
 import slugify from 'slugify';
 import { db, ensureInit, isUniqueError } from '@/lib/db';
-import { getAuth, isAdmin, unauthorized, forbidden } from '@/lib/auth';
+import { getAuth, isAdmin, unauthorized, forbidden, refreshUserFacilities } from '@/lib/auth';
 import { uploadImage } from '@/lib/r2';
 
 export async function GET(req: NextRequest) {
@@ -29,7 +29,8 @@ export async function POST(req: NextRequest) {
   await ensureInit();
   const auth = await getAuth(req);
   if (!auth) return unauthorized();
-  if (!isAdmin(auth)) return forbidden();
+  // Admin VEYA "tesis ekleyebilir" yetkisi verilmiş kullanıcı
+  if (!isAdmin(auth) && !auth.canCreateFac) return forbidden('Tesis ekleme yetkiniz yok');
 
   // Multipart veya JSON
   const ct = req.headers.get('content-type') || '';
@@ -70,6 +71,16 @@ export async function POST(req: NextRequest) {
     });
     const fr = await db.execute({ sql: 'SELECT * FROM facilities WHERE id = ?', args: [info.lastInsertRowid!] });
     const facility: any = fr.rows[0];
+
+    // Yetkili kullanıcı ekledi ise tesis otomatik kendisine atanır (yoksa göremez)
+    if (!isAdmin(auth)) {
+      await db.execute({
+        sql: 'INSERT OR IGNORE INTO user_facilities (user_id, facility_id) VALUES (?, ?)',
+        args: [auth.userId, facility.id],
+      });
+      const all = await db.execute({ sql: 'SELECT facility_id FROM user_facilities WHERE user_id = ?', args: [auth.userId] });
+      await refreshUserFacilities(auth.userId, (all.rows as any[]).map((r) => Number(r.facility_id)));
+    }
 
     const host = req.headers.get('host') || 'iskisosyaltesisler.com';
     const proto = req.headers.get('x-forwarded-proto') || 'https';

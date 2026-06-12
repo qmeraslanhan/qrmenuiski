@@ -197,6 +197,10 @@
           <svg class="w-3.5 h-3.5 ui-text-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
           Fiyat Listesi (PDF)
         </button>
+        <button onclick="openMasaKart()" class="w-full text-left px-4 py-2.5 text-sm ui-text-1 flex items-center gap-2.5" style="transition:background 0.12s" onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background=''">
+          <svg class="w-3.5 h-3.5 ui-text-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path stroke-linecap="round" d="M9 8h6M12 12h.01"/><path stroke-linecap="round" d="M9 16h6"/></svg>
+          Masa Kartları (Numaratör)
+        </button>
         <button onclick="openImportModal()" class="w-full text-left px-4 py-2.5 text-sm ui-text-1 flex items-center gap-2.5" style="transition:background 0.12s" onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background=''">
           <svg class="w-3.5 h-3.5 ui-text-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
           İçeri Aktar (CSV)
@@ -611,7 +615,8 @@ Kahve,Latte,55,Sütlü
     if (userRole === 'admin') {
       document.getElementById('usersBtn').classList.remove('hidden');
       document.getElementById('usersBtn').classList.add('flex');
-    } else {
+    } else if (localStorage.getItem('admin_can_create_fac') !== '1') {
+      // "Tesis ekleyebilir" yetkisi verilen kullanıcı butonu görür (girişte kaydedilir)
       document.getElementById('addFacilityBtn').classList.add('hidden');
     }
     try {
@@ -1140,6 +1145,16 @@ Kahve,Latte,55,Sütlü
     window.open('/qr-menu/print/' + encodeURIComponent(S.facilitySlug), '_blank');
   }
 
+  // ── MASA KARTLARI (NUMARATÖR) ────────────────────────────────────────────
+  function openMasaKart() {
+    closeSettings();
+    if (!S.facilitySlug) { showToast('Önce bir tesis seçin', 'error'); return; }
+    const n = prompt('Kaç masa için kart üretilsin?', '100');
+    if (n === null) return;
+    const son = Math.max(1, parseInt(n, 10) || 100);
+    window.open('/qr-menu/print-masa/' + encodeURIComponent(S.facilitySlug) + '?bas=1&son=' + son, '_blank');
+  }
+
   // ── CSV IMPORT ───────────────────────────────────────────────────────────
   function openImportModal() {
     closeSettings();
@@ -1260,6 +1275,11 @@ Kahve,Latte,55,Sütlü
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
         </button>
       </div>
+      <label class="flex items-center gap-2 px-3 py-2 mb-3 rounded-lg cursor-pointer" style="background:var(--bg-hover);border:1px solid var(--border)">
+        <input type="checkbox" ${Number(u.can_create_fac) === 1 ? 'checked' : ''} onchange="toggleUserCanCreate(${u.id}, this)" class="w-3.5 h-3.5 cursor-pointer rounded">
+        <span class="text-sm ui-text-1">Tesis ekleyebilir</span>
+        <span class="text-[10px] ui-text-3 ml-auto">eklediği tesis kendisine atanır</span>
+      </label>
       <p class="text-[10px] font-semibold ui-text-3 uppercase tracking-wider mb-2">Tesis Yetkileri</p>
       ${cache.facilities.length
         ? `<div id="ucard-facilities-${u.id}" class="space-y-0.5">
@@ -1298,6 +1318,13 @@ Kahve,Latte,55,Sütlü
     const checked = [...container.querySelectorAll('input[data-fid]:checked')].map(el => +el.dataset.fid);
     try { await api('PUT', `/users/${uid}/facilities`, { facilityIds: checked }); showToast('Yetkiler kaydedildi'); }
     catch(e) { showToast(e.message, 'error'); }
+  }
+
+  async function toggleUserCanCreate(uid, el) {
+    try {
+      await api('PATCH', `/users/${uid}`, { canCreateFac: el.checked });
+      showToast(el.checked ? 'Tesis ekleme yetkisi verildi' : 'Tesis ekleme yetkisi kaldırıldı');
+    } catch(e) { el.checked = !el.checked; showToast(e.message, 'error'); }
   }
 
   // ── PREVIEW ───────────────────────────────────────────────────────────────

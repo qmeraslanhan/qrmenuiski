@@ -40,10 +40,11 @@ export async function ensureInit(): Promise<void> {
       created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
     `CREATE TABLE IF NOT EXISTS users (
-      id         INTEGER PRIMARY KEY AUTOINCREMENT,
-      username   TEXT    NOT NULL UNIQUE,
-      password   TEXT    NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      username       TEXT    NOT NULL UNIQUE,
+      password       TEXT    NOT NULL,
+      can_create_fac INTEGER NOT NULL DEFAULT 0,
+      created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
     `CREATE TABLE IF NOT EXISTS user_facilities (
       user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -66,6 +67,8 @@ export async function ensureInit(): Promise<void> {
       ip           TEXT    NOT NULL,
       attempted_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
+    // Mevcut DB'ye idempotent kolon ekle (kolon zaten varsa applySchema hatayı yutar)
+    `ALTER TABLE users ADD COLUMN can_create_fac INTEGER NOT NULL DEFAULT 0`,
     `CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip, attempted_at)`,
     // FK / sık sorgu kolonları — join'lerde tam tarama yerine index
     `CREATE INDEX IF NOT EXISTS idx_categories_facility ON categories(facility_id)`,

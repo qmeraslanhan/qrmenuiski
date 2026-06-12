@@ -60,7 +60,7 @@ export async function loginUser(username: string, password: string) {
       args: [token, r.facility_id],
     });
   }
-  return { token, role: 'user' as const };
+  return { token, role: 'user' as const, canCreateFac: Number(user.can_create_fac) === 1 };
 }
 
 export async function logout(token: string) {
@@ -70,7 +70,7 @@ export async function logout(token: string) {
 
 export type Auth =
   | { role: 'admin' }
-  | { role: 'user'; userId: number; username: string; facilityIds: Set<number> };
+  | { role: 'user'; userId: number; username: string; facilityIds: Set<number>; canCreateFac: boolean };
 
 export async function getAuth(req: NextRequest): Promise<Auth | null> {
   const auth = req.headers.get('authorization') || '';
@@ -95,11 +95,17 @@ export async function getAuth(req: NextRequest): Promise<Auth | null> {
     sql: 'SELECT facility_id FROM session_facilities WHERE token = ?',
     args: [token],
   });
+  // Yetki canlı okunur: admin panelden değiştirilince mevcut oturumlarda anında etkili
+  const ur = await db.execute({
+    sql: 'SELECT can_create_fac FROM users WHERE id = ?',
+    args: [session.user_id],
+  });
   return {
     role: 'user',
     userId: Number(session.user_id),
     username: String(session.username),
     facilityIds: new Set((facs.rows as any[]).map((r) => Number(r.facility_id))),
+    canCreateFac: Number((ur.rows[0] as any)?.can_create_fac) === 1,
   };
 }
 
