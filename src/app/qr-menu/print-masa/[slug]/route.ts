@@ -29,6 +29,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
   let son = parseInt(url.searchParams.get('son') || '100', 10) || 100;
   if (son < bas) son = bas;
   if (son - bas > 299) son = bas + 299; // tek seferde en çok 300 kart
+  // Çift yüz (arkalı önlü) varsayılan: her ön sayfanın ardından, kart sırası
+  // yatayda aynalanmış ARKA sayfa gelir → uzun kenardan çevirmeli duplekste
+  // her kartın arkası birebir kendi önüne denk gelir.
+  const cift = url.searchParams.get('yuz') !== 'tek';
 
   const theme = (typeof f.theme_color === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(f.theme_color)) ? f.theme_color : '#1e293b';
 
@@ -62,9 +66,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
       + '</div>'
     );
   }
+  const ph = '<div class="ph"></div>'; // tek kart kalan sayfada hizayı koruyan boş yer tutucu
   const sheets: string[] = [];
   for (let i = 0; i < cards.length; i += 2) {
-    sheets.push('<section class="sheet">' + cards.slice(i, i + 2).join('') + '</section>');
+    const a = cards[i], b = cards[i + 1];
+    sheets.push('<section class="sheet" data-side="ÖN">' + a + (b || (cift ? ph : '')) + '</section>');
+    if (cift) {
+      // Arka sayfa: sütunlar yer değiştirir (yatay ayna) → duplekste birebir hizalanır
+      sheets.push('<section class="sheet" data-side="ARKA">' + (b || ph) + a + '</section>');
+    }
   }
 
   const html = `<!DOCTYPE html>
@@ -107,9 +117,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
   .hint { font-size: 11px; opacity: .6; width: 100%; }
 
   /* A4 yaprağı: yan yana 2 kart (100×150mm) */
-  .sheet { width: 202mm; margin: 10mm auto; background: #fff; padding: 12mm 0;
+  .sheet { position: relative; width: 202mm; margin: 14mm auto 10mm; background: #fff; padding: 12mm 0;
            display: grid; grid-template-columns: repeat(2, 100mm); gap: 2mm;
            justify-content: center; align-content: center; box-shadow: 0 8px 30px rgba(0,0,0,.35); }
+  /* Ekranda ÖN/ARKA etiketi (yazdırmada görünmez) */
+  .sheet::before { content: attr(data-side); position: absolute; top: -6.5mm; left: 2mm;
+                   font-size: 11px; font-weight: 700; letter-spacing: 3px; color: #cdd5e2; }
+  .ph { width: 100mm; height: 150mm; visibility: hidden; }
 
   /* Kart — 10×15cm, fiyat listesi estetiği */
   .card { position: relative; width: 100mm; height: 150mm; overflow: hidden;
@@ -163,22 +177,29 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
     .sheet { width: auto; height: 287mm; margin: 0; padding: 0; box-shadow: none;
              page-break-after: always; align-content: center; }
     .sheet:last-of-type { page-break-after: auto; }
+    .sheet::before { display: none; }
   }
 </style>
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><g id="qrsym">${qrInner}</g></defs></svg>
   <header class="toolbar">
-    <h1>Masa Kartları — ${esc(f.name)}<small>${esc(menuUrl)} · masa ${bas}–${son} · ${cards.length} kart · ${sheets.length} sayfa (A4, 10×15cm, 2 kart/sayfa)</small></h1>
+    <h1>Masa Kartları — ${esc(f.name)}<small>${esc(menuUrl)} · masa ${bas}–${son} · ${cards.length} kart · ${cift ? `${sheets.length / 2} yaprak (arkalı önlü, ${sheets.length} sayfa)` : `${sheets.length} sayfa (tek yüz)`} · A4, 10×15cm, 2 kart/sayfa</small></h1>
     <form method="get">
       <label>Masa</label>
       <input type="number" name="bas" min="1" value="${bas}">
       <span>–</span>
       <input type="number" name="son" min="1" value="${son}">
+      <select name="yuz" style="padding:6px 8px;border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.25);color:#f4f6fb;font-size:13px">
+        <option value="cift"${cift ? ' selected' : ''}>Çift yüz (arkalı önlü)</option>
+        <option value="tek"${cift ? '' : ' selected'}>Tek yüz</option>
+      </select>
       <button type="submit" class="btn-ghost">Uygula</button>
     </form>
     <button class="btn-print" onclick="window.print()">PDF İndir</button>
-    <p class="hint">Kart ölçüsü 10×15 cm; kesik çizgiler kesim yeridir. Yazdırma ayarlarında "Arka plan grafikleri" açık olmalıdır.</p>
+    <p class="hint">${cift
+      ? 'Arkalı önlü: yazıcı ayarında <b>Her iki yüze yazdır</b> + <b>Uzun kenardan çevir</b> seçin — her kartın arkası birebir kendi önüne denk gelir (arka sayfalarda sütunlar bu yüzden yer değiştirir). '
+      : ''}Kart ölçüsü 10×15 cm; kesik çizgiler kesim yeridir. "Arka plan grafikleri" açık olmalıdır.</p>
   </header>
   ${sheets.join('\n')}
 </body>
