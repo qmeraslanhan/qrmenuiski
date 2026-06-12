@@ -231,6 +231,11 @@
       <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
       Kullanıcılar
     </button>
+    <!-- İşlem Kayıtları (admin only) -->
+    <button id="logsBtn" onclick="openLogsModal()" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ui-text-2 hover:ui-text-1 transition-colors mob-hide" style="background:var(--bg-card);border:1px solid var(--border)">
+      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+      İşlem Kayıtları
+    </button>
     <!-- Preview toggle -->
     <button onclick="togglePreview()" class="mob-hide flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ui-text-2 hover:ui-text-1 transition-colors" style="background:var(--bg-card);border:1px solid var(--border)">
       <span id="previewDot" class="w-1.5 h-1.5 rounded-full transition-colors" style="background:var(--text-3)"></span>
@@ -500,6 +505,27 @@ Kahve,Latte,55,Sütlü
   </div>
 </div>
 
+<!-- Activity Logs Modal (admin only) -->
+<div id="logsModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4" onclick="closeLogsModal()">
+  <div class="ui-card ui-border rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col" style="max-height:85vh;border-width:1px;border-style:solid" onclick="event.stopPropagation()">
+    <div class="px-6 py-5 ui-border-b flex items-center justify-between shrink-0">
+      <div>
+        <h3 class="font-semibold ui-text-1">İşlem Kayıtları</h3>
+        <p class="text-xs ui-text-3 mt-0.5">Kim, ne yaptı, ne zaman — son 200 işlem</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="loadLogs()" class="px-3 py-1.5 rounded-lg text-xs ui-text-2 hover:ui-text-1 transition-colors" style="background:var(--bg-subtle);border:1px solid var(--border)">Yenile</button>
+        <button onclick="closeLogsModal()" class="ui-text-3 hover:ui-text-1 transition-colors">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+    <div id="logsList" class="flex-1 overflow-y-auto px-6 py-4 space-y-2">
+      <p class="text-xs ui-text-3 text-center py-4">Yükleniyor...</p>
+    </div>
+  </div>
+</div>
+
 <div id="toastContainer" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none"></div>
 
 <script>
@@ -615,6 +641,8 @@ Kahve,Latte,55,Sütlü
     if (userRole === 'admin') {
       document.getElementById('usersBtn').classList.remove('hidden');
       document.getElementById('usersBtn').classList.add('flex');
+      document.getElementById('logsBtn').classList.remove('hidden');
+      document.getElementById('logsBtn').classList.add('flex');
     } else if (localStorage.getItem('admin_can_create_fac') !== '1') {
       // "Tesis ekleyebilir" yetkisi verilen kullanıcı butonu görür (girişte kaydedilir)
       document.getElementById('addFacilityBtn').classList.add('hidden');
@@ -1325,6 +1353,52 @@ Kahve,Latte,55,Sütlü
       await api('PATCH', `/users/${uid}`, { canCreateFac: el.checked });
       showToast(el.checked ? 'Tesis ekleme yetkisi verildi' : 'Tesis ekleme yetkisi kaldırıldı');
     } catch(e) { el.checked = !el.checked; showToast(e.message, 'error'); }
+  }
+
+  // ── İŞLEM KAYITLARI (audit log, admin) ──────────────────────────────────
+  const LOG_META = {
+    'giris':              { t: 'Giriş yapıldı',          ic: '🔑' },
+    'tesis.olustur':      { t: 'Tesis eklendi',          ic: '🏢' },
+    'tesis.duzenle':      { t: 'Tesis güncellendi',      ic: '🏢' },
+    'tesis.sil':          { t: 'Tesis silindi',          ic: '🗑️' },
+    'kategori.olustur':   { t: 'Kategori eklendi',       ic: '📂' },
+    'kategori.duzenle':   { t: 'Kategori güncellendi',   ic: '📂' },
+    'kategori.sil':       { t: 'Kategori silindi',       ic: '🗑️' },
+    'urun.olustur':       { t: 'Ürün eklendi',           ic: '🍽️' },
+    'urun.duzenle':       { t: 'Ürün güncellendi',       ic: '✏️' },
+    'urun.sil':           { t: 'Ürün silindi',           ic: '🗑️' },
+    'kullanici.olustur':  { t: 'Kullanıcı oluşturuldu',  ic: '👤' },
+    'kullanici.yetki':    { t: 'Yetki değişti',          ic: '🛡️' },
+    'kullanici.tesisler': { t: 'Tesis yetkileri atandı', ic: '🛡️' },
+    'kullanici.sil':      { t: 'Kullanıcı silindi',      ic: '🗑️' },
+    'menu.csv':           { t: 'CSV içe aktarım',        ic: '📥' },
+  };
+  function fmtLogTime(s) {
+    if (!s) return '';
+    const d = new Date(String(s).replace(' ', 'T') + 'Z');
+    return isNaN(d) ? String(s) : d.toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  }
+  async function openLogsModal() { document.getElementById('logsModal').classList.remove('hidden'); await loadLogs(); }
+  function closeLogsModal() { document.getElementById('logsModal').classList.add('hidden'); }
+  async function loadLogs() {
+    const list = document.getElementById('logsList');
+    list.innerHTML = `<p class="text-xs ui-text-3 text-center py-4">Yükleniyor...</p>`;
+    try {
+      const logs = await api('GET', '/activity');
+      if (!logs.length) { list.innerHTML = `<p class="text-xs ui-text-3 text-center py-6">Henüz kayıt yok.</p>`; return; }
+      list.innerHTML = logs.map(l => {
+        const m = LOG_META[l.action] || { t: l.action, ic: '📋' };
+        const rol = l.actorRole === 'admin' ? 'Yönetici' : 'Kullanıcı';
+        return `<div class="ui-card ui-border rounded-xl px-4 py-3 flex items-start gap-3" style="border-width:1px;border-style:solid">
+          <span class="text-base shrink-0" style="line-height:1.4">${m.ic}</span>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-semibold ui-text-1">${esc(m.t)} <span class="text-xs font-normal ui-text-3">· ${esc(l.actorName)} (${rol})</span></p>
+            ${l.detail ? `<p class="text-xs ui-text-2 mt-0.5" style="overflow-wrap:anywhere">${esc(l.detail)}</p>` : ''}
+          </div>
+          <span class="text-[11px] ui-text-3 shrink-0 whitespace-nowrap">${fmtLogTime(l.createdAt)}</span>
+        </div>`;
+      }).join('');
+    } catch(e) { list.innerHTML = `<p class="text-xs text-red-400 text-center py-4">${esc(e.message)}</p>`; }
   }
 
   // ── PREVIEW ───────────────────────────────────────────────────────────────

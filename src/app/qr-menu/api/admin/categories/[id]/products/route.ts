@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, ensureInit } from '@/lib/db';
 import { getAuth, unauthorized } from '@/lib/auth';
 import { uploadImage } from '@/lib/r2';
+import { logActivity } from '@/projects/qr-menu/activity';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await ensureInit();
@@ -53,5 +54,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     args: [cid, name, description, price, image_url],
   });
   const r = await db.execute({ sql: 'SELECT * FROM products WHERE id=?', args: [info.lastInsertRowid!] });
+  await logActivity(auth, 'urun.olustur', 'urun', Number(info.lastInsertRowid), `${name} eklendi — ₺${price}`);
   return NextResponse.json(r.rows[0], { status: 201 });
 }

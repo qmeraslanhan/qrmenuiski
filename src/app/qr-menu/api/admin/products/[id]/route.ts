@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, ensureInit } from '@/lib/db';
 import { getAuth, unauthorized } from '@/lib/auth';
 import { uploadImage } from '@/lib/r2';
+import { logActivity } from '@/projects/qr-menu/activity';
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await ensureInit();
@@ -50,6 +51,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     args: [name, description, price, image_url, is_active, sort_order, id],
   });
   const updated = await db.execute({ sql: 'SELECT * FROM products WHERE id=?', args: [id] });
+  const fiyatNotu = Number(price) !== Number(p.price) ? ` — fiyat ₺${p.price} → ₺${price}` : '';
+  await logActivity(auth, 'urun.duzenle', 'urun', id, `${name} güncellendi${fiyatNotu}`);
   return NextResponse.json(updated.rows[0]);
 }
 
@@ -59,7 +62,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const auth = await getAuth(req);
   if (!auth) return unauthorized();
 
+  const pr = await db.execute({ sql: 'SELECT name FROM products WHERE id=?', args: [id] });
   const info = await db.execute({ sql: 'DELETE FROM products WHERE id=?', args: [id] });
   if (!info.rowsAffected) return NextResponse.json({ error: 'Ürün bulunamadı' }, { status: 404 });
+  await logActivity(auth, 'urun.sil', 'urun', id, `${(pr.rows[0] as any)?.name || '#' + id} silindi`);
   return NextResponse.json({ success: true });
 }

@@ -4,6 +4,7 @@ import slugify from 'slugify';
 import { db, ensureInit, isUniqueError } from '@/lib/db';
 import { getAuth, isAdmin, unauthorized, forbidden, refreshUserFacilities } from '@/lib/auth';
 import { uploadImage } from '@/lib/r2';
+import { logActivity } from '@/projects/qr-menu/activity';
 
 export async function GET(req: NextRequest) {
   await ensureInit();
@@ -81,6 +82,8 @@ export async function POST(req: NextRequest) {
       const all = await db.execute({ sql: 'SELECT facility_id FROM user_facilities WHERE user_id = ?', args: [auth.userId] });
       await refreshUserFacilities(auth.userId, (all.rows as any[]).map((r) => Number(r.facility_id)));
     }
+
+    await logActivity(auth, 'tesis.olustur', 'tesis', facility.id, `${name} eklendi`);
 
     const host = req.headers.get('host') || 'iskisosyaltesisler.com';
     const proto = req.headers.get('x-forwarded-proto') || 'https';

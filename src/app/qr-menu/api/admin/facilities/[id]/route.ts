@@ -3,6 +3,7 @@ import slugify from 'slugify';
 import { db, ensureInit } from '@/lib/db';
 import { getAuth, isAdmin, canAccessFacility, unauthorized, forbidden } from '@/lib/auth';
 import { uploadImage } from '@/lib/r2';
+import { logActivity } from '@/projects/qr-menu/activity';
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await ensureInit();
@@ -59,6 +60,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   });
 
   const updated = await db.execute({ sql: 'SELECT * FROM facilities WHERE id = ?', args: [id] });
+  await logActivity(auth, 'tesis.duzenle', 'tesis', id, `${name} güncellendi`);
   return NextResponse.json(updated.rows[0]);
 }
 
@@ -69,7 +71,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (!auth) return unauthorized();
   if (!isAdmin(auth)) return forbidden();
 
+  const fr = await db.execute({ sql: 'SELECT name FROM facilities WHERE id = ?', args: [id] });
   const info = await db.execute({ sql: 'DELETE FROM facilities WHERE id = ?', args: [id] });
   if (!info.rowsAffected) return NextResponse.json({ error: 'Tesis bulunamadı' }, { status: 404 });
+  await logActivity(auth, 'tesis.sil', 'tesis', id, `${(fr.rows[0] as any)?.name || '#' + id} silindi`);
   return NextResponse.json({ success: true });
 }

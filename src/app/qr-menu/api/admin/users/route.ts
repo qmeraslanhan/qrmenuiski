@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { db, ensureInit, isUniqueError } from '@/lib/db';
 import { getAuth, isAdmin, unauthorized, forbidden } from '@/lib/auth';
+import { logActivity } from '@/projects/qr-menu/activity';
 
 export async function GET(req: NextRequest) {
   await ensureInit();
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest) {
       sql: 'INSERT INTO users (username, password, can_create_fac) VALUES (?, ?, ?)',
       args: [username, hashed, canCreate],
     });
+    await logActivity(auth, 'kullanici.olustur', 'kullanici', Number(info.lastInsertRowid), `${username} oluşturuldu${canCreate ? ' (tesis ekleyebilir)' : ''}`);
     return NextResponse.json({ id: Number(info.lastInsertRowid), username, can_create_fac: canCreate, facilities: [] }, { status: 201 });
   } catch (e: any) {
     if (isUniqueError(e)) return NextResponse.json({ error: 'Bu kullanıcı adı zaten kullanımda' }, { status: 409 });

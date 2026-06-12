@@ -67,6 +67,18 @@ export async function ensureInit(): Promise<void> {
       ip           TEXT    NOT NULL,
       attempted_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
+    // İşlem kaydı (audit log) — kim, ne yaptı, ne zaman
+    `CREATE TABLE IF NOT EXISTS activity_log (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      actor_role TEXT    NOT NULL,
+      actor_name TEXT,
+      action     TEXT    NOT NULL,
+      entity     TEXT,
+      entity_id  INTEGER,
+      detail     TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_activity_created ON activity_log(created_at)`,
     // Mevcut DB'ye idempotent kolon ekle (kolon zaten varsa applySchema hatayı yutar)
     `ALTER TABLE users ADD COLUMN can_create_fac INTEGER NOT NULL DEFAULT 0`,
     `CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip, attempted_at)`,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, ensureInit } from '@/lib/db';
 import { getAuth, canAccessFacility, unauthorized, forbidden } from '@/lib/auth';
+import { logActivity } from '@/projects/qr-menu/activity';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await ensureInit();
@@ -32,5 +33,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     args: [fid, name, parseInt(b.sort_order) || 0],
   });
   const r = await db.execute({ sql: 'SELECT * FROM categories WHERE id=?', args: [info.lastInsertRowid!] });
+  await logActivity(auth, 'kategori.olustur', 'kategori', Number(info.lastInsertRowid), `${name} kategorisi eklendi`);
   return NextResponse.json(r.rows[0], { status: 201 });
 }

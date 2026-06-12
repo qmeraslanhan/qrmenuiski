@@ -5,6 +5,7 @@ import {
   clientIp, tooManyAttempts, recordFailedAttempt, clearAttempts,
   LOGIN_WINDOW_MIN,
 } from '@/lib/auth';
+import { logRaw } from '@/projects/qr-menu/activity';
 
 export async function POST(req: NextRequest) {
   await ensureInit();
@@ -23,11 +24,13 @@ export async function POST(req: NextRequest) {
     const result = await loginAdmin(password);
     if (!result) { await recordFailedAttempt(ip); return NextResponse.json({ error: 'Hatalı şifre' }, { status: 401 }); }
     await clearAttempts(ip);
+    await logRaw('admin', 'Yönetici', 'giris', null, null, `Yönetici girişi (IP ${ip})`);
     return NextResponse.json(result);
   }
 
   const result = await loginUser(username, password);
   if (!result) { await recordFailedAttempt(ip); return NextResponse.json({ error: 'Hatalı kullanıcı adı veya şifre' }, { status: 401 }); }
   await clearAttempts(ip);
+  await logRaw('user', String(username).trim(), 'giris', null, null, `Kullanıcı girişi (IP ${ip})`);
   return NextResponse.json(result);
 }

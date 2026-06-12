@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, ensureInit } from '@/lib/db';
 import { getAuth, canAccessFacility, unauthorized, forbidden } from '@/lib/auth';
+import { logActivity } from '@/projects/qr-menu/activity';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await ensureInit();
@@ -56,5 +57,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
+  await logActivity(auth, 'menu.csv', 'tesis', fid, `CSV içe aktarım: ${categoriesAdded} kategori + ${productsAdded} ürün eklendi`);
   return NextResponse.json({ categoriesAdded, productsAdded });
 }
